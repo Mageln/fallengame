@@ -1,0 +1,106 @@
+// // src/styles/mixins.scss
+
+// // Медиа-запросы
+// @mixin mobile {
+//   @media (max-width: 768px) {
+//     @content;
+//   }
+// }
+
+// @mixin tablet {
+//   @media (max-width: 1024px) {
+//     @content;
+//   }
+// }
+
+// @mixin desktop {
+//   @media (min-width: 1025px) {
+//     @content;
+//   }
+// }
+
+// // Тюремный стиль текста
+// @mixin prison-text {
+//   font-family: 'Courier New', monospace;
+//   letter-spacing: 2px;
+//   text-transform: uppercase;
+// }
+
+// // Только определение анимации (без @content)
+// @mixin flicker-animation {
+//   @keyframes flicker {
+//     0%, 100% { opacity: 1; }
+//     50% { opacity: 0.8; }
+//   }
+// }
+
+// // Миксин для применения анимации
+// @mixin flicker {
+//   animation: flicker 2s infinite;
+// }
+
+// // Скругление углов
+// @mixin rounded($radius: 8px) {
+//   border-radius: $radius;
+// }
+
+// // Тень
+// @mixin shadow($level: 1) {
+//   @if $level == 1 {
+//     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+//   } @else if $level == 2 {
+//     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+//   } @else if $level == 3 {
+//     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+//   }
+// }
+
+// // Тюремная полоска
+// @mixin prison-stripe {
+//   background: repeating-linear-gradient(
+//     45deg,
+//     #2a2a2a 0px,
+//     #2a2a2a 20px,
+//     #1a1a1a 20px,
+//     #1a1a1a 40px
+//   );
+// }
+
+// // Canvas панель
+// @mixin prison-panel {
+//   background: rgba(0, 0, 0, 0.75);
+//   backdrop-filter: blur(10px);
+//   border: 1px solid #444;
+//   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+// }
+
+// // Spin анимация
+// @mixin spin-animation {
+//   @keyframes spin {
+//     to {
+//       transform: rotate(360deg);
+//     }
+//   }
+// }
+
+// @mixin spin {
+//   animation: spin 1s linear infinite;
+// }
+
+// // SlideDown анимация
+// @mixin slide-down-animation {
+//   @keyframes slideDown {
+//     from {
+//       opacity: 0;
+//       transform: translateY(-20px);
+//     }
+//     to {
+//       opacity: 1;
+//       transform: translateY(0);
+//     }
+//   }
+// }
+
+// @mixin slide-down {
+//   animation: slideDown 0.3s ease-out;
+// }

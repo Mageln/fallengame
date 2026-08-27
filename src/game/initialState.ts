@@ -1,0 +1,55 @@
+import { TUTORIAL, DAILY_QUESTS } from './constants';
+import { dateKey, weekKey } from './formulas';
+import { GameState } from './types';
+
+export const createInitialState = (): GameState => ({
+  appearance: 0,
+  tutorialStep: 0,
+  energy: 100,
+  maxEnergy: 100,
+  bullets: 40,
+  gold: 2,
+  zhetons: 0,
+  matches: 12,
+  grenades: 3,
+  medkits: 2,
+  keys: 0,
+  level: 1,
+  baseStamina: 40,
+  luck: 20,
+  carLevel: 1,
+  currentDistrict: 'southgate',
+  unlockedDistricts: ['southgate'],
+  weapon: {
+    name: 'Ржавый пистолет',
+    level: 0,
+    broken: false,
+    baseDamage: 6,
+    upgraded: false,
+  },
+  equipmentIds: [],
+  inventory: [],
+  craftingRecipes: ['repair_kit', 'medkit_bundle'],
+  clan: null,
+  daily: {
+    dateKey: dateKey(),
+    lotteryUsed: false,
+    goldClaimed: false,
+    quests: DAILY_QUESTS.map((q) => ({
+      questId: q.id,
+      progress: 0,
+      completed: false,
+      claimed: false,
+    })),
+  },
+  gast: {
+    weekKey: weekKey(),
+    active: false,
+    districtId: null,
+  },
+  battle: null,
+  raid: null,
+  radioRequests: ['Сосед просит аптечку у стены', 'Клан ищет помощь на рынке'],
+  lastMessage: TUTORIAL[0],
+  soundEnabled: true,
+});

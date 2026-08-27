@@ -1,0 +1,72 @@
+// @import './variables';
+// @import './mixins';
+
+
+// * {
+//   margin: 0;
+//   padding: 0;
+//   box-sizing: border-box;
+// }
+
+// body {
+//   background: $background-dark;
+//   color: $text-primary;
+//   font-family: $font-main;
+//   -webkit-font-smoothing: antialiased;
+//   -moz-osx-font-smoothing: grayscale;
+// }
+
+// // Стили для VKUI компонентов
+// .vkuiPanel {
+//   background: $background-dark !important;
+// }
+
+// .vkuiPanelHeader {
+//   background: $prison-dark !important;
+//   border-bottom: 1px solid $prison-border !important;
+// }
+
+// .vkuiGroup {
+//   background: transparent !important;
+// }
+
+// // Стили для кнопок
+// .vkuiButton--secondary {
+//   background: $prison-dark !important;
+//   border-color: $prison-border !important;
+//   color: $text-primary !important;
+  
+//   &:hover {
+//     background: $prison-hover !important;
+//   }
+// }
+
+// // Тюремный стиль для заголовков
+// .prison-title {
+//   font-family: $font-monospace;
+//   color: $text-primary;
+//   text-shadow: 0 0 20px rgba(255, 215, 0, 0.1);
+//   letter-spacing: 3px;
+// }
+
+// .prison-subtitle {
+//   font-family: $font-monospace;
+//   color: $text-secondary;
+//   font-size: 12px;
+//   letter-spacing: 1px;
+// }
+
+// // Стили для скролла
+// ::-webkit-scrollbar {
+//   width: 8px;
+//   background: $background-dark;
+// }
+
+// ::-webkit-scrollbar-thumb {
+//   background: $prison-border;
+//   border-radius: 4px;
+  
+//   &:hover {
+//     background: $gold;
+//   }
+// }
