@@ -4,15 +4,14 @@ import { View, SplitLayout, SplitCol, ScreenSpinner } from '@vkontakte/vkui';
 import { useActiveVkuiLocation } from '@vkontakte/vk-mini-apps-router';
 
 import { Home, Profile, Workshop, Battle, Raid, Clan, Inventory, Quests, Crafting } from './panels';
-import { MapPanel } from './panels/MapPanel';
 import { DEFAULT_VIEW_PANELS } from './routes';
 import { GameProvider } from './game/GameContext';
 
 export const App = () => {
   const { panel: activePanel = DEFAULT_VIEW_PANELS.HOME } = useActiveVkuiLocation();
   const [fetchedUser, setUser] = useState<UserInfo | undefined>();
-  const [popout, setPopout] = useState<ReactNode | null>(<ScreenSpinner />);
-  const [showMap, setShowMap] = useState(false);
+ 
+  // const [popout, setPopout] = useState<ReactNode | null>(<ScreenSpinner />);
 
   useEffect(() => {
     async function fetchData() {
@@ -22,7 +21,8 @@ export const App = () => {
       } catch {
         setUser(undefined);
       } finally {
-        setPopout(null);
+        // setPopout(null);
+        console.log("setPopout")
       }
     }
     fetchData();
@@ -30,10 +30,11 @@ export const App = () => {
 
   return (
     <GameProvider>
-      <SplitLayout popout={showMap ? <MapPanel id="map" /> : popout}>
+      <SplitLayout > 
+        {/* popout={popout} */}
         <SplitCol>
           <View activePanel={activePanel}>
-            <Home id={DEFAULT_VIEW_PANELS.HOME} userName={fetchedUser?.first_name} setShowMap={setShowMap} />
+            <Home id={DEFAULT_VIEW_PANELS.HOME} userName={fetchedUser?.first_name} />
             <Profile id={DEFAULT_VIEW_PANELS.PROFILE} />
             <Workshop id={DEFAULT_VIEW_PANELS.WORKSHOP} />
             <Battle id={DEFAULT_VIEW_PANELS.BATTLE} />

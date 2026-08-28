@@ -730,6 +730,10 @@ export const gameReducer = (state: GameState, action: GameAction): GameState => 
     }
     case 'TOGGLE_SOUND':
       return { ...state, soundEnabled: !state.soundEnabled };
+    case 'TOGGLE_MAP':
+      return { ...state, showMap: !state.showMap };
+    case 'CHANGE_LOCATION':
+      return { ...state, currentLocation: action.locationId };
     default:
       return state;
   }

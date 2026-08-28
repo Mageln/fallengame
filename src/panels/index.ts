@@ -7,4 +7,3 @@ export { Clan } from './Clan';
 export { Inventory } from './Inventory';
 export { Quests } from './Quests';
 export { Crafting } from './Crafting';
-export { MapPanel } from './MapPanel';

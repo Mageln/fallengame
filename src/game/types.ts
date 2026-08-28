@@ -127,6 +127,7 @@ export interface GameState {
   luck: number;
   carLevel: number;
   currentDistrict: string;
+  currentLocation: string;
   unlockedDistricts: string[];
   weapon: Weapon;
   equipmentIds: string[];
@@ -140,6 +141,7 @@ export interface GameState {
   radioRequests: string[];
   lastMessage: string;
   soundEnabled: boolean;
+  showMap: boolean;
 }
 
 export type GameAction =
@@ -180,4 +182,6 @@ export type GameAction =
   | { type: 'UNEQUIP_ITEM'; slotIndex: number }
   | { type: 'CRAFT_ITEM'; recipeId: string }
   | { type: 'TOGGLE_SOUND' }
+  | { type: 'TOGGLE_MAP' }
+  | { type: 'CHANGE_LOCATION'; locationId: string }
   | { type: 'CLEAR_MESSAGE' };

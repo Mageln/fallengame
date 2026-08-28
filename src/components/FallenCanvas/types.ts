@@ -24,6 +24,10 @@ export interface PrisonCanvasProps {
   isZombieAlive?: boolean;
   appearance?: number;
   tasks?: CanvasTask[];
+  showMap?: boolean;
+  onMapToggle?: () => void;
+  currentLocation?: string;
+  onLocationChange?: (locationId: string) => void;
 }
 
 export interface Task {

@@ -9,20 +9,23 @@ import { carUpgradeCost, getDistrict } from '../game/formulas';
 interface HomeProps {
   id: string;
   userName?: string;
-  setShowMap?: (show: boolean) => void;
 }
 
-export const Home = ({ id, userName, setShowMap }: HomeProps) => {
+export const Home = ({ id, userName }: HomeProps) => {
   const navigator = useRouteNavigator();
   const { state, dispatch, derived } = useGame();
   const district = getDistrict(state.currentDistrict);
-  const carCost = carUpgradeCost(state.carLevel);
   const inTutorial = state.tutorialStep >= 0;
 
   const openBattle = (districtId: string) => {
     dispatch({ type: 'START_BOSS', districtId });
     navigator.push('/battle');
   };
+
+  // Получаем заблокированные районы для отображения в overlay
+  const lockedDistricts = DISTRICTS
+    .filter(d => state.carLevel < d.carLevel)
+    .map(d => ({ id: d.id, name: d.name, carLevel: d.carLevel }));
 
   return (
     <Panel id={id}>
@@ -42,18 +45,6 @@ export const Home = ({ id, userName, setShowMap }: HomeProps) => {
         </div>
       </PanelHeader>
 
-      <Group>
-        <Div style={{ display: 'flex', flexDirection: 'column', gap: 6, fontSize: 12 }}>
-          <Text>🔫 {state.bullets}</Text>
-          <Text>🔥 {state.matches}</Text>
-          <Text>🪙 {state.gold}</Text>
-          <Text>🎫 {state.zhetons}</Text>
-          <Text>⚡ {state.energy}/{state.maxEnergy}</Text>
-          <Text>💣 {state.grenades}</Text>
-          <Text>💊 {state.medkits}</Text>
-          <Text>📦 {state.inventory.length}/20</Text>
-        </Div>
-      </Group>
 
       {state.lastMessage && (
         <Group>
@@ -72,32 +63,6 @@ export const Home = ({ id, userName, setShowMap }: HomeProps) => {
           </Div>
         </Group>
       )}
-
-      <Group>
-        <Div>
-          <Text>Карта Эргейта — {district?.name}</Text>
-          <Text style={{ fontSize: 12, opacity: 0.75 }}>
-            Город оцеплен стеной. Новые районы открывает уровень машины.
-          </Text>
-        </Div>
-        <Div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-          {DISTRICTS.map((item) => {
-            const locked = state.carLevel < item.carLevel;
-            const active = state.currentDistrict === item.id;
-            return (
-              <Button
-                key={item.id}
-                size="s"
-                mode={active ? 'primary' : 'secondary'}
-                disabled={locked}
-                onClick={() => dispatch({ type: 'ENTER_DISTRICT', districtId: item.id })}
-              >
-                {item.name} {locked ? `(авто ${item.carLevel})` : ''}
-              </Button>
-            );
-          })}
-        </Div>
-      </Group>
 
       <Group>
         <FallenCanvas
@@ -119,61 +84,34 @@ export const Home = ({ id, userName, setShowMap }: HomeProps) => {
           status={district?.bossName ?? ''}
           appearance={state.appearance}
           tasks={DISTRICT_TASKS[state.currentDistrict] ?? DISTRICT_TASKS.southgate}
+          showMap={state.showMap}
+          onMapToggle={() => dispatch({ type: 'TOGGLE_MAP' })}
+          currentLocation={state.currentLocation}
+          onLocationChange={(locId) => dispatch({ type: 'CHANGE_LOCATION', locationId: locId })}
+          carLevel={state.carLevel}
+          currentDistrict={state.currentDistrict}
+          districtName={district?.name || ''}
+          onEnterDistrict={(distId) => dispatch({ type: 'ENTER_DISTRICT', districtId: distId })}
+          onUpgradeCar={() => dispatch({ type: 'UPGRADE_CAR' })}
+          onBattle={() => district && openBattle(district.id)}
+          onToggleSound={() => dispatch({ type: 'TOGGLE_SOUND' })}
+          soundEnabled={state.soundEnabled}
+          onGoProfile={() => navigator.push('/profile')}
+          onGoWorkshop={() => navigator.push('/workshop')}
+          onGoRaid={() => navigator.push('/raid')}
+          onGoClan={() => navigator.push('/clan')}
+          onGoInventory={() => navigator.push('/inventory')}
+          onGoQuests={() => navigator.push('/quests')}
+          onGoCrafting={() => navigator.push('/crafting')}
+          onLottery={() => dispatch({ type: 'LOTTERY' })}
+          onClaimDaily={() => dispatch({ type: 'CLAIM_DAILY' })}
+          onSearchFriend={() => dispatch({ type: 'SEARCH_FRIEND' })}
+          onRadioHelp={() => dispatch({ type: 'RADIO_HELP' })}
+          completedQuests={derived.completedQuests}
+          radioRequests={state.radioRequests.length}
+          daily={state.daily}
+          lockedDistricts={lockedDistricts}
         />
-      </Group>
-
-      <Group>
-        <Div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
-          <Button onClick={() => dispatch({ type: 'UPGRADE_CAR' })}>
-            🚗 Авто {state.carLevel} ({carCost.energy}⚡ {carCost.matches}🔥)
-          </Button>
-          <Button mode="secondary" onClick={() => district && openBattle(district.id)}>
-            Босс: {district?.bossName}
-          </Button>
-          <Button mode="secondary" onClick={() => navigator.push('/workshop')}>
-            🔧 Мастерская
-          </Button>
-        </Div>
-        <Div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          <Button size="s" onClick={() => navigator.push('/raid')}>Рейды</Button>
-          <Button size="s" onClick={() => navigator.push('/clan')}>Клан</Button>
-          <Button size="s" disabled={state.daily.lotteryUsed} onClick={() => dispatch({ type: 'LOTTERY' })}>
-            Лотерея
-          </Button>
-          <Button size="s" disabled={state.daily.goldClaimed} onClick={() => dispatch({ type: 'CLAIM_DAILY' })}>
-            Золото за вход
-          </Button>
-          <Button size="s" onClick={() => navigator.push('/inventory')}>
-            📦 Инвентарь ({state.inventory.length})
-          </Button>
-          <Button size="s" onClick={() => navigator.push('/quests')}>
-            📋 Квесты ({derived.completedQuests})
-          </Button>
-          <Button size="s" onClick={() => navigator.push('/crafting')}>
-            🔨 Крафт
-          </Button>
-          {setShowMap && (
-            <Button size="s" onClick={() => setShowMap(true)}>
-              🗺️ Карта
-            </Button>
-          )}
-          <Button size="s" onClick={() => dispatch({ type: 'SEARCH_FRIEND' })}>Обыск друзей</Button>
-          <Button size="s" onClick={() => dispatch({ type: 'RADIO_HELP' })}>
-            Рация ({state.radioRequests.length})
-          </Button>
-          {state.gast.active && (
-            <Button
-              size="s"
-              appearance="negative"
-              onClick={() => {
-                dispatch({ type: 'START_GAST' });
-                navigator.push('/battle');
-              }}
-            >
-              Гаст в {getDistrict(state.gast.districtId ?? '')?.name}
-            </Button>
-          )}
-        </Div>
       </Group>
     </Panel>
   );
