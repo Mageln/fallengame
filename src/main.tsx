@@ -1,7 +1,7 @@
 import { createRoot } from 'react-dom/client';
 import vkBridge from '@vkontakte/vk-bridge';
 import { AppConfig } from './AppConfig.tsx';
-import '@vkontakte/vkui/dist/vkui.css';
+import './style/global-styles.scss';
 
 vkBridge.send('VKWebAppInit');
 

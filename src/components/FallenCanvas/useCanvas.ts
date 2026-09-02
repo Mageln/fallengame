@@ -1,13 +1,9 @@
-import { useRef, useEffect, useState, useCallback } from 'react';
-import { ButtonPosition, CANVAS_CONFIG, GameIcons, Task } from './types';
+import { useRef, useEffect, useCallback } from 'react';
+import { GameIcons, Task } from './types';
 import { drawBackground } from './drawBackground';
 import { drawCharacter, CHARACTER_POSITION } from './drawCharacter';
-import { drawTasks } from './drawTasks';
-import { drawResources } from './drawResources';
-import { drawZombie } from './drawZombie';
-import { TASKS } from './tasks';
-import { isPointInRect, getButtonPositions } from './utils';
 import { spawnParticles, updateParticles, drawParticles } from './particles';
+import { drawUI, ButtonPosition, ProfileData, UIFlags, BossData } from './drawUI';
 
 export const useCanvas = (
   backgroundImage: HTMLImageElement | null,
@@ -20,35 +16,107 @@ export const useCanvas = (
   bullets: number,
   gold: number = 0,
   zhetons: number = 0,
-  zombieHealth: number = 100,
-  maxZombieHealth: number = 100,
-  isZombieAlive: boolean = true,
-  onResourceClick?: (id: string) => void,
-  onTaskComplete?: (id: string) => void,
-  onZombieClick?: () => void,
-  tasks: Task[] = TASKS,
-  appearanceColor = '#d4a574'
+  tasks: Task[] = [],
+  appearanceColor = '#d4a574',
+  currentLocation: string = 'location1',
+  carLevel: number = 1,
+  level: number = 1,
+  currentDistrict: string = '',
+  districtName: string = '',
+  // Callbacks
+  onProfileClick?: () => void,
+  onBattleClick?: () => void,
+  onBossModalClose?: () => void,
+  onBackToMain?: () => void,
+  onFriendsClick?: () => void,
+  onWorkshopClick?: () => void,
+  onRaidClick?: () => void,
+  onClanClick?: () => void,
+  onInventoryClick?: () => void,
+  onQuestsClick?: () => void,
+  onCraftingClick?: () => void,
+  onLotteryClick?: () => void,
+  onDailyGoldClick?: () => void,
+  onRestoreSpicki?: () => void,
+  onRestoreBullets?: () => void,
+  onRestoreGold?: () => void,
+  onRestoreZhetons?: () => void,
+  onGoCloth?: () => void,
+  onGoKomnata?: () => void,
+  onGoKazino?: () => void,
+  onGoDistrict?: () => void,
+  // State
+  showProfile: boolean = false,
+  showMap: boolean = false,
+  showBossModal: boolean = false,
+  profileData: ProfileData | null = null,
+  bosses: BossData[] = [],
+  fullscreen: boolean = false
 ) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [hoveredX, setHoveredX] = useState(0);
-  const [hoveredY, setHoveredY] = useState(0);
-  const [buttonPositions, setButtonPositions] = useState<ButtonPosition[]>([]);
-  const [needsRender, setNeedsRender] = useState(true);
+  const hoveredRef = useRef({ x: 0, y: 0 });
+  const buttonPositionsRef = useRef<ButtonPosition[]>([]);
+  const needsRenderRef = useRef(true);
+  const carouselOffsetRef = useRef(0);
 
-  const lastDataRef = useRef({
-    energy,
-    maxEnergy,
-    authority,
-    spicki,
-    bullets,
-    gold,
-    zhetons,
-    zombieHealth,
-    maxZombieHealth,
-    isZombieAlive,
-    hoveredX,
-    hoveredY,
+  // Refs для callback'ов чтобы не менять зависимости
+  const callbacksRef = useRef({
+    onProfileClick,
+    onBattleClick,
+    onBossModalClose,
+    onBackToMain,
+    onFriendsClick,
+    onWorkshopClick,
+    onRaidClick,
+    onClanClick,
+    onInventoryClick,
+    onQuestsClick,
+    onCraftingClick,
+    onLotteryClick,
+    onDailyGoldClick,
+    onRestoreSpicki,
+    onRestoreBullets,
+    onRestoreGold,
+    onRestoreZhetons,
+    onGoCloth,
+    onGoKomnata,
+    onGoKazino,
+    onGoDistrict,
   });
+
+  // Обновляем ref callback'ов при каждом изменении
+  useEffect(() => {
+    callbacksRef.current = {
+      onProfileClick,
+      onBattleClick,
+      onBossModalClose,
+      onBackToMain,
+      onFriendsClick,
+      onWorkshopClick,
+      onRaidClick,
+      onClanClick,
+      onInventoryClick,
+      onQuestsClick,
+      onCraftingClick,
+      onLotteryClick,
+      onDailyGoldClick,
+      onRestoreSpicki,
+      onRestoreBullets,
+      onRestoreGold,
+      onRestoreZhetons,
+      onGoCloth,
+      onGoKomnata,
+      onGoKazino,
+      onGoDistrict,
+    };
+  }, [
+    onProfileClick, onBattleClick, onBossModalClose, onBackToMain,
+    onFriendsClick,
+    onWorkshopClick, onRaidClick, onClanClick, onInventoryClick,
+    onQuestsClick, onCraftingClick, onLotteryClick, onDailyGoldClick,
+    onRestoreSpicki, onRestoreBullets, onRestoreGold, onRestoreZhetons,
+    onGoCloth, onGoKomnata, onGoKazino, onGoDistrict
+  ]);
 
   const render = useCallback(() => {
     const canvas = canvasRef.current;
@@ -57,168 +125,147 @@ export const useCanvas = (
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    const { WIDTH, HEIGHT } = CANVAS_CONFIG;
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
     
-    if (canvas.width !== WIDTH || canvas.height !== HEIGHT) {
-      canvas.width = WIDTH;
-      canvas.height = HEIGHT;
+    const dpr = window.devicePixelRatio || 1;
+    const displayWidth = canvas.clientWidth;
+    const displayHeight = canvas.clientHeight;
+    
+    if (canvas.width !== displayWidth * dpr || canvas.height !== displayHeight * dpr) {
+      canvas.width = displayWidth * dpr;
+      canvas.height = displayHeight * dpr;
+      ctx.scale(dpr, dpr);
     }
 
-    drawBackground(ctx, WIDTH, HEIGHT, backgroundImage);
+    const w = displayWidth;
+    const h = displayHeight;
+
+    ctx.clearRect(0, 0, w, h);
+    
+    drawBackground(ctx, w, h, backgroundImage);
     drawCharacter(ctx, CHARACTER_POSITION, characterImage, appearanceColor);
-    drawZombie(
-      ctx,
-      600, 450,
-      zombieHealth,
-      maxZombieHealth,
-      isZombieAlive,
-      icons.zombie || null
-    );
-
-    drawTasks(ctx, tasks, WIDTH, HEIGHT, hoveredX, hoveredY);
-
-    const positions = drawResources(
-      ctx,
-      WIDTH,
-      energy,
-      maxEnergy,
-      icons,
-      spicki,
-      bullets,
-      gold,
-      zhetons
-    );
     
-    if (positions) {
-      setButtonPositions(positions);
-    }
-
-    // Particle system
     updateParticles();
     drawParticles(ctx);
 
-    // Information overlay
-    if (isZombieAlive) {
-      ctx.fillStyle = "rgba(0, 0, 0, 0.7)";
-      ctx.fillRect(540, 400, 200, 30);
-      ctx.fillStyle = "#ff4444";
-      ctx.font = "14px Arial";
-      ctx.textAlign = "center";
-      ctx.fillText(`🧟 Зомби уровня ${Math.floor(zombieHealth / 30) + 1}`, 640, 420);
-    } else {
-      ctx.fillStyle = "rgba(0, 0, 0, 0.7)";
-      ctx.fillRect(540, 400, 200, 30);
-      ctx.fillStyle = "#ffd700";
-      ctx.font = "14px Arial";
-      ctx.textAlign = "center";
-      ctx.fillText("💀 Зомби повержен! Ожидание...", 640, 420);
-    }
+    const flags: UIFlags = { showProfile, showMap, showBossModal };
 
-    setNeedsRender(false);
-  }, [backgroundImage, characterImage, icons, zombieHealth, maxZombieHealth, isZombieAlive, tasks, appearanceColor, hoveredX, hoveredY, energy, maxEnergy, spicki, bullets, gold, zhetons]);
+    const buttons = drawUI(
+      ctx, w, h,
+      { energy, maxEnergy, spicki, bullets, gold, zhetons, level, carLevel, currentDistrict, districtName, currentLocation, authority },
+      profileData,
+      flags,
+      {
+        personaz: icons.personaz || null,
+        boss: icons.boss || null,
+        clans: icons.clans || null,
+        arena: icons.arena || null,
+        spicki: icons.spicki || null,
+        bullets: icons.bullets || null,
+        gold: icons.gold || null,
+        zhetons: icons.zhetons || null,
+        plus: icons.plus || null,
+        cloth: icons.cloth || null,
+        komnata: icons.komnata || null,
+        kazino: icons.kazino || null,
+        raion: icons.raion || null,
+      },
+      carouselOffsetRef.current,
+      hoveredRef.current.x,
+      hoveredRef.current.y,
+      bosses
+    );
 
+    buttonPositionsRef.current = buttons;
+    needsRenderRef.current = false;
+  }, [backgroundImage, characterImage, icons, energy, maxEnergy, authority, spicki, bullets, gold, zhetons, tasks, appearanceColor, currentLocation, carLevel, level, currentDistrict, districtName, showProfile, showMap, showBossModal, profileData, bosses, fullscreen]);
+
+  // Рендер когда нужно
   useEffect(() => {
+    if (!needsRenderRef.current) return;
     render();
   }, [render]);
 
+  // Ресайз
   useEffect(() => {
-    const data = { 
-      energy, maxEnergy, authority, spicki, bullets, gold, zhetons,
-      zombieHealth, maxZombieHealth, isZombieAlive,
-      hoveredX, hoveredY 
-    };
-    const lastData = lastDataRef.current;
-    
-    const hasChanged = Object.keys(data).some(key => 
-      data[key as keyof typeof data] !== lastData[key as keyof typeof data]
-    );
-
-    if (hasChanged && !needsRender) {
-      lastDataRef.current = data;
-      render();
-    } else {
-      lastDataRef.current = data;
-    }
-  }, [energy, maxEnergy, authority, spicki, bullets, gold, zhetons, 
-      zombieHealth, maxZombieHealth, isZombieAlive,
-      hoveredX, hoveredY, render, needsRender]);
+    const handleResize = () => { needsRenderRef.current = true; };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   const handleCanvasClick = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
     const rect = canvas.getBoundingClientRect();
-    const scaleX = canvas.width / rect.width;
-    const scaleY = canvas.height / rect.height;
-    const x = (e.clientX - rect.left) * scaleX;
-    const y = (e.clientY - rect.top) * scaleY;
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
 
-    // Проверяем клик по зомби (зона клика 600, 450, 80, 120)
-    const zombieX = 600;
-    const zombieY = 450;
-    const zombieWidth = 80;
-    const zombieHeight = 120;
-    if (isZombieAlive && 
-        x > zombieX && x < zombieX + zombieWidth && 
-        y > zombieY && y < zombieY + zombieHeight) {
-      if (onZombieClick) {
-        onZombieClick();
-        // Spawn blood/spark particles at zombie position
-        spawnParticles(x, y, 12, '#ff4444', 'blood');
-        spawnParticles(x, y, 8, '#888', 'smoke');
-        setNeedsRender(true);
-      }
-      return;
-    }
+    const buttons = buttonPositionsRef.current;
+    const cb = callbacksRef.current;
 
-    // Проверяем клики по кнопкам ресурсов
-    for (const btn of buttonPositions) {
-      const isHover = x > btn.x && x < btn.x + btn.width && y > btn.y && y < btn.y + btn.height;
-      if (isHover) {
-        if (onResourceClick) {
-          onResourceClick(btn.id);
-          setNeedsRender(true);
-        }
+    for (const btn of buttons) {
+      if (x > btn.x && x < btn.x + btn.width && y > btn.y && y < btn.y + btn.height) {
+        if (btn.id === 'close_profile') { cb.onProfileClick?.(); return; }
+        if (btn.id === 'close_boss_modal') { cb.onBossModalClose?.(); return; }
+        if (btn.id === 'back_to_main') { cb.onBackToMain?.(); return; }
+        if (btn.id.startsWith('attack_boss_')) { cb.onBattleClick?.(); return; }
+        if (btn.id === 'go_battle') { cb.onBattleClick?.(); return; }
+        if (btn.id === 'go_district') { cb.onGoDistrict?.(); return; }
+        if (btn.id === 'go_profile') { cb.onProfileClick?.(); return; }
+        if (btn.id === 'restore_spicki') { cb.onRestoreSpicki?.(); return; }
+        if (btn.id === 'restore_bullets') { cb.onRestoreBullets?.(); return; }
+        if (btn.id === 'restore_gold') { cb.onRestoreGold?.(); return; }
+        if (btn.id === 'restore_zhetons') { cb.onRestoreZhetons?.(); return; }
+        if (btn.id === 'carousel_up') { carouselOffsetRef.current = Math.max(0, carouselOffsetRef.current - 1); return; }
+        if (btn.id === 'carousel_down') { carouselOffsetRef.current = Math.min(7, carouselOffsetRef.current + 1); return; }
+        if (btn.id === 'go_workshop') { cb.onWorkshopClick?.(); return; }
+        if (btn.id === 'go_raid') { cb.onRaidClick?.(); return; }
+        if (btn.id === 'go_clan') { cb.onClanClick?.(); return; }
+        if (btn.id === 'go_inventory') { cb.onInventoryClick?.(); return; }
+        if (btn.id === 'go_quests') { cb.onQuestsClick?.(); return; }
+        if (btn.id === 'go_crafting') { cb.onCraftingClick?.(); return; }
+        if (btn.id === 'go_cloth') { cb.onGoCloth?.(); return; }
+        if (btn.id === 'go_komnata') { cb.onGoKomnata?.(); return; }
+        if (btn.id === 'go_kazino') { cb.onGoKazino?.(); return; }
+        if (btn.id === 'lottery') { cb.onLotteryClick?.(); return; }
+        if (btn.id === 'claim_daily') { cb.onDailyGoldClick?.(); return; }
         return;
       }
     }
-
-    // Проверяем клики по кнопкам заданий
-    if (onTaskComplete) {
-      const taskPositions = getButtonPositions(tasks, canvas.width, canvas.height);
-      tasks.forEach((task, index) => {
-        const pos = taskPositions[index];
-        if (isPointInRect(x, y, pos)) {
-          onTaskComplete(String(task.id));
-          setNeedsRender(true);
-        }
-      });
-    }
-  }, [buttonPositions, isZombieAlive, onResourceClick, onTaskComplete, onZombieClick, tasks]);
+  }, []);
 
   const handleMouseMove = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
     const rect = canvas.getBoundingClientRect();
-    const scaleX = canvas.width / rect.width;
-    const scaleY = canvas.height / rect.height;
-    const newX = (e.clientX - rect.left) * scaleX;
-    const newY = (e.clientY - rect.top) * scaleY;
+    const newX = e.clientX - rect.left;
+    const newY = e.clientY - rect.top;
     
-    if (hoveredX !== newX || hoveredY !== newY) {
-      setHoveredX(newX);
-      setHoveredY(newY);
+    const prev = hoveredRef.current;
+    if (prev.x !== newX || prev.y !== newY) {
+      hoveredRef.current = { x: newX, y: newY };
+      if (!needsRenderRef.current) {
+        needsRenderRef.current = true;
+        render();
+      }
     }
-  }, [hoveredX, hoveredY]);
+  }, [render]);
+
+  const toggleFullscreen = useCallback(() => {
+    if (!document.fullscreenElement) {
+      canvasRef.current?.requestFullscreen().catch(() => {});
+    } else {
+      document.exitFullscreen().catch(() => {});
+    }
+  }, []);
 
   return {
     canvasRef,
-    hoveredX,
-    hoveredY,
-    setHoveredX,
-    setHoveredY,
     handleCanvasClick,
     handleMouseMove,
+    toggleFullscreen,
   };
 };

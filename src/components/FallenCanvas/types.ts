@@ -16,14 +16,18 @@ export interface PrisonCanvasProps {
   bullets?: number;
   gold?: number;
   zhetons?: number;
-  playerName: string;
+  playerName?: string;
   level: number;
-  status: string;
+  status?: string;
   zombieHealth?: number;
   maxZombieHealth?: number;
   isZombieAlive?: boolean;
   appearance?: number;
   tasks?: CanvasTask[];
+  showMap?: boolean;
+  onMapToggle?: () => void;
+  currentLocation?: string;
+  onLocationChange?: (locationId: string) => void;
 }
 
 export interface Task {
@@ -71,4 +75,13 @@ export interface GameIcons {
   zhetons: HTMLImageElement | null;
   plus: HTMLImageElement | null;
   zombie: HTMLImageElement | null;
+  // Кнопки нижней панели
+  boss: HTMLImageElement | null;
+  clans: HTMLImageElement | null;
+  arena: HTMLImageElement | null;
+  personaz: HTMLImageElement | null;
+  kazino: HTMLImageElement | null;
+  cloth: HTMLImageElement | null;
+  komnata: HTMLImageElement | null;
+  raion: HTMLImageElement | null;
 }

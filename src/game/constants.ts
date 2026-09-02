@@ -34,6 +34,14 @@ export const DISTRICTS = [
   { id: 'military', name: 'Военная база', carLevel: 115, energyCost: 50, bossId: 'general', bossName: 'Генерал', bossHp: 2200 },
 ] as const;
 
+export const LOCATIONS = [
+  { id: 'location1', name: 'Казармы', bg: 'room1.jpg', character: 'pers1.png' },
+  { id: 'location2', name: 'Больница', bg: 'room2.jpg', character: 'pers1.png' },
+  { id: 'location3', name: 'Склад', bg: 'room3.jpg', character: 'pers1.png' },
+  { id: 'location4', name: 'Лаборатория', bg: 'room4.jpg', character: 'pers1.png' },
+  { id: 'location5', name: 'Бункер', bg: 'room5.jpg', character: 'pers1.png' },
+] as const;
+
 export const RAIDS = [
   { id: 'house', name: 'Заброшенный дом', energy: 12, matches: 4, grenades: 1, medkits: 1 },
   { id: 'hospital', name: 'Больница', energy: 16, matches: 6, grenades: 2, medkits: 2 },

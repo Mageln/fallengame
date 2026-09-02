@@ -1,0 +1,45 @@
+// src/style/global-styles.scss
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body, #root {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #0a0a0a;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Убираем стили VKUI */
+.vkuiDiv__host,
+.vkuiRootComponent__host,
+.vkuiPanel,
+.vkuiPanelHeader,
+.vkuiGroup,
+.vkuiPanel__in {
+  background: transparent !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: none !important;
+}
+
+.vkuiPanel__in-wrapper {
+  padding: 0 !important;
+}
+
+/* Убираем скролл */
+::-webkit-scrollbar {
+  display: none;
+}
+
+/* Стили для VKUI кнопок в Canvas */
+.vkuiButton {
+  border: none !important;
+  background: transparent !important;
+}

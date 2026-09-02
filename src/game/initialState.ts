@@ -52,4 +52,6 @@ export const createInitialState = (): GameState => ({
   radioRequests: ['Сосед просит аптечку у стены', 'Клан ищет помощь на рынке'],
   lastMessage: TUTORIAL[0],
   soundEnabled: true,
+  showMap: false,
+  currentLocation: 'location1',
 });

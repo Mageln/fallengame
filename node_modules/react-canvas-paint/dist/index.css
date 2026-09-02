@@ -1,0 +1,42 @@
+._1Lxpd {
+  width: 100%;
+  height: calc(100% + 30px);
+  background: #ffffff;
+  border: 1px solid #000000;
+}
+
+._2PfdK {
+  height: 30px;
+  box-shadow: 0 -3px 4px #00000029;
+}
+
+._15Nzf {
+  display: flex;
+  justify-content: space-between;
+  flex: 1;
+  height: 100%;
+}
+
+._3thI9 {
+  display: flex;
+  flex: 1;
+  height: 100%;
+  outline: none;
+  border: 1px solid transparent;
+  border-left-color: #ffffff;
+  border-right-color: #ffffff;
+  cursor: pointer;
+}
+
+._3thI9:first-of-type {
+  border-left-color: transparent;
+}
+
+._3thI9:last-of-type {
+  border-right-color: transparent;
+}
+
+._3thI9._3sodH {
+  border: 3px solid #ffffff;
+  border-radius: 5px;
+}
