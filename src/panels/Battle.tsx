@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Panel, PanelHeader, Group, Button, Text, Header, Div, Cell } from '@vkontakte/vkui';
+import { Panel, PanelHeader, Group, Button, Text, Header, Box, Cell } from '@vkontakte/vkui';
 import { Icon28ArrowLeftOutline } from '@vkontakte/icons';
 import { useRouteNavigator } from '@vkontakte/vk-mini-apps-router';
 import { useGame } from '../game/GameContext';
@@ -104,7 +104,7 @@ export const Battle = ({ id }: Props) => {
           Бой
         </PanelHeader>
         <Group>
-          <Div><Text>Бой не начат. Выберите босса на карте района.</Text></Div>
+          <Box><Text>Бой не начат. Выберите босса на карте района.</Text></Box>
         </Group>
       </Panel>
     );
@@ -123,7 +123,7 @@ export const Battle = ({ id }: Props) => {
 
       {/* Boss display with animations */}
       <Group>
-        <Div
+        <Box
           style={{
             textAlign: 'center',
             padding: 20,
@@ -133,9 +133,9 @@ export const Battle = ({ id }: Props) => {
           }}
         >
           {/* Boss HP bar */}
-          <Div style={{ marginBottom: 8 }}>
+          <Box style={{ marginBottom: 8 }}>
             <Text style={{ fontWeight: 'bold', fontSize: 16 }}>{battle.bossName}</Text>
-            <Div style={{ 
+            <Box style={{ 
               background: '#333', 
               borderRadius: 8, 
               height: 16, 
@@ -143,7 +143,7 @@ export const Battle = ({ id }: Props) => {
               position: 'relative',
               marginTop: 4,
             }}>
-              <Div style={{
+              <Box style={{
                 background: bossHpPercent > 50 ? '#ef4444' : bossHpPercent > 25 ? '#f59e0b' : '#dc2626',
                 height: '100%',
                 width: `${Math.max(0, bossHpPercent)}%`,
@@ -166,12 +166,12 @@ export const Battle = ({ id }: Props) => {
               }}>
                 {Math.max(0, battle.bossHp)} / {battle.bossMaxHp}
               </Text>
-            </Div>
-          </Div>
+            </Box>
+          </Box>
 
           {/* Damage number popup */}
           {lastDamage && !playerWon && !playerDead && (
-            <Div style={{
+            <Box style={{
               position: 'absolute',
               top: 40,
               left: '50%',
@@ -184,40 +184,40 @@ export const Battle = ({ id }: Props) => {
               pointerEvents: 'none',
             }}>
               💥 {lastDamage.value}
-            </Div>
+            </Box>
           )}
 
           {/* Player HP bar */}
-          <Div style={{ marginTop: 16 }}>
+          <Box style={{ marginTop: 16 }}>
             <Text style={{ fontWeight: 'bold', fontSize: 14 }}>
               Вы {Math.max(0, battle.playerHp)} / {battle.playerMaxHp}
             </Text>
-            <Div style={{ 
+            <Box style={{ 
               background: '#333', 
               borderRadius: 8, 
               height: 14, 
               overflow: 'hidden',
               marginTop: 4,
             }}>
-              <Div style={{
+              <Box style={{
                 background: playerHpPercent > 50 ? '#22c55e' : playerHpPercent > 25 ? '#eab308' : '#ef4444',
                 height: '100%',
                 width: `${Math.max(0, playerHpPercent)}%`,
                 borderRadius: 8,
                 transition: 'width 0.3s ease',
               }} />
-            </Div>
+            </Box>
             <Text style={{ fontSize: 11, opacity: 0.6, marginTop: 2 }}>
               Урон: {derived.damage} | Выносливость: {derived.stamina}
             </Text>
-          </Div>
-        </Div>
+          </Box>
+        </Box>
       </Group>
 
       {/* Battle result */}
       {(playerWon || playerDead) && (
         <Group>
-          <Div style={{ 
+          <Box style={{ 
             textAlign: 'center', 
             padding: 20,
             background: playerWon ? 'rgba(34, 197, 94, 0.2)' : 'rgba(239, 68, 68, 0.2)',
@@ -231,14 +231,14 @@ export const Battle = ({ id }: Props) => {
             <Button style={{ marginTop: 12 }} onClick={() => { dispatch({ type: 'LEAVE_BATTLE' }); navigator.back(); }}>
               Продолжить
             </Button>
-          </Div>
+          </Box>
         </Group>
       )}
 
       {/* Actions - disabled when battle ends */}
       {!playerWon && !playerDead && (
         <Group>
-          <Div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <Box style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             <Button onClick={() => { dispatch({ type: 'BATTLE_ATTACK', technique: false }); playSound('hit'); }}>
               ⚔️ Удар
             </Button>
@@ -248,11 +248,11 @@ export const Battle = ({ id }: Props) => {
             <Button mode="secondary" disabled={state.medkits <= 0} onClick={() => { dispatch({ type: 'BATTLE_HEAL' }); playSound('heal'); }}>
               💊 Аптечка ({state.medkits})
             </Button>
-          </Div>
+          </Box>
           
-          <Div style={{ marginTop: 8 }}>
+          <Box style={{ marginTop: 8 }}>
             <Text style={{ fontSize: 12, opacity: 0.7 }}>Гранаты: {state.grenades}</Text>
-            <Div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 6 }}>
+            <Box style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 6 }}>
               {packs.map((count) => (
                 <Button 
                   key={count} 
@@ -264,8 +264,8 @@ export const Battle = ({ id }: Props) => {
                   💣 x{count} ({count * 12} ур.)
                 </Button>
               ))}
-            </Div>
-          </Div>
+            </Box>
+          </Box>
         </Group>
       )}
 
@@ -275,16 +275,16 @@ export const Battle = ({ id }: Props) => {
         {battle.friends.map((name) => (
           <Cell key={name}>{name}</Cell>
         ))}
-        <Div>
+        <Box>
           <Button stretched onClick={() => dispatch({ type: 'INVITE_FRIEND' })}>
             🤝 Позвать друга
           </Button>
-        </Div>
+        </Box>
       </Group>
 
       {/* Battle log */}
       <Group header={<Header>Лог боя</Header>}>
-        <Div style={{ 
+        <Box style={{ 
           maxHeight: 200, 
           overflowY: 'auto', 
           background: '#111', 
@@ -300,7 +300,7 @@ export const Battle = ({ id }: Props) => {
               {line}
             </Text>
           ))}
-        </Div>
+        </Box>
       </Group>
 
       {/* Sound toggle */}

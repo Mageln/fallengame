@@ -53,5 +53,6 @@ export const createInitialState = (): GameState => ({
   lastMessage: TUTORIAL[0],
   soundEnabled: true,
   showMap: false,
+  showBossModal: false,
   currentLocation: 'location1',
 });

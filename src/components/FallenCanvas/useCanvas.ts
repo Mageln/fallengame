@@ -45,9 +45,9 @@ export const useCanvas = (
   onGoKomnata?: () => void,
   onGoKazino?: () => void,
   onGoDistrict?: () => void,
+  onOpenBossModal?: () => void,
   // State
   showProfile: boolean = false,
-  showMap: boolean = false,
   showBossModal: boolean = false,
   profileData: ProfileData | null = null,
   bosses: BossData[] = [],
@@ -82,6 +82,7 @@ export const useCanvas = (
     onGoKomnata,
     onGoKazino,
     onGoDistrict,
+    onOpenBossModal,
   });
 
   // Обновляем ref callback'ов при каждом изменении
@@ -108,6 +109,7 @@ export const useCanvas = (
       onGoKomnata,
       onGoKazino,
       onGoDistrict,
+      onOpenBossModal,
     };
   }, [
     onProfileClick, onBattleClick, onBossModalClose, onBackToMain,
@@ -115,7 +117,7 @@ export const useCanvas = (
     onWorkshopClick, onRaidClick, onClanClick, onInventoryClick,
     onQuestsClick, onCraftingClick, onLotteryClick, onDailyGoldClick,
     onRestoreSpicki, onRestoreBullets, onRestoreGold, onRestoreZhetons,
-    onGoCloth, onGoKomnata, onGoKazino, onGoDistrict
+    onGoCloth, onGoKomnata, onGoKazino, onGoDistrict, onOpenBossModal
   ]);
 
   const render = useCallback(() => {
@@ -149,7 +151,7 @@ export const useCanvas = (
     updateParticles();
     drawParticles(ctx);
 
-    const flags: UIFlags = { showProfile, showMap, showBossModal };
+    const flags: UIFlags = { showProfile, showBossModal };
 
     const buttons = drawUI(
       ctx, w, h,
@@ -179,7 +181,7 @@ export const useCanvas = (
 
     buttonPositionsRef.current = buttons;
     needsRenderRef.current = false;
-  }, [backgroundImage, characterImage, icons, energy, maxEnergy, authority, spicki, bullets, gold, zhetons, tasks, appearanceColor, currentLocation, carLevel, level, currentDistrict, districtName, showProfile, showMap, showBossModal, profileData, bosses, fullscreen]);
+  }, [backgroundImage, characterImage, icons, energy, maxEnergy, authority, spicki, bullets, gold, zhetons, tasks, appearanceColor, currentLocation, carLevel, level, currentDistrict, districtName, showProfile, showBossModal, profileData, bosses, fullscreen]);
 
   // Рендер когда нужно
   useEffect(() => {
@@ -213,6 +215,8 @@ export const useCanvas = (
         if (btn.id.startsWith('attack_boss_')) { cb.onBattleClick?.(); return; }
         if (btn.id === 'go_battle') { cb.onBattleClick?.(); return; }
         if (btn.id === 'go_district') { cb.onGoDistrict?.(); return; }
+        if (btn.id === 'go_boss') { cb.onOpenBossModal?.(); return; }
+        if (btn.id.startsWith('attack_boss_') || btn.id.startsWith('solo_boss_')) { cb.onBattleClick?.(); return; }
         if (btn.id === 'go_profile') { cb.onProfileClick?.(); return; }
         if (btn.id === 'restore_spicki') { cb.onRestoreSpicki?.(); return; }
         if (btn.id === 'restore_bullets') { cb.onRestoreBullets?.(); return; }

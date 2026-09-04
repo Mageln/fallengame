@@ -1,4 +1,4 @@
-import { Panel, PanelHeader, Group, Button, Text, Header, Div, Card } from '@vkontakte/vkui';
+import { Panel, PanelHeader, Group, Button, Text, Header, Box, Card } from '@vkontakte/vkui';
 import { Icon28ArrowLeftOutline } from '@vkontakte/icons';
 import { useRouteNavigator } from '@vkontakte/vk-mini-apps-router';
 import { useGame } from '../game/GameContext';
@@ -38,17 +38,17 @@ export const Crafting = ({ id }: Props) => {
       </PanelHeader>
 
       <Group>
-        <Div>
+        <Box>
           <Text>Создавайте снаряжение из сырья!</Text>
           <Text style={{ fontSize: 12, opacity: 0.6 }}>
             Сырьё падает с боссов и в рейдах. Скрафтите лучшее снаряжение.
           </Text>
-        </Div>
+        </Box>
       </Group>
 
       {/* Raw materials */}
       <Group header={<Header>Сырьё</Header>}>
-        <Div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, fontSize: 13 }}>
+        <Box style={{ display: 'flex', flexWrap: 'wrap', gap: 8, fontSize: 13 }}>
           {['scrap_metal', 'leather', 'gun_parts', 'explosives', 'med_components', 'rare_crystal'].map((id) => {
             const item = INVENTORY_ITEMS.find((i) => i.id === id);
             if (!item) return null;
@@ -59,14 +59,14 @@ export const Crafting = ({ id }: Props) => {
               : id === 'med_components' ? state.inventory.filter((s) => s.itemId === id && !s.equipped).length
               : state.inventory.filter((s) => s.itemId === id && !s.equipped).length;
             return (
-              <Div key={id} style={{ background: '#222', padding: '6px 10px', borderRadius: 8 }}>
+              <Box key={id} style={{ background: '#222', padding: '6px 10px', borderRadius: 8 }}>
                 {item.icon} {count}
-              </Div>
+              </Box>
             );
           })}
-          <Div style={{ background: '#222', padding: '6px 10px', borderRadius: 8 }}>🔥 {state.matches}</Div>
-          <Div style={{ background: '#222', padding: '6px 10px', borderRadius: 8 }}>🎫 {state.zhetons}</Div>
-        </Div>
+          <Box style={{ background: '#222', padding: '6px 10px', borderRadius: 8 }}>🔥 {state.matches}</Box>
+          <Box style={{ background: '#222', padding: '6px 10px', borderRadius: 8 }}>🎫 {state.zhetons}</Box>
+        </Box>
       </Group>
 
       {/* Recipes */}
@@ -96,13 +96,13 @@ export const Crafting = ({ id }: Props) => {
                 marginBottom: 8,
               }}
             >
-              <Div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <Div>
+              <Box style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Box>
                   <Text style={{ fontWeight: 'bold', color: resultColor }}>
                     {resultItem?.icon} {recipe.name}
                   </Text>
                   <Text style={{ fontSize: 11, opacity: 0.6 }}>{RARITY_NAMES[resultItem?.rarity as Rarity || 'common']}</Text>
-                </Div>
+                </Box>
                 <Button
                   size="s"
                   disabled={!available}
@@ -110,10 +110,10 @@ export const Crafting = ({ id }: Props) => {
                 >
                   Скрафтить
                 </Button>
-              </Div>
+              </Box>
 
               {/* Cost */}
-              <Div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 8, fontSize: 12 }}>
+              <Box style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 8, fontSize: 12 }}>
                 {recipe.cost.map((cost, i) => {
                   const has = getInventoryCount(cost.itemId);
                   const costItem = INVENTORY_ITEMS.find((ci) => ci.id === cost.itemId);
@@ -121,7 +121,7 @@ export const Crafting = ({ id }: Props) => {
                     : cost.itemId === 'zhetons' ? '🎫 жетонов'
                     : `${costItem?.icon || ''} ${costItem?.name || cost.itemId}`;
                   return (
-                    <Div
+                    <Box
                       key={i}
                       style={{
                         color: has >= cost.count ? '#fff' : '#ef4444',
@@ -131,10 +131,10 @@ export const Crafting = ({ id }: Props) => {
                       }}
                     >
                       {name}: {has}/{cost.count}
-                    </Div>
+                    </Box>
                   );
                 })}
-              </Div>
+              </Box>
             </Card>
           );
         })}

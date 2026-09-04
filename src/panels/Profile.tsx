@@ -1,4 +1,4 @@
-import { Panel, PanelHeader, Group, Button, Text, Header, Cell, Avatar, Div, Card } from '@vkontakte/vkui';
+import { Panel, PanelHeader, Group, Button, Text, Header, Cell, Avatar, Box, Card } from '@vkontakte/vkui';
 import { Icon28ArrowLeftOutline } from '@vkontakte/icons';
 import { useRouteNavigator } from '@vkontakte/vk-mini-apps-router';
 import { useGame } from '../game/GameContext';
@@ -33,36 +33,36 @@ export const Profile = ({ id }: Props) => {
 
       {/* Quick stats */}
       <Group>
-        <Div style={{ 
+        <Box style={{ 
           background: '#1a1a2e', 
           borderRadius: 12, 
           padding: 16,
           border: '1px solid #333',
         }}>
-          <Div style={{ display: 'flex', justifyContent: 'space-around', flexWrap: 'wrap', gap: 8 }}>
-            <Div style={{ textAlign: 'center' }}>
+          <Box style={{ display: 'flex', justifyContent: 'space-around', flexWrap: 'wrap', gap: 8 }}>
+            <Box style={{ textAlign: 'center' }}>
               <Text style={{ fontSize: 20, fontWeight: 'bold' }}>⚡{derived.stamina}</Text>
               <Text style={{ fontSize: 10, opacity: 0.6 }}>Выносливость</Text>
-            </Div>
-            <Div style={{ textAlign: 'center' }}>
+            </Box>
+            <Box style={{ textAlign: 'center' }}>
               <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#ef4444' }}>⚔{derived.damage}</Text>
               <Text style={{ fontSize: 10, opacity: 0.6 }}>Урон</Text>
-            </Div>
-            <Div style={{ textAlign: 'center' }}>
+            </Box>
+            <Box style={{ textAlign: 'center' }}>
               <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#fbbf24' }}>🍀{derived.luck}</Text>
               <Text style={{ fontSize: 10, opacity: 0.6 }}>Удача</Text>
-            </Div>
-            <Div style={{ textAlign: 'center' }}>
+            </Box>
+            <Box style={{ textAlign: 'center' }}>
               <Text style={{ fontSize: 20, fontWeight: 'bold' }}>{(derived.crit * 100).toFixed(1)}%</Text>
               <Text style={{ fontSize: 10, opacity: 0.6 }}>Крит</Text>
-            </Div>
-          </Div>
-        </Div>
+            </Box>
+          </Box>
+        </Box>
       </Group>
 
       {/* Appearance */}
       <Group header={<Header>Внешность</Header>}>
-        <Div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        <Box style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           {APPEARANCES.map((item) => (
             <Button
               key={item.id}
@@ -74,7 +74,7 @@ export const Profile = ({ id }: Props) => {
               {item.name}
             </Button>
           ))}
-        </Div>
+        </Box>
       </Group>
 
       {/* Level up */}
@@ -97,20 +97,20 @@ export const Profile = ({ id }: Props) => {
         >
           Удача {state.luck} (итого {derived.luck})
         </Cell>
-        <Div style={{ 
+        <Box style={{ 
           background: derived.damage ? '#1a1a2e' : '#222',
           borderRadius: 8, 
           padding: 10,
           marginTop: 4,
         }}>
-          <Div style={{ display: 'flex', justifyContent: 'space-between' }}>
+          <Box style={{ display: 'flex', justifyContent: 'space-between' }}>
             <Text>Боевой урон</Text>
             <Text style={{ fontWeight: 'bold', color: '#ef4444' }}>{derived.damage}</Text>
-          </Div>
+          </Box>
           <Text style={{ fontSize: 11, opacity: 0.6, marginTop: 4 }}>
             {state.weapon.broken ? '⚠️ Оружие сломано!' : `Оружие: ${state.weapon.name} +${state.weapon.level}`}
           </Text>
-        </Div>
+        </Box>
       </Group>
 
       {/* Equipment shop */}
@@ -129,23 +129,23 @@ export const Profile = ({ id }: Props) => {
                 opacity: owned ? 0.6 : 1,
               }}
             >
-              <Div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <Div>
+              <Box style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Box>
                   <Text style={{ fontWeight: 'bold', color: rarityColor }}>
                     {item.icon} {item.name}
                   </Text>
                   <Text style={{ fontSize: 10, opacity: 0.6 }}>{RARITY_NAMES[item.rarity as Rarity]}</Text>
-                </Div>
+                </Box>
                 <Button size="s" disabled={owned} onClick={() => dispatch({ type: 'BUY_EQUIPMENT', itemId: item.id })}>
                   {owned ? '✅' : `${item.costBullets} 🔫`}
                 </Button>
-              </Div>
-              <Div style={{ display: 'flex', gap: 10, marginTop: 4, fontSize: 11 }}>
+              </Box>
+              <Box style={{ display: 'flex', gap: 10, marginTop: 4, fontSize: 11 }}>
                 {item.staminaBonus > 0 && <Text>⚡+{item.staminaBonus}</Text>}
                 {item.damageBonus > 0 && <Text>⚔+{item.damageBonus}</Text>}
                 {item.luckBonus > 0 && <Text>🍀+{item.luckBonus}</Text>}
                 <Text style={{ opacity: 0.5 }}>Цена/вын: {per}</Text>
-              </Div>
+              </Box>
             </Card>
           );
         })}

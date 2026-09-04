@@ -10,7 +10,6 @@ export interface ButtonPosition {
 
 export interface UIFlags {
   showProfile?: boolean;
-  showMap?: boolean;
   showBossModal?: boolean;
 }
 
@@ -50,17 +49,33 @@ export interface BossData {
   source: string;
   health: number;
   maxHealth: number;
+  rating: number; // рейтинг за убийства
+  avatar: HTMLImageElement | null;
   reward: {
     skulls: number;
     gold: number;
-    weapons: number;
-    weaponLevel: number;
+    chest: number;
+    clothing: number;
+    key: number;
   };
-  requiredWeapons: { level: number; count: number }[];
-  avatar: HTMLImageElement | null;
-  lastWinner: string;
+  dropChances: {
+    item: string;
+    icon: string;
+    chance: number;
+  }[];
+  requiredItems: {
+    name: string;
+    icon: string;
+    count: number;
+    have: number;
+  }[];
+  lastWinner: {
+    name: string;
+    avatar: HTMLImageElement | null;
+  };
   wins: number;
   maxWins: number;
+  winWeapons: { level: number; obtained: boolean }[];
 }
 
 const drawIcon = (
@@ -566,11 +581,6 @@ export const drawUI = (
     return buttons;
   }
   
-  if (flags.showMap) {
-    drawMapPanel(ctx, width, height);
-    return buttons;
-  }
-  
   if (flags.showBossModal) {
     drawBossModal(ctx, width, height, bosses, icons, hoveredX, hoveredY, buttons);
     buttons.push({ x: width - 70, y: 15, width: 60, height: 30, id: 'close_boss_modal' });
@@ -696,74 +706,113 @@ const drawBossModal = (
   hY: number,
   buttons: ButtonPosition[]
 ) => {
-  // Отдельный фон на весь canvas
-  ctx.fillStyle = 'rgba(0, 0, 0, 0.95)';
+  // Отдельный фон на весь canvas с текстурой
+  ctx.fillStyle = 'rgba(5, 5, 10, 0.97)';
   ctx.fillRect(0, 0, width, height);
   
-  // Текстура фона - виньетка
-  const vignette = ctx.createRadialGradient(width/2, height/2, height*0.3, width/2, height/2, height*0.7);
-  vignette.addColorStop(0, 'rgba(40, 20, 20, 0.3)');
-  vignette.addColorStop(1, 'rgba(0, 0, 0, 0.5)');
-  ctx.fillStyle = vignette;
-  ctx.fillRect(0, 0, width, height);
+  // Текстура фона - сетка
+  ctx.strokeStyle = 'rgba(139, 0, 0, 0.1)';
+  ctx.lineWidth = 1;
+  for (let i = 0; i < width; i += 50) {
+    ctx.beginPath();
+    ctx.moveTo(i, 0);
+    ctx.lineTo(i, height);
+    ctx.stroke();
+  }
+  for (let i = 0; i < height; i += 50) {
+    ctx.beginPath();
+    ctx.moveTo(0, i);
+    ctx.lineTo(width, i);
+    ctx.stroke();
+  }
+  
+  // Фоновое изображение босса (большое, полупрозрачное)
+  ctx.globalAlpha = 0.15;
+  ctx.fillStyle = '#331111';
+  ctx.beginPath();
+  ctx.roundRect(width * 0.3, 0, width * 0.4, height, 0);
+  ctx.fill();
+  ctx.globalAlpha = 1.0;
   
   // Заголовок
   ctx.fillStyle = '#ff4444';
-  ctx.font = 'bold 22px Arial';
+  ctx.font = 'bold 20px Arial';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText('⚔️ ВЫБОР БОССА', width / 2, 30);
+  ctx.fillText('⚔️ БОССЫ', width / 2, 25);
   
-  // Кнопка закрыть
-  const closeX = width - 70;
-  const closeY = 10;
-  ctx.fillStyle = 'rgba(255, 0, 0, 0.4)';
+  // Кнопка назад (слева вверху)
+  const backX = 20;
+  const backY = 10;
+  ctx.fillStyle = 'rgba(80, 80, 80, 0.6)';
   ctx.beginPath();
-  ctx.roundRect(closeX, closeY, 60, 30, 6);
+  ctx.roundRect(backX, backY, 80, 30, 6);
+  ctx.fill();
+  ctx.strokeStyle = '#888';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.roundRect(backX, backY, 80, 30, 6);
+  ctx.stroke();
+  ctx.fillStyle = '#fff';
+  ctx.font = 'bold 13px Arial';
+  ctx.textAlign = 'center';
+  ctx.fillText('← Назад', backX + 40, backY + 16);
+  buttons.push({ x: backX, y: backY, width: 80, height: 30, id: 'back_to_main' });
+  
+  // Кнопка закрыть (справа вверху)
+  const closeX = width - 60;
+  const closeY = 10;
+  ctx.fillStyle = 'rgba(139, 0, 0, 0.6)';
+  ctx.beginPath();
+  ctx.roundRect(closeX, closeY, 50, 30, 6);
   ctx.fill();
   ctx.fillStyle = '#fff';
   ctx.font = 'bold 16px Arial';
   ctx.textAlign = 'center';
-  ctx.fillText('✕', closeX + 30, closeY + 16);
-  buttons.push({ x: closeX, y: closeY, width: 60, height: 30, id: 'close_boss_modal' });
+  ctx.fillText('✕', closeX + 25, closeY + 16);
+  buttons.push({ x: closeX, y: closeY, width: 50, height: 30, id: 'close_boss_modal' });
   
-  // Рисуем карточки боссов
-  const cardWidth = (width - 100) / 2;
-  const cardHeight = 320;
-  const cardGap = 20;
+  // Рисуем каждую карточку босса
+  const bossCardHeight = 300;
+  const bossCardGap = 20;
+  const bossCardY = 55;
   
   bosses.forEach((boss, index) => {
-    const cardX = 30 + (index % 2) * (cardWidth + cardGap);
-    const cardY = 55 + Math.floor(index / 2) * (cardHeight + cardGap);
+    const cardX = 20;
+    const cardY = bossCardY + index * (bossCardHeight + bossCardGap);
+    const cardWidth = width - 40;
+    const cardHeight = bossCardHeight;
     
     const isHovered = hX > cardX && hX < cardX + cardWidth &&
                       hY > cardY && hY < cardY + cardHeight;
     
-    // Фон карточки - тёмный с красной рамкой
-    ctx.fillStyle = 'rgba(25, 15, 15, 0.95)';
+    // Фон карточки
+    ctx.fillStyle = 'rgba(20, 15, 15, 0.95)';
     ctx.beginPath();
-    ctx.roundRect(cardX, cardY, cardWidth, cardHeight, 10);
+    ctx.roundRect(cardX, cardY, cardWidth, cardHeight, 12);
     ctx.fill();
     
-    ctx.strokeStyle = isHovered ? '#ff6633' : '#8b0000';
-    ctx.lineWidth = 2;
+    // Рамка с шипами
+    ctx.strokeStyle = isHovered ? '#ff4444' : '#8b0000';
+    ctx.lineWidth = 3;
     ctx.beginPath();
-    ctx.roundRect(cardX, cardY, cardWidth, cardHeight, 10);
+    ctx.roundRect(cardX, cardY, cardWidth, cardHeight, 12);
     ctx.stroke();
     
-    // Декоративные элементы - шипы по углам
-    drawSpikes(ctx, cardX, cardY, cardWidth, cardHeight);
+    // Декоративные шипы по углам
+    drawBossSpikes(ctx, cardX, cardY, cardWidth, cardHeight);
     
-    // ===== ЛЕВАЯ КОЛОНКА: Босс =====
-    const leftColX = cardX + 10;
-    const leftColWidth = cardWidth * 0.35;
+    // ===== ЛЕВАЯ КОЛОНКА: Аватар и имя босса =====
+    const leftColX = cardX + 15;
+    const leftColWidth = 140;
     let leftColY = cardY + 15;
     
-    // Аватар босса
-    const avatarSize = 80;
+    // Аватар босса (круглый)
+    const avatarSize = 100;
     const avatarX = leftColX + leftColWidth / 2;
-    const avatarY = leftColY + 40;
+    const avatarY = leftColY + 50;
     
+    // Фон аватара
     ctx.fillStyle = '#222';
     ctx.beginPath();
     ctx.arc(avatarX, avatarY, avatarSize / 2, 0, Math.PI * 2);
@@ -775,8 +824,8 @@ const drawBossModal = (
     ctx.arc(avatarX, avatarY, avatarSize / 2, 0, Math.PI * 2);
     ctx.stroke();
     
-    // Иконка босса
-    ctx.font = '36px Arial';
+    // Иконка босса (эмодзи)
+    ctx.font = '40px Arial';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     const bossEmojis = ['💀', '👹', '🐉', '👊'];
@@ -784,42 +833,48 @@ const drawBossModal = (
     
     // Имя босса
     ctx.fillStyle = '#ff4444';
-    ctx.font = 'bold 13px Arial';
+    ctx.font = 'bold 14px Arial';
     ctx.textAlign = 'center';
-    ctx.fillText(boss.name, avatarX, avatarY + 55);
+    ctx.fillText(boss.name, avatarX, avatarY + 65);
     
-    // Рейтинг
+    // Рейтинг (количество убийств)
+    const ratingY = avatarY + 82;
     ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
     ctx.beginPath();
-    ctx.roundRect(leftColX, avatarY + 65, leftColWidth, 20, 4);
+    ctx.roundRect(leftColX, ratingY, leftColWidth, 22, 4);
     ctx.fill();
+    ctx.strokeStyle = '#555';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.roundRect(leftColX, ratingY, leftColWidth, 22, 4);
+    ctx.stroke();
     ctx.fillStyle = '#ffd700';
-    ctx.font = 'bold 11px Arial';
+    ctx.font = 'bold 12px Arial';
     ctx.textAlign = 'center';
-    ctx.fillText(`${boss.wins} / ${boss.maxWins}`, avatarX, avatarY + 76);
+    ctx.fillText(`${boss.wins} / ${boss.maxWins}`, avatarX, ratingY + 12);
     
     // Кнопка "Купить"
-    const buyX = leftColX;
     const buyY = cardY + cardHeight - 30;
+    const buyX = leftColX;
     const buyWidth = leftColWidth;
-    ctx.fillStyle = 'rgba(139, 69, 0, 0.6)';
+    ctx.fillStyle = 'rgba(100, 60, 0, 0.6)';
     ctx.beginPath();
-    ctx.roundRect(buyX, buyY, buyWidth, 24, 4);
+    ctx.roundRect(buyX, buyY, buyWidth, 22, 4);
     ctx.fill();
     ctx.strokeStyle = '#daa520';
     ctx.lineWidth = 1;
     ctx.beginPath();
-    ctx.roundRect(buyX, buyY, buyWidth, 24, 4);
+    ctx.roundRect(buyX, buyY, buyWidth, 22, 4);
     ctx.stroke();
     ctx.fillStyle = '#ffd700';
-    ctx.font = 'bold 10px Arial';
+    ctx.font = 'bold 11px Arial';
     ctx.textAlign = 'center';
-    ctx.fillText('Купить', buyX + buyWidth / 2, buyY + 13);
-    buttons.push({ x: buyX, y: buyY, width: buyWidth, height: 24, id: `buy_boss_${boss.id}` });
+    ctx.fillText('Купить', buyX + buyWidth / 2, buyY + 12);
+    buttons.push({ x: buyX, y: buyY, width: buyWidth, height: 22, id: `buy_boss_${boss.id}` });
     
-    // ===== ЦЕНТРАЛЬНАЯ КОЛОНКА: Награда =====
-    const centerColX = cardX + leftColWidth + 15;
-    const centerColWidth = cardWidth * 0.35;
+    // ===== ЦЕНТРАЛЬНАЯ КОЛОНКА: Награда и требования =====
+    const centerColX = leftColX + leftColWidth + 20;
+    const centerColWidth = (cardWidth - leftColWidth - 40) / 2;
     let centerColY = cardY + 15;
     
     // Заголовок "НАГРАДА"
@@ -828,45 +883,63 @@ const drawBossModal = (
     ctx.textAlign = 'center';
     ctx.fillText('НАГРАДА', centerColX + centerColWidth / 2, centerColY + 12);
     
-    // Награда: черепа
-    centerColY += 25;
-    ctx.font = '14px Arial';
-    ctx.textAlign = 'left';
-    ctx.fillStyle = '#8b0000';
-    ctx.fillText('💀', centerColX, centerColY);
-    ctx.fillStyle = '#fff';
-    ctx.font = 'bold 12px Arial';
-    ctx.fillText(boss.reward.skulls.toString(), centerColX + 20, centerColY);
-    
-    // Награда: золото
-    centerColY += 20;
-    ctx.fillStyle = '#ffd700';
-    ctx.font = '14px Arial';
-    ctx.fillText('💰', centerColX, centerColY);
-    ctx.fillStyle = '#ffd700';
-    ctx.font = 'bold 12px Arial';
-    ctx.fillText(boss.reward.gold.toString(), centerColX + 20, centerColY);
-    
-    // Награда: сундук
-    centerColY += 20;
-    ctx.fillStyle = '#888';
-    ctx.font = '14px Arial';
-    ctx.fillText('📦', centerColX, centerColY);
-    ctx.fillStyle = '#fff';
-    ctx.font = 'bold 11px Arial';
-    ctx.fillText('[0/4]', centerColX + 20, centerColY);
-    
-    // Награда: оружие
-    centerColY += 20;
-    ctx.fillStyle = '#888';
-    ctx.font = '14px Arial';
-    ctx.fillText('🔫', centerColX, centerColY);
-    ctx.fillStyle = '#fff';
-    ctx.font = 'bold 11px Arial';
-    ctx.fillText('[0/4]', centerColX + 20, centerColY);
-    
     // Разделитель
     centerColY += 20;
+    ctx.strokeStyle = 'rgba(255, 215, 0, 0.3)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(centerColX, centerColY);
+    ctx.lineTo(centerColX + centerColWidth, centerColY);
+    ctx.stroke();
+    
+    // Награда: черепа
+    centerColY += 20;
+    const rewardItemY = centerColY;
+    ctx.font = '16px Arial';
+    ctx.textAlign = 'left';
+    ctx.fillText('💀', centerColX, rewardItemY + 12);
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 13px Arial';
+    ctx.fillText(boss.reward.skulls.toString(), centerColX + 22, rewardItemY + 12);
+    
+    // Награда: золото
+    centerColY += 22;
+    ctx.font = '16px Arial';
+    ctx.fillStyle = '#ffd700';
+    ctx.fillText('💰', centerColX, rewardItemY + 34);
+    ctx.fillStyle = '#ffd700';
+    ctx.font = 'bold 13px Arial';
+    ctx.fillText(boss.reward.gold.toString(), centerColX + 22, rewardItemY + 34);
+    
+    // Награда: сундук
+    centerColY += 22;
+    ctx.font = '16px Arial';
+    ctx.fillStyle = '#888';
+    ctx.fillText('📦', centerColX, rewardItemY + 56);
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 11px Arial';
+    ctx.fillText(`[${boss.reward.chest}/4]`, centerColX + 22, rewardItemY + 56);
+    
+    // Награда: одежда
+    centerColY += 20;
+    ctx.font = '16px Arial';
+    ctx.fillStyle = '#888';
+    ctx.fillText('👕', centerColX, rewardItemY + 76);
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 11px Arial';
+    ctx.fillText(`[${boss.reward.clothing}/4]`, centerColX + 22, rewardItemY + 76);
+    
+    // Награда: ключ
+    centerColY += 20;
+    ctx.font = '16px Arial';
+    ctx.fillStyle = '#888';
+    ctx.fillText('🔑', centerColX, rewardItemY + 96);
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 11px Arial';
+    ctx.fillText(boss.reward.key.toString(), centerColX + 22, rewardItemY + 96);
+    
+    // Разделитель
+    centerColY += 25;
     ctx.strokeStyle = 'rgba(139, 0, 0, 0.5)';
     ctx.lineWidth = 1;
     ctx.beginPath();
@@ -875,68 +948,71 @@ const drawBossModal = (
     ctx.stroke();
     
     // Заголовок "ТРЕБУЕТСЯ"
-    centerColY += 15;
+    centerColY += 18;
     ctx.fillStyle = '#ff6633';
     ctx.font = 'bold 12px Arial';
     ctx.textAlign = 'center';
     ctx.fillText('ТРЕБУЕТСЯ', centerColX + centerColWidth / 2, centerColY);
     
     // Требования
-    centerColY += 20;
-    ctx.fillStyle = '#888';
-    ctx.font = '12px Arial';
-    ctx.textAlign = 'left';
-    ctx.fillText(`⚔️ Ур. ${boss.reward.weaponLevel}`, centerColX, centerColY);
-    ctx.fillStyle = '#fff';
-    ctx.font = 'bold 11px Arial';
-    ctx.fillText(`[${boss.requiredWeapons[0]?.count || 1}]`, centerColX + 60, centerColY);
+    centerColY += 22;
+    boss.requiredItems.forEach((req, reqIdx) => {
+      ctx.font = '14px Arial';
+      ctx.textAlign = 'left';
+      ctx.fillStyle = '#888';
+      ctx.fillText(req.icon, centerColX, centerColY);
+      ctx.fillStyle = '#fff';
+      ctx.font = 'bold 11px Arial';
+      ctx.fillText(`${req.count} [${req.have}]`, centerColX + 22, centerColY);
+      centerColY += 18;
+    });
     
     // Кнопка "Атаковать"
-    centerColY += 25;
-    const attackX = centerColX;
+    centerColY += 10;
     const attackY = centerColY;
     const attackWidth = centerColWidth;
     
-    const attackGradient = ctx.createLinearGradient(attackX, attackY, attackX, attackY + 28);
-    attackGradient.addColorStop(0, 'rgba(180, 0, 0, 0.8)');
-    attackGradient.addColorStop(1, 'rgba(100, 0, 0, 0.8)');
+    const attackGradient = ctx.createLinearGradient(centerColX, attackY, centerColX, attackY + 30);
+    attackGradient.addColorStop(0, 'rgba(180, 0, 0, 0.9)');
+    attackGradient.addColorStop(1, 'rgba(100, 0, 0, 0.9)');
     ctx.fillStyle = attackGradient;
     ctx.beginPath();
-    ctx.roundRect(attackX, attackY, attackWidth, 28, 6);
+    ctx.roundRect(centerColX, attackY, attackWidth, 30, 6);
     ctx.fill();
     
     ctx.strokeStyle = '#ff4444';
     ctx.lineWidth = 2;
     ctx.beginPath();
-    ctx.roundRect(attackX, attackY, attackWidth, 28, 6);
+    ctx.roundRect(centerColX, attackY, attackWidth, 30, 6);
     ctx.stroke();
     
     ctx.fillStyle = '#fff';
-    ctx.font = 'bold 12px Arial';
+    ctx.font = 'bold 14px Arial';
     ctx.textAlign = 'center';
-    ctx.fillText('Атаковать', attackX + attackWidth / 2, attackY + 15);
+    ctx.fillText('⚔️ Атаковать', centerColX + attackWidth / 2, attackY + 17);
     
-    buttons.push({ x: attackX, y: attackY, width: attackWidth, height: 28, id: `attack_boss_${boss.id}` });
+    buttons.push({ x: centerColX, y: attackY, width: attackWidth, height: 30, id: `attack_boss_${boss.id}` });
     
     // Кнопка "Соло"
-    const soloY = attackY + 33;
+    const soloY = attackY + 35;
     ctx.fillStyle = 'rgba(50, 50, 80, 0.6)';
     ctx.beginPath();
-    ctx.roundRect(attackX, soloY, attackWidth, 24, 6);
+    ctx.roundRect(centerColX, soloY, attackWidth, 26, 6);
     ctx.fill();
     ctx.strokeStyle = '#6666aa';
     ctx.lineWidth = 1;
     ctx.beginPath();
-    ctx.roundRect(attackX, soloY, attackWidth, 24, 6);
+    ctx.roundRect(centerColX, soloY, attackWidth, 26, 6);
     ctx.stroke();
     ctx.fillStyle = '#aaaaff';
-    ctx.font = 'bold 11px Arial';
-    ctx.fillText('Соло', attackX + attackWidth / 2, soloY + 13);
-    buttons.push({ x: attackX, y: soloY, width: attackWidth, height: 24, id: `solo_boss_${boss.id}` });
+    ctx.font = 'bold 12px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText('Соло', centerColX + attackWidth / 2, soloY + 14);
+    buttons.push({ x: centerColX, y: soloY, width: attackWidth, height: 26, id: `solo_boss_${boss.id}` });
     
     // ===== ПРАВАЯ КОЛОНКА: Последний победитель =====
     const rightColX = centerColX + centerColWidth + 15;
-    const rightColWidth = cardWidth - rightColX - cardX;
+    const rightColWidth = cardWidth - rightColX - 20;
     let rightColY = cardY + 15;
     
     // Заголовок "ПОСЛЕДНИЙ ПОБЕДИТЕЛЬ"
@@ -945,11 +1021,20 @@ const drawBossModal = (
     ctx.textAlign = 'center';
     ctx.fillText('ПОСЛЕДНИЙ ПОБЕДИТЕЛЬ', rightColX + rightColWidth / 2, rightColY + 12);
     
+    // Разделитель
+    rightColY += 20;
+    ctx.strokeStyle = 'rgba(0, 170, 255, 0.3)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(rightColX, rightColY);
+    ctx.lineTo(rightColX + rightColWidth, rightColY);
+    ctx.stroke();
+    
     // Аватар победителя
     rightColY += 25;
     const winnerAvatarX = rightColX + rightColWidth / 2;
     const winnerAvatarY = rightColY + 25;
-    const winnerAvatarSize = 50;
+    const winnerAvatarSize = 45;
     
     ctx.fillStyle = '#333';
     ctx.beginPath();
@@ -963,7 +1048,7 @@ const drawBossModal = (
     ctx.stroke();
     
     // Иконка победителя
-    ctx.font = '24px Arial';
+    ctx.font = '22px Arial';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText('😊', winnerAvatarX, winnerAvatarY);
@@ -972,7 +1057,7 @@ const drawBossModal = (
     ctx.fillStyle = '#fff';
     ctx.font = 'bold 11px Arial';
     ctx.textAlign = 'center';
-    ctx.fillText(boss.lastWinner, winnerAvatarX, winnerAvatarY + 40);
+    ctx.fillText(boss.lastWinner.name, winnerAvatarX, winnerAvatarY + 35);
     
     // Разделитель
     rightColY += 75;
@@ -984,22 +1069,56 @@ const drawBossModal = (
     ctx.stroke();
     
     // Заголовок "КОЛИЧЕСТВО ПОБЕД"
-    rightColY += 15;
+    rightColY += 18;
     ctx.fillStyle = '#00aaff';
     ctx.font = 'bold 11px Arial';
     ctx.textAlign = 'center';
     ctx.fillText('КОЛИЧЕСТВО ПОБЕД', rightColX + rightColWidth / 2, rightColY);
     
     // Счётчик побед
-    rightColY += 20;
+    rightColY += 22;
     ctx.fillStyle = '#ffd700';
     ctx.font = 'bold 16px Arial';
+    ctx.textAlign = 'center';
     ctx.fillText(`${boss.wins} / ${boss.maxWins}`, rightColX + rightColWidth / 2, rightColY);
+    
+    // Оружие побед (5 слотов)
+    rightColY += 30;
+    ctx.fillStyle = '#00aaff';
+    ctx.font = 'bold 10px Arial';
+    ctx.textAlign = 'left';
+    ctx.fillText('Оружие:', rightColX, rightColY);
+    
+    const weaponSlotSize = 28;
+    const weaponGap = 5;
+    const totalWeaponWidth = boss.winWeapons.length * (weaponSlotSize + weaponGap) - weaponGap;
+    const weaponStartX = rightColX + (rightColWidth - totalWeaponWidth) / 2;
+    
+    boss.winWeapons.forEach((weapon, wIdx) => {
+      const wx = weaponStartX + wIdx * (weaponSlotSize + weaponGap);
+      const wy = rightColY + 5;
+      
+      ctx.fillStyle = weapon.obtained ? 'rgba(255, 215, 0, 0.3)' : 'rgba(50, 50, 50, 0.5)';
+      ctx.beginPath();
+      ctx.roundRect(wx, wy, weaponSlotSize, weaponSlotSize, 4);
+      ctx.fill();
+      
+      ctx.strokeStyle = weapon.obtained ? '#ffd700' : '#555';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.roundRect(wx, wy, weaponSlotSize, weaponSlotSize, 4);
+      ctx.stroke();
+      
+      ctx.font = '16px Arial';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(weapon.obtained ? '🔫' : '🔧', wx + weaponSlotSize / 2, wy + weaponSlotSize / 2);
+    });
   });
 };
 
-// Функция для рисования шипов по углам
-const drawSpikes = (
+// Функция для рисования шипов по углам карточки босса
+const drawBossSpikes = (
   ctx: CanvasRenderingContext2D,
   x: number,
   y: number,
@@ -1008,32 +1127,40 @@ const drawSpikes = (
 ) => {
   ctx.fillStyle = '#8b0000';
   
-  // Верхний левый
-  ctx.beginPath();
-  ctx.moveTo(x, y);
-  ctx.lineTo(x - 8, y - 8);
-  ctx.lineTo(x, y - 8);
-  ctx.fill();
+  // Верхние шипы
+  for (let i = 0; i < width; i += 30) {
+    ctx.beginPath();
+    ctx.moveTo(x + i, y);
+    ctx.lineTo(x + i + 8, y - 6);
+    ctx.lineTo(x + i + 16, y);
+    ctx.fill();
+  }
   
-  // Верхний правый
-  ctx.beginPath();
-  ctx.moveTo(x + width, y);
-  ctx.lineTo(x + width + 8, y - 8);
-  ctx.lineTo(x + width, y - 8);
-  ctx.fill();
+  // Нижние шипы
+  for (let i = 0; i < width; i += 30) {
+    ctx.beginPath();
+    ctx.moveTo(x + i, y + height);
+    ctx.lineTo(x + i + 8, y + height + 6);
+    ctx.lineTo(x + i + 16, y + height);
+    ctx.fill();
+  }
   
-  // Нижний левый
-  ctx.beginPath();
-  ctx.moveTo(x, y + height);
-  ctx.lineTo(x - 8, y + height + 8);
-  ctx.lineTo(x, y + height + 8);
-  ctx.fill();
+  // Левые шипы
+  for (let i = 0; i < height; i += 30) {
+    ctx.beginPath();
+    ctx.moveTo(x, y + i);
+    ctx.lineTo(x - 6, y + i + 8);
+    ctx.lineTo(x, y + i + 16);
+    ctx.fill();
+  }
   
-  // Нижний правый
-  ctx.beginPath();
-  ctx.moveTo(x + width, y + height);
-  ctx.lineTo(x + width + 8, y + height + 8);
-  ctx.lineTo(x + width, y + height + 8);
-  ctx.fill();
+  // Правые шипы
+  for (let i = 0; i < height; i += 30) {
+    ctx.beginPath();
+    ctx.moveTo(x + width, y + i);
+    ctx.lineTo(x + width + 6, y + i + 8);
+    ctx.lineTo(x + width, y + i + 16);
+    ctx.fill();
+  }
 };
 

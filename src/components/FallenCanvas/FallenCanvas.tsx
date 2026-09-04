@@ -22,7 +22,9 @@ export const FallenCanvas: React.FC<PrisonCanvasProps & {
   onGoCrafting?: () => void;
   onLottery?: () => void;
   onClaimDaily?: () => void;
+  onOpenBossModal?: () => void;
   // Профиль
+  showBossModal?: boolean;
   showProfile?: boolean;
   profileData?: {
     level: number;
@@ -58,8 +60,6 @@ export const FallenCanvas: React.FC<PrisonCanvasProps & {
   isZombieAlive = true,
   appearance = 0,
   tasks,
-  showMap = false,
-  onMapToggle,
   currentLocation,
   carLevel = 1,
   level = 1,
@@ -75,16 +75,18 @@ export const FallenCanvas: React.FC<PrisonCanvasProps & {
   onGoCrafting,
   onLottery,
   onClaimDaily,
+  onOpenBossModal,
   // Профиль
+  showBossModal = false,
   showProfile = false,
   profileData,
+  onProfileClose,
   onBattleClick,
   onFriendsClick,
   onArenaClick,
 }) => {
   const [backgroundImage, setBackgroundImage] = useState<HTMLImageElement | null>(null);
   const [characterImage, setCharacterImage] = useState<HTMLImageElement | null>(null);
-  const [showBossModal, setShowBossModal] = useState(false);
 
   // Фейковые боссы
   const fakeBosses: BossData[] = [
@@ -94,12 +96,36 @@ export const FallenCanvas: React.FC<PrisonCanvasProps & {
       source: 'Район',
       health: 100,
       maxHealth: 100,
-      reward: { skulls: 100, gold: 200, weapons: 0, weaponLevel: 1 },
-      requiredWeapons: [{ level: 1, count: 1 }],
+      rating: 0,
       avatar: null,
-      lastWinner: 'Руслан Зарипов',
+      reward: {
+        skulls: 100,
+        gold: 200,
+        chest: 0,
+        clothing: 0,
+        key: 1,
+      },
+      dropChances: [
+        { item: 'Старый нож', icon: '🔪', chance: 45 },
+        { item: 'Бита', icon: '🏏', chance: 30 },
+        { item: 'Пистолет', icon: '🔫', chance: 15 },
+      ],
+      requiredItems: [
+        { name: 'Ключ', icon: '🔑', count: 1, have: 1 },
+      ],
+      lastWinner: {
+        name: 'Руслан Зарипов',
+        avatar: null,
+      },
       wins: 0,
       maxWins: 100,
+      winWeapons: [
+        { level: 1, obtained: true },
+        { level: 2, obtained: false },
+        { level: 3, obtained: false },
+        { level: 4, obtained: false },
+        { level: 5, obtained: false },
+      ],
     },
     {
       id: '2',
@@ -107,12 +133,36 @@ export const FallenCanvas: React.FC<PrisonCanvasProps & {
       source: 'Подвал',
       health: 200,
       maxHealth: 200,
-      reward: { skulls: 200, gold: 500, weapons: 0, weaponLevel: 1 },
-      requiredWeapons: [{ level: 1, count: 1 }],
+      rating: 0,
       avatar: null,
-      lastWinner: 'Руслан Зарипов',
+      reward: {
+        skulls: 200,
+        gold: 500,
+        chest: 0,
+        clothing: 0,
+        key: 1,
+      },
+      dropChances: [
+        { item: 'Автомат', icon: '🎯', chance: 20 },
+        { item: 'Бронежилет', icon: '🦺', chance: 25 },
+        { item: 'Аптечка', icon: '💊', chance: 35 },
+      ],
+      requiredItems: [
+        { name: 'Ключ', icon: '🔑', count: 2, have: 1 },
+      ],
+      lastWinner: {
+        name: 'Руслан Зарипов',
+        avatar: null,
+      },
       wins: 0,
       maxWins: 100,
+      winWeapons: [
+        { level: 1, obtained: false },
+        { level: 2, obtained: false },
+        { level: 3, obtained: false },
+        { level: 4, obtained: false },
+        { level: 5, obtained: false },
+      ],
     },
     {
       id: '3',
@@ -120,12 +170,36 @@ export const FallenCanvas: React.FC<PrisonCanvasProps & {
       source: 'Район',
       health: 300,
       maxHealth: 300,
-      reward: { skulls: 300, gold: 800, weapons: 0, weaponLevel: 2 },
-      requiredWeapons: [{ level: 2, count: 1 }],
+      rating: 0,
       avatar: null,
-      lastWinner: 'Руслан Зарипов',
+      reward: {
+        skulls: 300,
+        gold: 800,
+        chest: 0,
+        clothing: 0,
+        key: 2,
+      },
+      dropChances: [
+        { item: 'Винтовка', icon: '🔭', chance: 15 },
+        { item: 'Шлем', icon: '⛑️', chance: 20 },
+        { item: 'Бомба', icon: '💣', chance: 10 },
+      ],
+      requiredItems: [
+        { name: 'Ключ', icon: '🔑', count: 2, have: 1 },
+      ],
+      lastWinner: {
+        name: 'Руслан Зарипов',
+        avatar: null,
+      },
       wins: 0,
       maxWins: 100,
+      winWeapons: [
+        { level: 1, obtained: false },
+        { level: 2, obtained: true },
+        { level: 3, obtained: false },
+        { level: 4, obtained: false },
+        { level: 5, obtained: false },
+      ],
     },
     {
       id: '4',
@@ -133,12 +207,36 @@ export const FallenCanvas: React.FC<PrisonCanvasProps & {
       source: 'Подвал',
       health: 500,
       maxHealth: 500,
-      reward: { skulls: 500, gold: 1200, weapons: 0, weaponLevel: 2 },
-      requiredWeapons: [{ level: 2, count: 1 }],
+      rating: 0,
       avatar: null,
-      lastWinner: 'Руслан Зарипов',
+      reward: {
+        skulls: 500,
+        gold: 1200,
+        chest: 0,
+        clothing: 0,
+        key: 3,
+      },
+      dropChances: [
+        { item: 'Пулемёт', icon: '🔫', chance: 10 },
+        { item: 'Тяжёлый жилет', icon: '🦺', chance: 15 },
+        { item: 'Ракета', icon: '🚀', chance: 5 },
+      ],
+      requiredItems: [
+        { name: 'Ключ', icon: '🔑', count: 3, have: 1 },
+      ],
+      lastWinner: {
+        name: 'Руслан Зарипов',
+        avatar: null,
+      },
       wins: 0,
       maxWins: 100,
+      winWeapons: [
+        { level: 1, obtained: false },
+        { level: 2, obtained: false },
+        { level: 3, obtained: false },
+        { level: 4, obtained: false },
+        { level: 5, obtained: false },
+      ],
     },
   ];
 
@@ -164,18 +262,6 @@ export const FallenCanvas: React.FC<PrisonCanvasProps & {
     if (onZombieClick) onZombieClick();
   }, [onZombieClick]);
 
-  const handleBossClick = useCallback(() => {
-    setShowBossModal(true);
-  }, []);
-
-  const handleBossModalClose = useCallback(() => {
-    setShowBossModal(false);
-  }, []);
-
-  const handleBackToMain = useCallback(() => {
-    setShowBossModal(false);
-  }, []);
-
   const { canvasRef, handleCanvasClick, handleMouseMove, toggleFullscreen } = useCanvas(
     backgroundImage,
     characterImage,
@@ -195,9 +281,9 @@ export const FallenCanvas: React.FC<PrisonCanvasProps & {
     currentDistrict,
     districtName,
     onGoProfile,
-    handleBossClick,
-    handleBossModalClose,
-    handleBackToMain,
+    undefined, // handleBossClick
+    onProfileClose, // handleBossModalClose
+    undefined, // handleBackToMain
     onFriendsClick || onGoClan,
     onGoWorkshop,
     onGoRaid,
@@ -215,8 +301,8 @@ export const FallenCanvas: React.FC<PrisonCanvasProps & {
     undefined, // onGoKomnata
     undefined, // onGoKazino
     undefined, // onGoDistrict
+    onOpenBossModal, // onOpenBossModal
     showProfile,
-    showMap,
     showBossModal,
     profileData ? {
       level: profileData.level,

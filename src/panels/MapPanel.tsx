@@ -1,10 +1,13 @@
-import { Button, Text, Div } from '@vkontakte/vkui';
+import { Button, Text, Box } from '@vkontakte/vkui';
 import { useRouteNavigator } from '@vkontakte/vk-mini-apps-router';
 import { useState, useEffect } from 'react';
 import { useGame } from '../game/GameContext';
+import '../style/responsive.scss';
 
 interface Props {
   id: string;
+  showMap: boolean;
+  onCloseMap: () => void;
 }
 
 // Boss marker position on map (percentage of map image)
@@ -64,7 +67,7 @@ const LEVEL_BORDER: Record<string, string> = {
   extreme: '#ef4444',
 };
 
-export const MapPanel = ({ id }: Props) => {
+export const MapPanel = ({ id, showMap, onCloseMap }: Props) => {
   const navigator = useRouteNavigator();
   const { state } = useGame();
   const [mapImage, setMapImage] = useState<HTMLImageElement | null>(null);
@@ -91,7 +94,7 @@ export const MapPanel = ({ id }: Props) => {
   if (!showMap) return null;
 
   return (
-    <Div style={{
+    <Box style={{
       position: 'fixed',
       top: 0,
       left: 0,
@@ -104,7 +107,7 @@ export const MapPanel = ({ id }: Props) => {
       alignItems: 'center',
       padding: 20,
     }}>
-      <Div style={{
+      <Box style={{
         position: 'relative',
         maxWidth: 900,
         width: '100%',
@@ -114,7 +117,7 @@ export const MapPanel = ({ id }: Props) => {
         border: '2px solid #333',
       }}>
         {/* Header */}
-        <Div style={{
+        <Box style={{
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
@@ -128,14 +131,14 @@ export const MapPanel = ({ id }: Props) => {
           <Button
             size="s"
             mode="tertiary"
-            onClick={() => { setShowMap(false); setSelectedMarker(null); }}
+            onClick={() => { onCloseMap(); setSelectedMarker(null); }}
           >
             ✕ Закрыть
           </Button>
-        </Div>
+        </Box>
 
         {/* Map */}
-        <Div style={{ position: 'relative', background: '#111' }}>
+        <Box style={{ position: 'relative', background: '#111' }}>
           {mapImage ? (
             <img
               src="/map/map.jpg"
@@ -143,7 +146,7 @@ export const MapPanel = ({ id }: Props) => {
               style={{ width: '100%', display: 'block', borderRadius: '0 0 16px 16px' }}
             />
           ) : (
-            <Div style={{
+            <Box style={{
               width: '100%',
               aspectRatio: '16/9',
               background: 'linear-gradient(135deg, #1a0a0a, #2d1515, #0d0d0d)',
@@ -153,12 +156,12 @@ export const MapPanel = ({ id }: Props) => {
               borderRadius: '0 0 16px 16px',
             }}>
               <Text style={{ opacity: 0.5 }}>Карта города</Text>
-            </Div>
+            </Box>
           )}
 
           {/* Infection zones overlay */}
           {mapImage && INFECTION_ZONES.map((zone, i) => (
-            <Div
+            <Box
               key={i}
               style={{
                 position: 'absolute',
@@ -182,7 +185,7 @@ export const MapPanel = ({ id }: Props) => {
             const isUnlocked = state.unlockedDistricts.includes(marker.districtId);
             const isCurrent = state.currentDistrict === marker.districtId;
             return (
-              <Div
+              <Box
                 key={marker.districtId}
                 onClick={() => handleMarkerClick(marker)}
                 style={{
@@ -194,7 +197,7 @@ export const MapPanel = ({ id }: Props) => {
                   zIndex: 10,
                 }}
               >
-                <Div style={{
+                <Box style={{
                   width: 36,
                   height: 36,
                   borderRadius: '50%',
@@ -208,8 +211,8 @@ export const MapPanel = ({ id }: Props) => {
                   transition: 'all 0.2s ease',
                 }}>
                   💀
-                </Div>
-                <Div style={{
+                </Box>
+                <Box style={{
                   position: 'absolute',
                   top: 40,
                   left: '50%',
@@ -223,76 +226,76 @@ export const MapPanel = ({ id }: Props) => {
                   border: `1px solid ${isUnlocked ? '#ef4444' : '#333'}`,
                 }}>
                   {marker.name}
-                </Div>
-              </Div>
+                </Box>
+              </Box>
             );
           })}
-        </Div>
+        </Box>
 
         {/* Legend */}
-        <Div style={{
+        <Box style={{
           padding: '12px 16px',
           background: '#1a1a2e',
           borderRadius: '0 0 16px 16px',
         }}>
           <Text style={{ fontWeight: 'bold', marginBottom: 8, fontSize: 13 }}>Легенда:</Text>
-          <Div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, fontSize: 11 }}>
-            <Div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-              <Div style={{ width: 12, height: 12, borderRadius: '50%', background: '#ef4444', border: '2px solid #ff6666' }} />
+          <Box style={{ display: 'flex', flexWrap: 'wrap', gap: 12, fontSize: 11 }}>
+            <Box style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+              <Box style={{ width: 12, height: 12, borderRadius: '50%', background: '#ef4444', border: '2px solid #ff6666' }} />
               <Text>Босс (открыт)</Text>
-            </Div>
-            <Div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-              <Div style={{ width: 12, height: 12, borderRadius: '50%', background: '#555', border: '2px solid #333' }} />
+            </Box>
+            <Box style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+              <Box style={{ width: 12, height: 12, borderRadius: '50%', background: '#555', border: '2px solid #333' }} />
               <Text>Босс (закрыт)</Text>
-            </Div>
-            <Div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-              <Div style={{ width: 12, height: 12, borderRadius: '50%', background: '#ffd700', border: '2px solid #fff' }} />
+            </Box>
+            <Box style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+              <Box style={{ width: 12, height: 12, borderRadius: '50%', background: '#ffd700', border: '2px solid #fff' }} />
               <Text>Текущий район</Text>
-            </Div>
-            <Div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-              <Div style={{ width: 12, height: 12, borderRadius: '50%', background: LEVEL_COLORS.low }} />
+            </Box>
+            <Box style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+              <Box style={{ width: 12, height: 12, borderRadius: '50%', background: LEVEL_COLORS.low }} />
               <Text>Низкое заражение</Text>
-            </Div>
-            <Div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-              <Div style={{ width: 12, height: 12, borderRadius: '50%', background: LEVEL_COLORS.high }} />
+            </Box>
+            <Box style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+              <Box style={{ width: 12, height: 12, borderRadius: '50%', background: LEVEL_COLORS.high }} />
               <Text>Высокое заражение</Text>
-            </Div>
-            <Div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-              <Div style={{ width: 12, height: 12, borderRadius: '50%', background: LEVEL_COLORS.extreme }} />
+            </Box>
+            <Box style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+              <Box style={{ width: 12, height: 12, borderRadius: '50%', background: LEVEL_COLORS.extreme }} />
               <Text>Экстремальное</Text>
-            </Div>
-          </Div>
-        </Div>
+            </Box>
+          </Box>
+        </Box>
 
         {/* Selected marker info */}
         {selectedMarker && (
-          <Div style={{
+          <Box style={{
             padding: '12px 16px',
             background: '#0d0d1a',
             borderTop: '1px solid #333',
           }}>
-            <Div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <Div>
+            <Box style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <Box>
                 <Text style={{ fontWeight: 'bold', fontSize: 14 }}>{selectedMarker.name}</Text>
                 <Text style={{ fontSize: 12, opacity: 0.7 }}>Босс: {selectedMarker.bossName}</Text>
                 <Text style={{ fontSize: 11, color: state.unlockedDistricts.includes(selectedMarker.districtId) ? '#22c55e' : '#ef4444' }}>
                   {state.unlockedDistricts.includes(selectedMarker.districtId) ? '✅ Открыт' : '🔒 Закрыт'}
                 </Text>
-              </Div>
+              </Box>
               <Button
                 size="s"
                 disabled={!state.unlockedDistricts.includes(selectedMarker.districtId)}
                 onClick={() => {
                   navigator.push('/');
-                  setShowMap(false);
+                  onCloseMap();
                 }}
               >
                 Перейти
               </Button>
-            </Div>
-          </Div>
+            </Box>
+          </Box>
         )}
-      </Div>
-    </Div>
+      </Box>
+    </Box>
   );
 };

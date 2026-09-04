@@ -1,4 +1,4 @@
-import { Panel, PanelHeader, Group, Button, Text, Header, Div, Cell } from '@vkontakte/vkui';
+import { Panel, PanelHeader, Group, Button, Text, Header, Box, Cell } from '@vkontakte/vkui';
 import { Icon28ArrowLeftOutline } from '@vkontakte/icons';
 import { useRouteNavigator } from '@vkontakte/vk-mini-apps-router';
 import { useGame } from '../game/GameContext';
@@ -33,32 +33,32 @@ export const Workshop = ({ id }: Props) => {
             borderLeft: state.weapon.broken ? '4px solid #ef4444' : '4px solid #22c55e',
           }}
         >
-          <Div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <Div>
+          <Box style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Box>
               <Text style={{ fontWeight: 'bold' }}>{state.weapon.name}</Text>
               <Text style={{ fontSize: 12, opacity: 0.7 }}>
                 Заточка {state.weapon.level}/{WEAPON_MAX_LEVEL}
                 {state.weapon.upgraded && <Text style={{ color: '#fbbf24' }}> • ⭐ МОДЕРНИЗИРОВАНО</Text>}
               </Text>
-            </Div>
+            </Box>
             <Text style={{ fontSize: 24 }}>🔫</Text>
-          </Div>
+          </Box>
         </Cell>
         
         {/* Weapon stats */}
-        <Div style={{ display: 'flex', gap: 12, fontSize: 12, marginTop: 4 }}>
+        <Box style={{ display: 'flex', gap: 12, fontSize: 12, marginTop: 4 }}>
           <Text>Базовый урон: {state.weapon.baseDamage}</Text>
           <Text>Заточка: +{state.weapon.level * WEAPON_DAMAGE_PER_LEVEL}</Text>
           {state.weapon.upgraded && <Text style={{ color: '#fbbf24' }}>Модернизация: +5</Text>}
-        </Div>
+        </Box>
 
-        <Div>
+        <Box>
           <Text style={{ fontSize: 12, opacity: 0.7 }}>
             Каждый уровень: +{WEAPON_DAMAGE_PER_LEVEL} урона. Модернизация: +5 урона. Макс заточки — {WEAPON_MAX_LEVEL}.
           </Text>
-        </Div>
+        </Box>
 
-        <Div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        <Box style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           <Button 
             disabled={state.weapon.level >= WEAPON_MAX_LEVEL || state.weapon.broken}
             onClick={() => dispatch({ type: 'UPGRADE_WEAPON' })}
@@ -80,17 +80,17 @@ export const Workshop = ({ id }: Props) => {
           >
             🔧 Починить ({repairCost} 🔥)
           </Button>
-        </Div>
+        </Box>
       </Group>
 
       {/* Tips */}
       <Group header={<Header>Советы</Header>}>
-        <Div style={{ fontSize: 12, opacity: 0.8 }}>
+        <Box style={{ fontSize: 12, opacity: 0.8 }}>
           <Text>• Оружие ломается с шансом ~18% при ударе</Text>
           <Text>• Сломанное оружие не даёт урона — почините в мастерской</Text>
           <Text>• Модернизация доступна с 5 уровня заточки</Text>
           <Text>• Урон от оружия + экипировки суммируются</Text>
-        </Div>
+        </Box>
       </Group>
     </Panel>
   );

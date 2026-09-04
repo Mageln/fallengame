@@ -1,4 +1,4 @@
-import { Panel, PanelHeader, Group, Button, Text, Header, Div, Card } from '@vkontakte/vkui';
+import { Panel, PanelHeader, Group, Button, Text, Header, Box, Card } from '@vkontakte/vkui';
 import { Icon28ArrowLeftOutline } from '@vkontakte/icons';
 import { useRouteNavigator } from '@vkontakte/vk-mini-apps-router';
 import { useGame } from '../game/GameContext';
@@ -24,12 +24,12 @@ export const Quests = ({ id }: Props) => {
       </PanelHeader>
 
       <Group>
-        <Div>
+        <Box>
           <Text>Выполняйте задания каждый день за бонусы!</Text>
           <Text style={{ fontSize: 12, opacity: 0.6 }}>
             Квесты сбрасываются каждый день. Следите за прогрессом.
           </Text>
-        </Div>
+        </Box>
       </Group>
 
       <Group header={<Header>Задания на сегодня</Header>}>
@@ -50,19 +50,19 @@ export const Quests = ({ id }: Props) => {
                 opacity: isClaimed ? 0.6 : 1,
               }}
             >
-              <Div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <Div>
+              <Box style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Box>
                   <Text style={{ fontWeight: 'bold' }}>{quest.name}</Text>
                   <Text style={{ fontSize: 12, opacity: 0.7 }}>{quest.description}</Text>
-                </Div>
+                </Box>
                 <Text style={{ fontWeight: 'bold', fontSize: 14 }}>
                   {progress.progress}/{quest.target}
                 </Text>
-              </Div>
+              </Box>
 
               {/* Progress bar */}
-              <Div style={{ background: '#333', borderRadius: 4, height: 6, marginTop: 8, overflow: 'hidden' }}>
-                <Div
+              <Box style={{ background: '#333', borderRadius: 4, height: 6, marginTop: 8, overflow: 'hidden' }}>
+                <Box
                   style={{
                     background: isClaimed ? '#10b981' : isCompleted ? '#f59e0b' : '#3b82f6',
                     height: '100%',
@@ -71,15 +71,15 @@ export const Quests = ({ id }: Props) => {
                     transition: 'width 0.3s ease',
                   }}
                 />
-              </Div>
+              </Box>
 
               {/* Rewards */}
-              <Div style={{ display: 'flex', gap: 12, marginTop: 8, fontSize: 12 }}>
+              <Box style={{ display: 'flex', gap: 12, marginTop: 8, fontSize: 12 }}>
                 {quest.rewardBullets > 0 && <Text>🔫+{quest.rewardBullets}</Text>}
                 {quest.rewardMatches > 0 && <Text>🔥+{quest.rewardMatches}</Text>}
                 {quest.rewardGrenades > 0 && <Text>💣+{quest.rewardGrenades}</Text>}
                 {quest.rewardGold > 0 && <Text>🪙+{quest.rewardGold}</Text>}
-              </Div>
+              </Box>
 
               {/* Claim button */}
               {isCompleted && !isClaimed && (
@@ -96,10 +96,10 @@ export const Quests = ({ id }: Props) => {
       </Group>
 
       <Group>
-        <Div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
+        <Box style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
           <Text>Готово: {state.daily.quests.filter((q: DailyQuestProgress) => q.completed && !q.claimed).length}</Text>
           <Text>Получено: {state.daily.quests.filter((q: DailyQuestProgress) => q.claimed).length}</Text>
-        </Div>
+        </Box>
       </Group>
     </Panel>
   );

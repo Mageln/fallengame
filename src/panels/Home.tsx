@@ -1,8 +1,9 @@
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
 import { FallenCanvas } from '../components/FallenCanvas/FallenCanvas';
 import { useGame } from '../game/GameContext';
-import { DISTRICT_TASKS, DISTRICTS } from '../game/constants';
+import { DISTRICT_TASKS } from '../game/constants';
 import { getDistrict } from '../game/formulas';
+import { InventoryPanel } from './InventoryPanel';
 
 interface HomeProps {
   id: string;
@@ -12,29 +13,11 @@ interface HomeProps {
 export const Home = ({ id }: HomeProps) => {
   const { state, dispatch, derived } = useGame();
   const district = getDistrict(state.currentDistrict);
-  const [showProfile, setShowProfile] = useState(false);
+  const [showInventory, setShowInventory] = useState(false);
 
   const openBattle = (districtId: string) => {
     dispatch({ type: 'START_BOSS', districtId });
   };
-
-  // Данные для профиля (memoized чтобы не вызывать бесконечный rerender)
-  const profileData = useMemo(() => ({
-    level: state.level,
-    stamina: derived.stamina,
-    damage: derived.damage,
-    luck: derived.luck,
-    crit: derived.crit,
-    gold: state.gold,
-    spicki: state.matches,
-    bullets: state.bullets,
-    zhetons: state.zhetons,
-    appearance: state.appearance,
-    carLevel: state.carLevel,
-    weapon: state.weapon,
-  }), [state.level, derived.stamina, derived.damage, derived.luck, derived.crit,
-       state.gold, state.matches, state.bullets, state.zhetons,
-       state.appearance, state.carLevel, state.weapon]);
 
   return (
     <div id={id} style={{ width: '100vw', height: '100vh', overflow: 'hidden', position: 'relative' }}>
@@ -54,40 +37,68 @@ export const Home = ({ id }: HomeProps) => {
         isZombieAlive
         appearance={state.appearance}
         tasks={DISTRICT_TASKS[state.currentDistrict] ?? DISTRICT_TASKS.southgate}
-        showMap={state.showMap}
-        onMapToggle={() => dispatch({ type: 'TOGGLE_MAP' })}
+        showBossModal={state.showBossModal}
         currentLocation={state.currentLocation}
         carLevel={state.carLevel}
         level={state.level}
         currentDistrict={state.currentDistrict}
         districtName={district?.name || ''}
         onBattle={() => district && openBattle(district.id)}
-        onGoProfile={() => setShowProfile(true)}
+        onGoProfile={() => setShowInventory(true)}
         onGoWorkshop={() => {}}
         onGoRaid={() => {}}
         onGoClan={() => {}}
-        onGoInventory={() => {}}
+        onGoInventory={() => setShowInventory(true)}
         onGoQuests={() => {}}
         onGoCrafting={() => {}}
         onLottery={() => dispatch({ type: 'LOTTERY' })}
         onClaimDaily={() => dispatch({ type: 'CLAIM_DAILY' })}
-        // Профиль
-        showProfile={showProfile}
-        profileData={profileData}
-        onProfileClose={() => setShowProfile(false)}
+        onOpenBossModal={() => dispatch({ type: 'TOGGLE_BOSS_MODAL' })}
         onBattleClick={() => {
-          setShowProfile(false);
+          setShowInventory(false);
           district && openBattle(district.id);
         }}
         onFriendsClick={() => {
-          setShowProfile(false);
+          setShowInventory(false);
           // TODO: открыть друзей
         }}
         onArenaClick={() => {
-          setShowProfile(false);
+          setShowInventory(false);
           // TODO: открыть арену
         }}
       />
+      {showInventory && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            zIndex: 10000,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            background: 'rgba(0, 0, 0, 0.75)',
+            cursor: 'pointer',
+          }}
+          onClick={() => setShowInventory(false)}
+        >
+          <div
+            style={{
+              width: '100%',
+              maxWidth: 520,
+              maxHeight: '90vh',
+              overflowY: 'auto',
+              cursor: 'default',
+              position: 'relative',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <InventoryPanel onClose={() => setShowInventory(false)} />
+          </div>
+        </div>
+      )}
     </div>
   );
 };

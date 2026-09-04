@@ -142,6 +142,7 @@ export interface GameState {
   lastMessage: string;
   soundEnabled: boolean;
   showMap: boolean;
+  showBossModal: boolean;
 }
 
 export type GameAction =
@@ -183,5 +184,6 @@ export type GameAction =
   | { type: 'CRAFT_ITEM'; recipeId: string }
   | { type: 'TOGGLE_SOUND' }
   | { type: 'TOGGLE_MAP' }
+  | { type: 'TOGGLE_BOSS_MODAL' }
   | { type: 'CHANGE_LOCATION'; locationId: string }
   | { type: 'CLEAR_MESSAGE' };

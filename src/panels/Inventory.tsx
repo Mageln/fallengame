@@ -1,4 +1,4 @@
-import { Panel, PanelHeader, Group, Button, Text, Header, Div, Card, CellButton } from '@vkontakte/vkui';
+import { Panel, PanelHeader, Group, Button, Text, Header, Box, Card, CellButton } from '@vkontakte/vkui';
 import { Icon28ArrowLeftOutline } from '@vkontakte/icons';
 import { useRouteNavigator } from '@vkontakte/vk-mini-apps-router';
 import { useGame } from '../game/GameContext';
@@ -41,7 +41,7 @@ export const Inventory = ({ id }: Props) => {
       {/* Equipped items */}
       <Group header={<Header>Надето</Header>}>
         {derived.equippedItems.length > 0 ? (
-          <Div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <Box style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {derived.equippedItems.map((item) => {
               const slot = equipped.find((s) => s.itemId === item.id);
               return (
@@ -52,7 +52,7 @@ export const Inventory = ({ id }: Props) => {
                     padding: 12,
                   }}
                 >
-                  <Div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <Box style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <Text style={{ fontWeight: 'bold' }}>{item.name}</Text>
                     <Button
                       size="s"
@@ -61,12 +61,12 @@ export const Inventory = ({ id }: Props) => {
                     >
                       Снять
                     </Button>
-                  </Div>
+                  </Box>
                   <Text style={{ fontSize: 11, opacity: 0.6 }}>{RARITY_NAMES[item.rarity as Rarity]}</Text>
                 </Card>
               );
             })}
-          </Div>
+          </Box>
         ) : (
           <Text style={{ opacity: 0.5 }}>Нет надетых предметов</Text>
         )}
@@ -75,7 +75,7 @@ export const Inventory = ({ id }: Props) => {
       {/* Unequipped items */}
       <Group header={<Header>Рюкзак</Header>}>
         {unequipped.length > 0 ? (
-          <Div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <Box style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
             {unequipped.map((slot) => {
               const item = INVENTORY_ITEMS.find((i) => i.id === slot.itemId);
               if (!item) return null;
@@ -90,14 +90,14 @@ export const Inventory = ({ id }: Props) => {
                     padding: 10,
                   }}
                 >
-                  <Div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <Div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <Box style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Box style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                       <Text style={{ fontSize: 20 }}>{item.icon}</Text>
-                      <Div>
+                      <Box>
                         <Text style={{ fontWeight: 'bold', color: rarityColor }}>{item.name}</Text>
                         <Text style={{ fontSize: 10, opacity: 0.6 }}>{RARITY_NAMES[item.rarity as Rarity]}{isRawMaterial ? ' • Сырьё' : ''}</Text>
-                      </Div>
-                    </Div>
+                      </Box>
+                    </Box>
                     {!isRawMaterial ? (
                       <Button size="s" onClick={() => handleEquip(slot.index)}>
                         Надеть
@@ -105,18 +105,18 @@ export const Inventory = ({ id }: Props) => {
                     ) : (
                       <Text style={{ fontSize: 11, opacity: 0.5 }}>Крафт</Text>
                     )}
-                  </Div>
+                  </Box>
                   {!isRawMaterial && (
-                    <Div style={{ display: 'flex', gap: 12, marginTop: 6, fontSize: 11 }}>
+                    <Box style={{ display: 'flex', gap: 12, marginTop: 6, fontSize: 11 }}>
                       {item.staminaBonus > 0 && <Text>⚡+{item.staminaBonus}</Text>}
                       {item.damageBonus > 0 && <Text>⚔+{item.damageBonus}</Text>}
                       {item.luckBonus > 0 && <Text>🍀+{item.luckBonus}</Text>}
-                    </Div>
+                    </Box>
                   )}
                 </Card>
               );
             })}
-          </Div>
+          </Box>
         ) : (
           <Text style={{ opacity: 0.5 }}>Рюкзак пуст. Заходите в рейды и убивайте боссов!</Text>
         )}

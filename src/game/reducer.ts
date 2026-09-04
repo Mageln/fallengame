@@ -732,6 +732,8 @@ export const gameReducer = (state: GameState, action: GameAction): GameState => 
       return { ...state, soundEnabled: !state.soundEnabled };
     case 'TOGGLE_MAP':
       return { ...state, showMap: !state.showMap };
+    case 'TOGGLE_BOSS_MODAL':
+      return { ...state, showBossModal: !state.showBossModal };
     case 'CHANGE_LOCATION':
       return { ...state, currentLocation: action.locationId };
     default:

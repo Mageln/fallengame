@@ -1,4 +1,4 @@
-import { Panel, PanelHeader, Group, Button, Text, Header, Div, Cell } from '@vkontakte/vkui';
+import { Panel, PanelHeader, Group, Button, Text, Header, Box, Cell } from '@vkontakte/vkui';
 import { Icon28ArrowLeftOutline } from '@vkontakte/icons';
 import { useRouteNavigator } from '@vkontakte/vk-mini-apps-router';
 import { useGame } from '../game/GameContext';
@@ -54,22 +54,22 @@ export const Raid = ({ id }: Props) => {
                 </Button>
               }
             >
-              <Div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <Box style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <Text style={{ fontSize: 20 }}>{icon}</Text>
-                <Div>
+                <Box>
                   <Text style={{ fontWeight: 'bold' }}>{raid.name}</Text>
                   <Text style={{ fontSize: 10, opacity: 0.6 }}>
                     Сложность: {difficulty}
                   </Text>
-                </Div>
-              </Div>
+                </Box>
+              </Box>
             </Cell>
           );
         })}
       </Group>
       {state.raid && (
         <Group header={<Header>Текущий рейд</Header>}>
-          <Div>
+          <Box>
             <Text style={{ fontWeight: 'bold' }}>
               {RAIDS.find((r) => r.id === state.raid?.raidId)?.name}
             </Text>
@@ -78,8 +78,8 @@ export const Raid = ({ id }: Props) => {
                 ? (state.raid.pathClear ? 'Путь чист! Собирайте ящики.' : 'Сильный босс на пути!')
                 : 'Сначала разведка до выхода.'}
             </Text>
-          </Div>
-          <Div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 8 }}>
+          </Box>
+          <Box style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 8 }}>
             <Button disabled={state.raid.scouted} onClick={() => dispatch({ type: 'RAID_SCOUT' })}>
               🔍 Разведка
             </Button>
@@ -98,7 +98,7 @@ export const Raid = ({ id }: Props) => {
             <Button mode="tertiary" onClick={() => dispatch({ type: 'LEAVE_RAID' })}>
               🚪 Выйти
             </Button>
-          </Div>
+          </Box>
         </Group>
       )}
     </Panel>
