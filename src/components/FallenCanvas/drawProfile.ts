@@ -1,7 +1,5 @@
 // src/components/FallenCanvas/drawProfile.ts
 
-import { GameIcons } from '../../hooks/useIcon';
-
 interface ProfileData {
   level: number;
   stamina: number;
@@ -25,11 +23,150 @@ export interface ButtonPosition {
   id: string;
 }
 
+// Вспомогательные функции для рисования
+const drawGlowText = (
+  ctx: CanvasRenderingContext2D,
+  text: string,
+  x: number,
+  y: number,
+  fontSize: number,
+  color: string,
+  glowColor: string,
+  align: 'left' | 'center' | 'right' = 'center'
+) => {
+  ctx.save();
+  ctx.font = `bold ${fontSize}px "Segoe UI", Arial, sans-serif`;
+  ctx.textAlign = align;
+  ctx.textBaseline = 'middle';
+  
+  // Свечение
+  ctx.shadowColor = glowColor;
+  ctx.shadowBlur = 8;
+  ctx.fillStyle = color;
+  ctx.fillText(text, x, y);
+  
+  // Основной текст
+  ctx.shadowBlur = 0;
+  ctx.fillText(text, x, y);
+  ctx.restore();
+};
+
+const drawProgressBar = (
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  progress: number,
+  bgColor: string,
+  fillColor: string,
+  borderColor: string
+) => {
+  // Фон полоски
+  ctx.fillStyle = bgColor;
+  ctx.beginPath();
+  ctx.roundRect(x, y, width, height, 4);
+  ctx.fill();
+  
+  ctx.strokeStyle = borderColor;
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.roundRect(x, y, width, height, 4);
+  ctx.stroke();
+  
+  // Заполнение
+  if (progress > 0) {
+    const fillWidth = Math.max(0, (width - 2) * progress);
+    const gradient = ctx.createLinearGradient(x, y, x + fillWidth, y);
+    gradient.addColorStop(0, fillColor);
+    gradient.addColorStop(1, lightenColor(fillColor, 30));
+    
+    ctx.fillStyle = gradient;
+    ctx.beginPath();
+    ctx.roundRect(x + 1, y + 1, fillWidth, height - 2, 3);
+    ctx.fill();
+    
+    // Блик
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
+    ctx.beginPath();
+    ctx.roundRect(x + 1, y + 1, fillWidth, (height - 2) / 2, [3, 3, 0, 0]);
+    ctx.fill();
+  }
+};
+
+const lightenColor = (hex: string, percent: number): string => {
+  const num = parseInt(hex.replace('#', ''), 16);
+  const r = Math.min(255, (num >> 16) + percent);
+  const g = Math.min(255, ((num >> 8) & 0x00FF) + percent);
+  const b = Math.min(255, (num & 0x0000FF) + percent);
+  return `rgb(${r}, ${g}, ${b})`;
+};
+
+const drawStatCard = (
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  icon: string,
+  label: string,
+  value: string | number,
+  valueColor: string,
+  progress?: { current: number; max: number }
+) => {
+  // Карточка с фоном
+  ctx.fillStyle = 'rgba(20, 25, 40, 0.8)';
+  ctx.beginPath();
+  ctx.roundRect(x, y, width, height, 8);
+  ctx.fill();
+  
+  ctx.strokeStyle = 'rgba(255, 215, 0, 0.3)';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.roundRect(x, y, width, height, 8);
+  ctx.stroke();
+  
+  // Иконка
+  ctx.font = '20px Arial';
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'top';
+  ctx.fillText(icon, x + 10, y + 8);
+  
+  // Метка
+  ctx.fillStyle = '#8899aa';
+  ctx.font = '11px "Segoe UI", Arial, sans-serif';
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'top';
+  ctx.fillText(label, x + 38, y + 12);
+  
+  // Значение
+  drawGlowText(ctx, value.toString(), x + width - 10, y + 14, 13, valueColor, valueColor, 'right');
+  
+  // Полоска прогресса (если есть)
+  if (progress && progress.max > 0) {
+    const progressY = y + height - 12;
+    const progressWidth = width - 20;
+    const progressVal = Math.min(1, Math.max(0, progress.current / progress.max));
+    
+    drawProgressBar(
+      ctx,
+      x + 10,
+      progressY,
+      progressWidth,
+      6,
+      progressVal,
+      'rgba(0, 0, 0, 0.4)',
+      valueColor,
+      'rgba(255, 255, 255, 0.1)'
+    );
+  }
+};
+
 export const drawProfile = (
   ctx: CanvasRenderingContext2D,
   canvasWidth: number,
   canvasHeight: number,
-  icons: GameIcons,
+  icons: Record<string, HTMLImageElement | null>,
   characterImage: HTMLImageElement | null,
   appearanceColor: string,
   profileData: ProfileData,
@@ -44,46 +181,60 @@ export const drawProfile = (
   const panelX = padding;
   const panelY = padding;
 
-  // Фон панели
-  ctx.fillStyle = 'rgba(10, 10, 15, 0.95)';
+  // ===== ФОН ПАНЕЛИ =====
+  // Градиентный фон
+  const bgGradient = ctx.createLinearGradient(panelX, panelY, panelX, panelY + panelHeight);
+  bgGradient.addColorStop(0, 'rgba(15, 18, 30, 0.97)');
+  bgGradient.addColorStop(0.5, 'rgba(10, 14, 25, 0.97)');
+  bgGradient.addColorStop(1, 'rgba(8, 10, 20, 0.97)');
+  ctx.fillStyle = bgGradient;
   ctx.beginPath();
-  ctx.roundRect(panelX, panelY, panelWidth, panelHeight, 12);
+  ctx.roundRect(panelX, panelY, panelWidth, panelHeight, 16);
   ctx.fill();
 
+  // Золотая рамка с градиентом
   ctx.strokeStyle = '#ffd700';
   ctx.lineWidth = 2;
+  ctx.shadowColor = '#ffd700';
+  ctx.shadowBlur = 10;
   ctx.beginPath();
-  ctx.roundRect(panelX, panelY, panelWidth, panelHeight, 12);
+  ctx.roundRect(panelX, panelY, panelWidth, panelHeight, 16);
   ctx.stroke();
+  ctx.shadowBlur = 0;
 
-  // Заголовок
-  ctx.fillStyle = '#ffd700';
-  ctx.font = 'bold 20px Arial';
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.fillText('👤 ПРОФИЛЬ ПЕРСОНАЖА', canvasWidth / 2, panelY + 30);
-
-  // Кнопка закрыть
-  const closeBtnX = canvasWidth - 60;
-  const closeBtnY = panelY + 10;
-  const closeBtnW = 50;
-  const closeBtnH = 30;
-
-  ctx.fillStyle = isHovered && hoveredX > closeBtnX && hoveredX < closeBtnX + closeBtnW && hoveredY > closeBtnY && hoveredY < closeBtnY + closeBtnH ? '#ff4444' : 'rgba(255, 0, 0, 0.3)';
+  // ===== ЗАГОЛОВОК =====
+  ctx.fillStyle = 'rgba(255, 215, 0, 0.1)';
   ctx.beginPath();
-  ctx.roundRect(closeBtnX, closeBtnY, closeBtnW, closeBtnH, 6);
+  ctx.roundRect(panelX + 10, panelY + 5, panelWidth - 20, 45, 10);
   ctx.fill();
-  ctx.strokeStyle = '#ff4444';
+
+  drawGlowText(ctx, '👤 ПРОФИЛЬ ПЕРСОНАЖА', canvasWidth / 2, panelY + 28, 18, '#ffd700', '#ffd700');
+
+  // ===== КНОПКА ЗАКРЫТЬ =====
+  const closeBtnX = panelX + 10;
+  const closeBtnY = panelY + 8;
+  const closeBtnW = 70;
+  const closeBtnH = 32;
+  const isCloseHovered = isHovered &&
+    hoveredX > closeBtnX && hoveredX < closeBtnX + closeBtnW &&
+    hoveredY > closeBtnY && hoveredY < closeBtnY + closeBtnH;
+
+  ctx.fillStyle = isCloseHovered ? 'rgba(255, 100, 100, 0.8)' : 'rgba(200, 50, 50, 0.6)';
+  ctx.beginPath();
+  ctx.roundRect(closeBtnX, closeBtnY, closeBtnW, closeBtnH, 8);
+  ctx.fill();
+
+  ctx.strokeStyle = '#ff6666';
   ctx.lineWidth = 1.5;
   ctx.beginPath();
-  ctx.roundRect(closeBtnX, closeBtnY, closeBtnW, closeBtnH, 6);
+  ctx.roundRect(closeBtnX, closeBtnY, closeBtnW, closeBtnH, 8);
   ctx.stroke();
 
   ctx.fillStyle = '#fff';
-  ctx.font = 'bold 14px Arial';
+  ctx.font = 'bold 13px Arial';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText('✕ Закрыть', closeBtnX + closeBtnW / 2, closeBtnY + closeBtnH / 2);
+  ctx.fillText('← Назад', closeBtnX + closeBtnW / 2, closeBtnY + closeBtnH / 2);
 
   buttonPositions.push({
     x: closeBtnX,
@@ -93,155 +244,283 @@ export const drawProfile = (
     id: 'close_profile',
   });
 
-  // Левая колонка - Персонаж
-  const leftColX = panelX + 20;
-  const leftColWidth = panelWidth * 0.45;
+  // ===== ЛЕВАЯ КОЛОНКА — ПЕРСОНАЖ =====
+  const leftColX = panelX + 15;
+  const leftColWidth = panelWidth * 0.42;
   const charCenterX = leftColX + leftColWidth / 2;
-  const charCenterY = panelY + 120;
+  const charTopY = panelY + 70;
 
-  // Рисуем персонажа
-  if (characterImage instanceof HTMLImageElement && characterImage.complete && characterImage.naturalWidth > 0) {
-    const charWidth = 120;
-    const charHeight = 180;
-    ctx.drawImage(characterImage, charCenterX - charWidth / 2, charCenterY - charHeight / 2, charWidth, charHeight);
-  } else {
-    // Заглушка - силуэт
-    ctx.fillStyle = appearanceColor;
-    ctx.beginPath();
-    ctx.arc(charCenterX, charCenterY - 40, 25, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillRect(charCenterX - 20, charCenterY - 15, 40, 70);
-  }
-
-  // Имя и уровень
-  ctx.fillStyle = '#ffd700';
-  ctx.font = 'bold 16px Arial';
-  ctx.textAlign = 'center';
-  ctx.fillText(`Уровень ${profileData.level}`, charCenterX, charCenterY + 100);
-
-  ctx.fillStyle = '#888';
-  ctx.font = '12px Arial';
-  ctx.fillText(`Авто ур. ${profileData.carLevel}`, charCenterX, charCenterY + 118);
-
-  // Правая колонка - Статы
-  const rightColX = panelX + panelWidth * 0.5;
-  const rightColWidth = panelWidth * 0.45 - 30;
-  let statY = panelY + 60;
-
-  const stats: Array<{ label: string; value: string | number; color: string; icon: string }> = [
-    { label: 'Выносливость', value: profileData.stamina, color: '#00ff88', icon: '⚡' },
-    { label: 'Урон', value: profileData.damage, color: '#ff6666', icon: '⚔' },
-    { label: 'Удача', value: profileData.luck, color: '#fbbf24', icon: '🍀' },
-    { label: 'Крит. шанс', value: `${(profileData.crit * 100).toFixed(1)}%`, color: '#00aaff', icon: '🎯' },
-  ];
-
-  stats.forEach((stat) => {
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.05)';
-    ctx.beginPath();
-    ctx.roundRect(rightColX, statY, rightColWidth, 30, 6);
-    ctx.fill();
-
-    ctx.fillStyle = '#888';
-    ctx.font = '12px Arial';
-    ctx.textAlign = 'left';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(`${stat.icon} ${stat.label}`, rightColX + 8, statY + 15);
-
-    ctx.fillStyle = stat.color;
-    ctx.font = 'bold 14px Arial';
-    ctx.textAlign = 'right';
-    ctx.fillText(stat.value.toString(), rightColX + rightColWidth - 8, statY + 15);
-
-    statY += 38;
-  });
-
-  statY += 10;
-
-  // Оружие
-  ctx.fillStyle = 'rgba(255, 255, 255, 0.05)';
+  // Рамка персонажа
+  ctx.strokeStyle = 'rgba(255, 215, 0, 0.4)';
+  ctx.lineWidth = 2;
   ctx.beginPath();
-  ctx.roundRect(rightColX, statY, rightColWidth, 40, 6);
+  ctx.roundRect(leftColX, charTopY, leftColWidth, 220, 12);
+  ctx.stroke();
+
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+  ctx.beginPath();
+  ctx.roundRect(leftColX, charTopY, leftColWidth, 220, 12);
   ctx.fill();
 
-  ctx.fillStyle = profileData.weapon.broken ? '#ff4444' : '#fff';
-  ctx.font = '12px Arial';
+  // Персонаж
+  if (characterImage instanceof HTMLImageElement && characterImage.complete && characterImage.naturalWidth > 0) {
+    const charWidth = 100;
+    const charHeight = 160;
+    ctx.drawImage(
+      characterImage,
+      charCenterX - charWidth / 2,
+      charTopY + 20,
+      charWidth,
+      charHeight
+    );
+  } else {
+    // Стилизованный силуэт
+    const headY = charTopY + 45;
+    const bodyY = charTopY + 75;
+    
+    // Голова
+    ctx.fillStyle = appearanceColor;
+    ctx.beginPath();
+    ctx.arc(charCenterX, headY, 22, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(255, 215, 0, 0.5)';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+    
+    // Тело
+    ctx.fillStyle = appearanceColor;
+    ctx.beginPath();
+    ctx.roundRect(charCenterX - 18, bodyY, 36, 65, 6);
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(255, 215, 0, 0.5)';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+    
+    // Руки
+    ctx.beginPath();
+    ctx.roundRect(charCenterX - 30, bodyY + 5, 12, 45, 4);
+    ctx.fill();
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.roundRect(charCenterX + 18, bodyY + 5, 12, 45, 4);
+    ctx.fill();
+    ctx.stroke();
+    
+    // Ноги
+    ctx.beginPath();
+    ctx.roundRect(charCenterX - 16, bodyY + 65, 12, 45, 4);
+    ctx.fill();
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.roundRect(charCenterX + 4, bodyY + 65, 12, 45, 4);
+    ctx.fill();
+    ctx.stroke();
+  }
+
+  // Уровень персонажа
+  const levelBadgeY = charTopY + 200;
+  ctx.fillStyle = 'rgba(255, 215, 0, 0.15)';
+  ctx.beginPath();
+  ctx.roundRect(charCenterX - 50, levelBadgeY, 100, 28, 14);
+  ctx.fill();
+  ctx.strokeStyle = '#ffd700';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.roundRect(charCenterX - 50, levelBadgeY, 100, 28, 14);
+  ctx.stroke();
+
+  drawGlowText(ctx, `Ур. ${profileData.level}`, charCenterX, levelBadgeY + 14, 12, '#ffd700', '#ffd700');
+
+  // ===== ПРАВАЯ КОЛОНКА — СТАТЫ =====
+  const rightColX = panelX + panelWidth * 0.46;
+  const rightColWidth = panelWidth * 0.5 - 35;
+  
+  // Размер карточки статов
+  const cardWidth = rightColWidth;
+  const cardHeight = 48;
+  const cardGap = 8;
+  let currentY = panelY + 65;
+
+  // Карточка выносливости
+  drawStatCard(
+    ctx,
+    rightColX,
+    currentY,
+    cardWidth,
+    cardHeight,
+    '⚡',
+    'Выносливость',
+    profileData.stamina,
+    '#00ff88',
+    { current: profileData.stamina, max: profileData.stamina }
+  );
+  currentY += cardHeight + cardGap;
+
+  // Карточка урона
+  drawStatCard(
+    ctx,
+    rightColX,
+    currentY,
+    cardWidth,
+    cardHeight,
+    '⚔️',
+    'Боевой урон',
+    profileData.damage,
+    '#ff6666',
+    { current: profileData.damage, max: profileData.damage }
+  );
+  currentY += cardHeight + cardGap;
+
+  // Карточка удачи
+  drawStatCard(
+    ctx,
+    rightColX,
+    currentY,
+    cardWidth,
+    cardHeight,
+    '🍀',
+    'Удача',
+    profileData.luck,
+    '#fbbf24',
+    { current: profileData.luck, max: profileData.luck }
+  );
+  currentY += cardHeight + cardGap;
+
+  // Карточка крит. шанс
+  drawStatCard(
+    ctx,
+    rightColX,
+    currentY,
+    cardWidth,
+    cardHeight,
+    '🎯',
+    'Крит. шанс',
+    `${(profileData.crit * 100).toFixed(1)}%`,
+    '#00aaff',
+    { current: profileData.crit * 100, max: 100 }
+  );
+  currentY += cardHeight + cardGap + 10;
+
+  // ===== ОРУЖИЕ =====
+  const weaponY = currentY;
+  const weaponHeight = 60;
+  
+  ctx.fillStyle = profileData.weapon.broken ? 'rgba(255, 68, 68, 0.1)' : 'rgba(255, 215, 0, 0.08)';
+  ctx.beginPath();
+  ctx.roundRect(rightColX, weaponY, cardWidth, weaponHeight, 10);
+  ctx.fill();
+  
+  ctx.strokeStyle = profileData.weapon.broken ? 'rgba(255, 68, 68, 0.5)' : 'rgba(255, 215, 0, 0.3)';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.roundRect(rightColX, weaponY, cardWidth, weaponHeight, 10);
+  ctx.stroke();
+
+  // Иконка оружия
+  ctx.font = '24px Arial';
   ctx.textAlign = 'left';
-  ctx.textBaseline = 'middle';
-  ctx.fillText(`🔫 ${profileData.weapon.broken ? 'Оружие сломано!' : profileData.weapon.name}`, rightColX + 8, statY + 15);
+  ctx.textBaseline = 'top';
+  ctx.fillText(profileData.weapon.broken ? '💥' : '🔫', rightColX + 10, weaponY + 8);
 
-  ctx.fillStyle = '#ffd700';
-  ctx.font = 'bold 12px Arial';
-  ctx.textAlign = 'right';
-  ctx.fillText(`+${profileData.weapon.level}`, rightColX + rightColWidth - 8, statY + 15);
-
-  statY += 50;
-
-  // Ресурсы
-  ctx.fillStyle = '#ffd700';
-  ctx.font = 'bold 14px Arial';
+  // Название оружия
+  ctx.fillStyle = profileData.weapon.broken ? '#ff6666' : '#ffffff';
+  ctx.font = 'bold 13px "Segoe UI", Arial, sans-serif';
   ctx.textAlign = 'left';
-  ctx.fillText('💰 Ресурсы', rightColX, statY);
-  statY += 8;
+  ctx.textBaseline = 'top';
+  ctx.fillText(
+    profileData.weapon.broken ? 'Оружие сломано!' : profileData.weapon.name,
+    rightColX + 42,
+    weaponY + 10
+  );
 
-  const resources: Array<{ label: string; value: number; color: string }> = [
-    { label: 'Золото', value: profileData.gold, color: '#ffd700' },
-    { label: 'Пули', value: profileData.bullets, color: '#aaa' },
-    { label: 'Спички', value: profileData.spicki, color: '#ff8800' },
-    { label: 'Жетоны', value: profileData.zhetons, color: '#00aaff' },
+  // Уровень оружия
+  drawGlowText(ctx, `+${profileData.weapon.level}`, rightColX + cardWidth - 10, weaponY + 14, 12, '#ffd700', '#ffd700', 'right');
+
+  // Прогресс прочности оружия (заглушка)
+  drawProgressBar(
+    ctx,
+    rightColX + 10,
+    weaponY + 36,
+    cardWidth - 20,
+    5,
+    0.7,
+    'rgba(0, 0, 0, 0.4)',
+    profileData.weapon.broken ? '#ff4444' : '#ffd700',
+    'rgba(255, 255, 255, 0.1)'
+  );
+
+  currentY += weaponHeight + 15;
+
+  // ===== РЕСУРСЫ =====
+  drawGlowText(ctx, '💰 Ресурсы', rightColX, currentY, 14, '#ffd700', '#ffd700', 'left');
+  currentY += 22;
+
+  const resources: Array<{ label: string; value: number; color: string; icon: string }> = [
+    { label: 'Золото', value: profileData.gold, color: '#ffd700', icon: '🪙' },
+    { label: 'Пули', value: profileData.bullets, color: '#cccccc', icon: '🔫' },
+    { label: 'Спички', value: profileData.spicki, color: '#ff8800', icon: '🔥' },
+    { label: 'Жетоны', value: profileData.zhetons, color: '#00aaff', icon: '🎫' },
   ];
 
-  const resPerRow = 2;
-  const resSpacing = rightColWidth / resPerRow;
+  const resCardWidth = (cardWidth - cardGap) / 2;
+  const resCardHeight = 42;
 
   resources.forEach((res, index) => {
-    const row = Math.floor(index / resPerRow);
-    const col = index % resPerRow;
-    const resX = rightColX + col * resSpacing;
-    const resY = statY + row * 28;
+    const col = index % 2;
+    const row = Math.floor(index / 2);
+    const resX = rightColX + col * (resCardWidth + cardGap);
+    const resY = currentY + row * (resCardHeight + cardGap);
 
-    ctx.fillStyle = res.color;
-    ctx.font = '11px Arial';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(`${res.label}: ${res.value}`, resX + resSpacing / 2, resY);
+    drawStatCard(
+      ctx,
+      resX,
+      resY,
+      resCardWidth,
+      resCardHeight,
+      res.icon,
+      res.label,
+      res.value.toLocaleString(),
+      res.color
+    );
   });
 
-  // Кнопки быстрой навигации
-  const navBtnY = panelY + panelHeight - 50;
-  const navBtnWidth = (panelWidth - 40) / 3;
+  // ===== КНОПКИ НАВИГАЦИИ =====
+  const navBtnY = panelY + panelHeight - 55;
+  const navBtnWidth = (panelWidth - 50) / 3;
   const navButtons = [
-    { id: 'nav_workshop', label: '🔧 Цех', x: panelX + 20, color: '#00ff88' },
-    { id: 'nav_battle', label: '⚔️ Босс', x: panelX + 20 + navBtnWidth + 10, color: '#ff6666' },
-    { id: 'nav_clan', label: '👥 Клан', x: panelX + 20 + (navBtnWidth + 10) * 2, color: '#ff8800' },
+    { id: 'nav_workshop', label: '🔧 Цех', color: '#00ff88', hoverColor: '#00cc66' },
+    { id: 'nav_battle', label: '⚔️ Босс', color: '#ff6666', hoverColor: '#cc4444' },
+    { id: 'nav_clan', label: '👥 Клан', color: '#ff8800', hoverColor: '#cc6600' },
   ];
 
-  navButtons.forEach((btn) => {
+  navButtons.forEach((btn, index) => {
+    const btnX = panelX + 20 + index * (navBtnWidth + 10);
     const isHover = isHovered &&
-      hoveredX > btn.x && hoveredX < btn.x + navBtnWidth &&
-      hoveredY > navBtnY && hoveredY < navBtnY + 40;
-
-    ctx.fillStyle = isHover ? `${btn.color}33` : 'rgba(0, 0, 0, 0.5)';
+      hoveredX > btnX && hoveredX < btnX + navBtnWidth &&
+      hoveredY > navBtnY && hoveredY < navBtnY + 45;
+    
+    const btnGradient = ctx.createLinearGradient(btnX, navBtnY, btnX, navBtnY + 45);
+    btnGradient.addColorStop(0, isHover ? btn.hoverColor : `${btn.color}99`);
+    btnGradient.addColorStop(1, isHover ? btn.color : `${btn.color}66`);
+    
+    ctx.fillStyle = btnGradient;
     ctx.beginPath();
-    ctx.roundRect(btn.x, navBtnY, navBtnWidth, 40, 8);
+    ctx.roundRect(btnX, navBtnY, navBtnWidth, 45, 10);
     ctx.fill();
 
     ctx.strokeStyle = btn.color;
     ctx.lineWidth = 1.5;
     ctx.beginPath();
-    ctx.roundRect(btn.x, navBtnY, navBtnWidth, 40, 8);
+    ctx.roundRect(btnX, navBtnY, navBtnWidth, 45, 10);
     ctx.stroke();
 
-    ctx.fillStyle = btn.color;
-    ctx.font = 'bold 13px Arial';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(btn.label, btn.x + navBtnWidth / 2, navBtnY + 20);
+    drawGlowText(ctx, btn.label, btnX + navBtnWidth / 2, navBtnY + 22, 13, btn.color, btn.color);
 
     buttonPositions.push({
-      x: btn.x,
+      x: btnX,
       y: navBtnY,
       width: navBtnWidth,
-      height: 40,
+      height: 45,
       id: btn.id,
     });
   });

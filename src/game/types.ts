@@ -91,6 +91,25 @@ export interface RaidState {
   pathClear: boolean;
 }
 
+export interface MapRaid {
+  id: string;
+  x: number; // координата X на карте (0-100%)
+  y: number; // координата Y на карте (0-100%)
+  type: 'yellow' | 'red'; // жёлтая (15 мин) или красная (30 мин) зона
+  name: string;
+  description: string;
+  energyCost: number;
+  rewards: {
+    bullets: number;
+    matches: number;
+    materials: number;
+  };
+  isRunning: boolean;
+  startTime?: number; // timestamp начала рейда
+  endTime?: number; // timestamp окончания
+  completed: boolean;
+}
+
 export interface ClanState {
   name: string;
   score: number;
@@ -143,6 +162,9 @@ export interface GameState {
   soundEnabled: boolean;
   showMap: boolean;
   showBossModal: boolean;
+  showRaidModal: boolean;
+  activeRaid: MapRaid | null;
+  mapRaids: MapRaid[];
 }
 
 export type GameAction =
@@ -185,5 +207,8 @@ export type GameAction =
   | { type: 'TOGGLE_SOUND' }
   | { type: 'TOGGLE_MAP' }
   | { type: 'TOGGLE_BOSS_MODAL' }
+  | { type: 'START_RAID'; raidId: string }
+  | { type: 'CANCEL_RAID'; raidId: string }
+  | { type: 'CLAIM_RAID_REWARD'; raidId: string }
   | { type: 'CHANGE_LOCATION'; locationId: string }
   | { type: 'CLEAR_MESSAGE' };

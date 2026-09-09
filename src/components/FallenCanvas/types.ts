@@ -26,6 +26,13 @@ export interface PrisonCanvasProps {
   tasks?: CanvasTask[];
   showMap?: boolean;
   onMapToggle?: () => void;
+  onBattleClick?: () => void;
+  onFriendsClick?: () => void;
+  onArenaClick?: () => void;
+  onRaidClick?: (raidId: string) => void;
+  onGoDistrict?: () => void;
+  onBackToMain?: () => void;
+  onCloseMap?: () => void;
   currentLocation?: string;
   onLocationChange?: (locationId: string) => void;
 }

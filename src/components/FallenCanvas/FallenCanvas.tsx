@@ -5,7 +5,10 @@ import { useCanvas } from "./useCanvas";
 import { useIcon } from "../../hooks/useIcon";
 import { APPEARANCES } from "../../game/constants";
 import { TASKS } from "./tasks";
-import { BossData } from "./drawUI";
+import { BossData, MapRaid } from "./drawUI";
+import { RaidModal } from "../../panels/RaidModal";
+import { useGame } from "../../game/GameContext";
+import { MapRaid as MapRaidType } from "../../game/types";
 
 export const FallenCanvas: React.FC<PrisonCanvasProps & {
   carLevel?: number;
@@ -41,9 +44,16 @@ export const FallenCanvas: React.FC<PrisonCanvasProps & {
     weapon: { name: string; level: number; broken: boolean };
   };
   onProfileClose?: () => void;
+  onCloseProfile?: () => void;
   onBattleClick?: () => void;
   onFriendsClick?: () => void;
   onArenaClick?: () => void;
+  onRaidClick?: (raidId: string) => void;
+  onGoDistrict?: () => void;
+  showMap?: boolean;
+  mapRaids?: MapRaid[];
+  playerName?: string;
+  avatarUrl?: string;
 }> = ({
   onTaskComplete,
   onResourceClick,
@@ -79,14 +89,24 @@ export const FallenCanvas: React.FC<PrisonCanvasProps & {
   // Профиль
   showBossModal = false,
   showProfile = false,
+  showMap = false,
   profileData,
   onProfileClose,
+  onCloseProfile,
   onBattleClick,
   onFriendsClick,
   onArenaClick,
+  onRaidClick,
+  onGoDistrict,
+  onCloseMap,
+  mapRaids = [],
+  playerName = 'Игрок',
+  avatarUrl,
 }) => {
+  const { dispatch, state } = useGame();
   const [backgroundImage, setBackgroundImage] = useState<HTMLImageElement | null>(null);
   const [characterImage, setCharacterImage] = useState<HTMLImageElement | null>(null);
+  const [mapImage, setMapImage] = useState<HTMLImageElement | null>(null);
 
   // Фейковые боссы
   const fakeBosses: BossData[] = [
@@ -258,6 +278,28 @@ export const FallenCanvas: React.FC<PrisonCanvasProps & {
     charImg.src = '/pers1.png';
   }, [currentLocation]);
 
+  // Загружаем карту
+  useEffect(() => {
+    const mapImg = new Image();
+    mapImg.crossOrigin = 'anonymous';
+    mapImg.onload = () => setMapImage(mapImg);
+    mapImg.onerror = () => setMapImage(null);
+    mapImg.src = '/map/map.jpg';
+  }, []);
+
+  // Загружаем аватар пользователя
+  const [avatarImage, setAvatarImage] = useState<HTMLImageElement | null>(null);
+  useEffect(() => {
+    if (!avatarUrl) {
+      setAvatarImage(null);
+      return;
+    }
+    const img = new Image();
+    img.onload = () => setAvatarImage(img);
+    img.onerror = () => setAvatarImage(null);
+    img.src = avatarUrl;
+  }, [avatarUrl]);
+
   const handleZombieClick = useCallback(() => {
     if (onZombieClick) onZombieClick();
   }, [onZombieClick]);
@@ -278,48 +320,25 @@ export const FallenCanvas: React.FC<PrisonCanvasProps & {
     currentLocation,
     carLevel,
     level,
-    currentDistrict,
     districtName,
-    onGoProfile,
-    undefined, // handleBossClick
-    onProfileClose, // handleBossModalClose
-    undefined, // handleBackToMain
-    onFriendsClick || onGoClan,
-    onGoWorkshop,
-    onGoRaid,
-    onGoClan,
-    onGoInventory,
-    onGoQuests,
-    onGoCrafting,
-    onLottery,
-    onClaimDaily,
-    undefined, // onRestoreSpicki
-    undefined, // onRestoreBullets
-    undefined, // onRestoreGold
-    undefined, // onRestoreZhetons
-    undefined, // onGoCloth
-    undefined, // onGoKomnata
-    undefined, // onGoKazino
-    undefined, // onGoDistrict
-    onOpenBossModal, // onOpenBossModal
+    playerName,
+    avatarImage,
+    // Callbacks
+    onGoProfile,       // onProfileClick
+    onBattleClick,     // onBattleClick
+    onProfileClose,    // onBossModalClose
+    onCloseMap,        // onCloseMap
+    onOpenBossModal,   // onOpenBossModal
+    onProfileClose,    // onCloseProfile
+    // State
     showProfile,
     showBossModal,
-    profileData ? {
-      level: profileData.level,
-      stamina: profileData.stamina,
-      damage: profileData.damage,
-      luck: profileData.luck,
-      crit: profileData.crit,
-      gold: profileData.gold,
-      spicki: profileData.spicki,
-      bullets: profileData.bullets,
-      zhetons: profileData.zhetons,
-      appearance: profileData.appearance,
-      carLevel: profileData.carLevel,
-      weapon: profileData.weapon,
-    } : null,
+    showMap,
+    profileData,
     fakeBosses,
-    false 
+    mapRaids,
+    mapImage,
+    false // fullscreen
   );
 
   return (
@@ -349,8 +368,21 @@ export const FallenCanvas: React.FC<PrisonCanvasProps & {
           fontSize: 14,
         }}
       >
-        ⛶ 
+        ⛶
       </button>
+      
+      {/* Модальное окно рейда */}
+      {state.showRaidModal && state.activeRaid && onRaidClick && (
+        <RaidModal
+          raidId={state.activeRaid.id}
+          onClaim={() => {
+            dispatch({ type: 'CLAIM_RAID_REWARD', raidId: state.activeRaid!.id });
+          }}
+          onCancel={() => {
+            dispatch({ type: 'CANCEL_RAID', raidId: state.activeRaid!.id });
+          }}
+        />
+      )}
     </div>
   );
 };

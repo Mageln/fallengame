@@ -1,0 +1,244 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Пользователь ВКонтакте
+model User {
+  id            String    @id @default(cuid())
+  vkId          Int       @unique // ID пользователя ВКонтакте
+  username      String?   // Отображаемое имя
+  avatarUrl     String?   // URL аватара
+  level         Int       @default(1) // Уровень персонажа
+  experience    Int       @default(0) // Опыт
+  authority     Int       @default(0) // Авторитет
+  health        Int       @default(100) // Здоровье
+  energy        Int       @default(100) // Энергия
+  
+  // Валюты
+  gold          Int       @default(0) // Золото
+  matches       Int       @default(0) // Спички
+  bullets       Int       @default(0) // Пули
+  tokens        Int       @default(0) // Жетоны
+  
+  // Экипировка
+  equippedWeaponId String? @unique // ID текущего оружия
+  
+  // Кланы
+  clanId        String?   // ID клана (если состоит)
+  clanRole      String?   // Роль в клане: 'owner', 'admin', 'member'
+  
+  // Связи
+  friends       Friend[]  @relation("UserFriends")
+  friendRequests FriendSent[] @relation("UserFriendRequests")
+  
+  // Инвентарь
+  inventory     InventoryItem[]
+  
+  // Оружие
+  weapons       Weapon[]
+  
+  // Одежда
+  clothing      ClothingItem[]
+  
+  // Квесты
+  quests        QuestProgress[]
+  
+  // Казино
+  casinoGames   CasinoGame[]
+  
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+// Оружие
+model Weapon {
+  id          String    @id @default(cuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  name        String    // Название оружия
+  type        String    // 'melee', 'firearm', 'thrown'
+  damage      Int       // Урон
+  durability  Int       // Прочность
+  maxDurability Int     @default(100)
+  
+  // Бонусы к характеристикам
+  healthBonus Int       @default(0)
+  energyBonus Int       @default(0)
+  authorityBonus Int    @default(0)
+  
+  equipped    Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+}
+
+// Инвентарь
+model InventoryItem {
+  id          String    @id @default(cuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  name        String    // Название предмета
+  type        String    // 'resource', 'weapon', 'clothing', 'consumable'
+  quantity    Int       @default(1)
+  description String?   // Описание
+  
+  createdAt   DateTime  @default(now())
+}
+
+// Одежда
+model ClothingItem {
+  id          String    @id @default(cuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  name        String    // Название одежды
+  slot        String    // 'head', 'body', 'legs', 'feet', 'accessory'
+  equipped    Boolean   @default(false)
+  
+  // Бонусы
+  healthBonus Int       @default(0)
+  energyBonus Int       @default(0)
+  authorityBonus Int    @default(0)
+  
+  purchasedAt DateTime  @default(now())
+}
+
+// Кланы
+model Clan {
+  id          String    @id @default(cuid())
+  name        String    @unique // Название клана
+  description String?   // Описание
+  iconUrl     String?   // Иконка клана
+  
+  members     ClanMember[]
+  
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+// Членство в клане
+model ClanMember {
+  id        String    @id @default(cuid())
+  clanId    String
+  clan      Clan      @relation(fields: [clanId], references: [id], onDelete: Cascade)
+  
+  userId    String
+  user      User      @relation(fields: [userId], references: [id])
+  
+  role      String    // 'owner', 'admin', 'member'
+  
+  joinedAt  DateTime  @default(now())
+  
+  @unique([clanId, userId])
+}
+
+// Заявки в друзья
+model FriendRequest {
+  id        String    @id @default(cuid())
+  fromUserId Int
+  toUserId  Int
+  
+  status    String    // 'pending', 'accepted', 'rejected'
+  
+  createdAt DateTime  @default(now())
+  
+  @unique([fromUserId, toUserId])
+}
+
+// Отправленные заявки (для отслеживания исходящих)
+model FriendSent {
+  id        String    @id @default(cuid())
+  fromUserId Int
+  toUserId  Int
+  
+  status    String    // 'pending', 'accepted', 'rejected'
+  
+  createdAt DateTime  @default(now())
+  
+  @unique([fromUserId, toUserId])
+}
+
+// Квесты
+model Quest {
+  id          String    @id @default(cuid())
+  name        String    // Название квеста
+  description String?   // Описание
+  type        String    // 'daily', 'weekly', 'story', 'survival'
+  
+  // Награды
+  rewardGold  Int       @default(0)
+  rewardExperience Int  @default(0)
+  rewardItems Json?     // JSON с предметами
+  
+  // Требования
+  requirements Json?    // JSON с требованиями (убить зомби, собрать ресурсы и т.д.)
+  
+  isActive    Boolean   @default(true)
+}
+
+// Прогресс квестов
+model QuestProgress {
+  id          String    @id @default(cuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  questId     String
+  quest       Quest     @relation(fields: [questId], references: [id])
+  
+  status      String    // 'active', 'completed', 'failed'
+  progress    Int       @default(0) // Текущий прогресс
+  target      Int       // Целевое значение
+  completedAt DateTime?
+  
+  @unique([userId, questId])
+}
+
+// Игра в казино
+model CasinoGame {
+  id          String    @id @default(cuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  gameType    String    // 'slots', 'coinflip', 'roulette'
+  betAmount   Int       // Ставка
+  result      String    // 'win', 'lose', 'draw'
+  winnings    Int       @default(0) // Выигрыш
+  
+  playedAt    DateTime  @default(now())
+}
+
+// Зомби (для боевой системы)
+model Zombie {
+  id          String    @id @default(cuid())
+  name        String    // Название/тип зомби
+  health      Int       // Здоровье
+  damage      Int       // Урон
+  experience  Int       // Опыт за убийство
+  goldReward  Int       @default(0) // Золото за убийство
+  rarity      String    // 'common', 'uncommon', 'rare', 'elite', 'boss'
+  
+  isActive    Boolean   @default(true)
+}
+
+// Бой
+model Battle {
+  id          String    @id @default(cuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id])
+  
+  zombieId    String
+  zombie      Zombie    @relation(fields: [zombieId], references: [id])
+  
+  playerHealth Int      // Здоровье игрока в бою
+  zombieHealth Int      // Здоровье зомби в бою
+  
+  result      String?   // 'win', 'lose', 'ongoing'
+  
+  startedAt   DateTime  @default(now())
+  finishedAt  DateTime?
+}

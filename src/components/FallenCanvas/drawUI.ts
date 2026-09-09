@@ -1,5 +1,7 @@
 // Отрисовка UI внутри Canvas
 
+import { drawProfile } from './drawProfile';
+
 export interface ButtonPosition {
   x: number;
   y: number;
@@ -11,21 +13,65 @@ export interface ButtonPosition {
 export interface UIFlags {
   showProfile?: boolean;
   showBossModal?: boolean;
+  showMap?: boolean;
+  playerName?: string;
 }
+
+export interface MapRaid {
+  id: string;
+  x: number;
+  y: number;
+  type: 'yellow' | 'red';
+  name: string;
+  isRunning: boolean;
+  completed: boolean;
+}
+
+// Универсальная кнопка "Назад"
+const drawBackButton = (
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  isHovered: boolean,
+  buttons: ButtonPosition[]
+) => {
+  const bgColor = isHovered ? 'rgba(255, 100, 100, 0.8)' : 'rgba(200, 50, 50, 0.6)';
+  
+  ctx.fillStyle = bgColor;
+  ctx.beginPath();
+  ctx.roundRect(x, y, width, height, 8);
+  ctx.fill();
+  
+  ctx.strokeStyle = '#ff6666';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.roundRect(x, y, width, height, 8);
+  ctx.stroke();
+  
+  ctx.fillStyle = '#fff';
+  ctx.font = 'bold 13px Arial';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('← Назад', x + width / 2, y + height / 2);
+  
+  buttons.push({ x, y, width, height, id: 'back_to_main' });
+};
 
 export interface GameData {
   energy: number;
   maxEnergy: number;
+  authority: number;
   spicki: number;
   bullets: number;
   gold: number;
   zhetons: number;
   level: number;
   carLevel: number;
-  currentDistrict: string;
   districtName: string;
-  currentLocation: string;
-  authority: number;
+  playerName?: string;
+  avatarImage?: HTMLImageElement | null;
 }
 
 export interface ProfileData {
@@ -371,6 +417,8 @@ const drawTopBar = (
   level: number,
   carLevel: number,
   districtName: string,
+  playerName: string,
+  avatarImage: HTMLImageElement | null,
   icons: Record<string, HTMLImageElement | null>,
   hoveredX: number,
   hoveredY: number,
@@ -443,11 +491,37 @@ const drawTopBar = (
   ctx.arc(profileCenterX, profileCenterY, profileRadius, 0, Math.PI * 2);
   ctx.stroke();
   
-  // Иконка профиля из картинки
-  const profileIcon = icons.personaz;
-  if (profileIcon && profileIcon instanceof HTMLImageElement && profileIcon.complete) {
-    const iconSize = 30;
-    ctx.drawImage(profileIcon, profileCenterX - iconSize / 2, profileCenterY - iconSize / 2, iconSize, iconSize);
+  // Фото профиля (аватар VK) или fallback на иконку
+  const avatar = avatarImage && avatarImage.complete && avatarImage.naturalWidth > 0
+    ? avatarImage
+    : icons.personaz;
+  
+  if (avatar && avatar instanceof HTMLImageElement && avatar.complete) {
+    // Круглая обрезка фото
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(profileCenterX, profileCenterY, profileRadius - 2, 0, Math.PI * 2);
+    ctx.clip();
+    
+    // Вписываем фото по центру с сохранением пропорций (cover)
+    const imgRatio = avatar.naturalWidth / avatar.naturalHeight;
+    const boxRatio = 1; // квадрат
+    let drawW: number, drawH: number;
+    if (imgRatio > boxRatio) {
+      drawH = profileSize - 4;
+      drawW = drawH * imgRatio;
+    } else {
+      drawW = profileSize - 4;
+      drawH = drawW / imgRatio;
+    }
+    ctx.drawImage(
+      avatar,
+      profileCenterX - drawW / 2,
+      profileCenterY - drawH / 2,
+      drawW,
+      drawH
+    );
+    ctx.restore();
   } else {
     ctx.font = '22px Arial';
     ctx.textAlign = 'center';
@@ -459,10 +533,10 @@ const drawTopBar = (
   ctx.fillStyle = '#ffd700';
   ctx.font = 'bold 11px Arial';
   ctx.textAlign = 'left';
-  ctx.fillText('Андрей Ануфриев', profileX + profileSize + 8, profileY + 15);
+  ctx.fillText(playerName || 'Игрок', profileX + profileSize + 8, profileY + 15);
   ctx.fillStyle = '#aaa';
   ctx.font = '10px Arial';
-  ctx.fillText('LVL 1', profileX + profileSize + 8, profileY + 30);
+  ctx.fillText('LVL ' + level, profileX + profileSize + 8, profileY + 30);
   
   // HP бар (мини)
   const hpBarX = profileX + profileSize + 8;
@@ -550,7 +624,11 @@ export const drawUI = (
   carouselOffset: number,
   hoveredX: number,
   hoveredY: number,
-  bosses: BossData[] = []
+  bosses: BossData[] = [],
+  characterImage: HTMLImageElement | null = null,
+  appearanceColor: string = '#d4a574',
+  mapRaids: MapRaid[] = [],
+  mapImage: HTMLImageElement | null = null
 ): ButtonPosition[] => {
   const buttons: ButtonPosition[] = [];
   
@@ -569,6 +647,8 @@ export const drawUI = (
     data.level,
     data.carLevel,
     data.districtName,
+    data.playerName || 'Игрок',
+    data.avatarImage || null,
     icons,
     hoveredX,
     hoveredY,
@@ -576,8 +656,19 @@ export const drawUI = (
   );
   
   if (flags.showProfile && profileData) {
-    drawProfilePanel(ctx, width, height, profileData, icons);
-    buttons.push(...getProfileButtons(width, height));
+    const profileButtons = drawProfile(
+      ctx,
+      width,
+      height,
+      icons,
+      characterImage,
+      appearanceColor,
+      profileData,
+      true,
+      hoveredX,
+      hoveredY
+    );
+    buttons.push(...profileButtons);
     return buttons;
   }
   
@@ -585,6 +676,11 @@ export const drawUI = (
     drawBossModal(ctx, width, height, bosses, icons, hoveredX, hoveredY, buttons);
     buttons.push({ x: width - 70, y: 15, width: 60, height: 30, id: 'close_boss_modal' });
     buttons.push({ x: width / 2 - 60, y: height - 80, width: 120, height: 35, id: 'back_to_main' });
+    return buttons;
+  }
+  
+  if (flags.showMap) {
+    drawMapRaids(ctx, width, height, mapRaids, hoveredX, hoveredY, buttons, mapImage);
     return buttons;
   }
   
@@ -597,92 +693,135 @@ export const drawUI = (
   
   return buttons;
 };
-const drawProfilePanel = (
+const drawMapRaids = (
   ctx: CanvasRenderingContext2D,
   width: number,
   height: number,
-  data: ProfileData,
-  icons: Record<string, HTMLImageElement | null>
+  raids: MapRaid[],
+  hoveredX: number,
+  hoveredY: number,
+  buttons: ButtonPosition[],
+  mapImage: HTMLImageElement | null = null
 ) => {
-  const padding = 20;
-  const panelWidth = width - padding * 2;
-  const panelHeight = height - padding * 2;
-  
-  ctx.fillStyle = 'rgba(10, 10, 15, 0.95)';
+  // Фон карты
+  ctx.fillStyle = 'rgba(10, 15, 20, 0.9)';
   ctx.beginPath();
-  ctx.roundRect(padding, padding, panelWidth, panelHeight, 12);
+  ctx.roundRect(0, 0, width, height, 0);
   ctx.fill();
-  ctx.strokeStyle = '#ffd700';
-  ctx.lineWidth = 2;
+  
+  // Рисуем изображение карты если есть
+  if (mapImage instanceof HTMLImageElement && mapImage.complete && mapImage.naturalWidth > 0) {
+    ctx.drawImage(mapImage, 0, 0, width, height);
+  } else {
+    // Если нет изображения — рисуем тёмный фон с сеткой
+    ctx.fillStyle = '#1a2a1a';
+    ctx.fillRect(0, 0, width, height);
+    
+    // Сетка
+    ctx.strokeStyle = 'rgba(100, 150, 100, 0.15)';
+    ctx.lineWidth = 1;
+    for (let i = 0; i < width; i += 40) {
+      ctx.beginPath();
+      ctx.moveTo(i, 0);
+      ctx.lineTo(i, height);
+      ctx.stroke();
+    }
+    for (let i = 0; i < height; i += 40) {
+      ctx.beginPath();
+      ctx.moveTo(0, i);
+      ctx.lineTo(width, i);
+      ctx.stroke();
+    }
+    
+    // Заголовок
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 16px Arial';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('🗺️ КАРТА РАЙОНОВ', width / 2, 50);
+  }
+  
+  // Кнопка назад
+  const backBtnX = 20;
+  const backBtnY = 20;
+  const isBackHovered = hoveredX > backBtnX && hoveredX < backBtnX + 100 && hoveredY > backBtnY && hoveredY < backBtnY + 40;
+  
+  ctx.fillStyle = isBackHovered ? 'rgba(255, 100, 100, 0.8)' : 'rgba(200, 50, 50, 0.6)';
   ctx.beginPath();
-  ctx.roundRect(padding, padding, panelWidth, panelHeight, 12);
+  ctx.roundRect(backBtnX, backBtnY, 100, 40, 10);
+  ctx.fill();
+  
+  ctx.strokeStyle = '#ff6666';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.roundRect(backBtnX, backBtnY, 100, 40, 10);
   ctx.stroke();
   
-  ctx.fillStyle = '#ffd700';
-  ctx.font = 'bold 18px Arial';
+  ctx.fillStyle = '#fff';
+  ctx.font = 'bold 14px Arial';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText('👤 ПРОФИЛЬ', width / 2, padding + 25);
+  ctx.fillText('← Назад', backBtnX + 50, backBtnY + 20);
   
-  const closeX = width - 70;
-  const closeY = padding + 10;
-  ctx.fillStyle = 'rgba(255, 0, 0, 0.3)';
-  ctx.beginPath();
-  ctx.roundRect(closeX, closeY, 60, 30, 6);
-  ctx.fill();
-  ctx.fillStyle = '#fff';
-  ctx.font = 'bold 14px Arial';
-  ctx.fillText('✕ Закрыть', closeX + 30, closeY + 15);
+  buttons.push({ x: backBtnX, y: backBtnY, width: 100, height: 40, id: 'back_to_main' });
   
-  const leftX = padding + 20;
-  const rightX = width / 2 + 10;
-  let y = padding + 60;
-  
-  // Персонаж - без фона, только текст
-  ctx.fillStyle = '#fff';
-  ctx.font = 'bold 14px Arial';
-  ctx.textAlign = 'left';
-  ctx.fillText(`Уровень ${data.level}`, leftX, y);
-  y += 25;
-  ctx.fillText(`Авто ур. ${data.carLevel}`, leftX, y);
-  
-  y = padding + 60;
-  const stats = [
-    { label: 'Выносливость', value: data.stamina, color: '#00ff88' },
-    { label: 'Урон', value: data.damage, color: '#ff6666' },
-    { label: 'Удача', value: data.luck, color: '#fbbf24' },
-    { label: 'Крит', value: `${(data.crit * 100).toFixed(1)}%`, color: '#00aaff' },
-  ];
-  
-  stats.forEach(stat => {
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.05)';
+  // Рисуем отметки рейдов
+  raids.forEach((raid) => {
+    const x = (raid.x / 100) * width;
+    const y = (raid.y / 100) * height;
+    const radius = raid.type === 'red' ? 25 : 20;
+    
+    const isHovered = hoveredX > x - radius && hoveredX < x + radius && hoveredY > y - radius && hoveredY < y + radius;
+    
+    // Цвет в зависимости от типа и статуса
+    let color: string;
+    if (raid.completed) {
+      color = '#00ff88';
+    } else if (raid.isRunning) {
+      color = '#ffaa00';
+    } else {
+      color = raid.type === 'red' ? '#ff4444' : '#ffaa00';
+    }
+    
+    // Свечение
+    ctx.shadowColor = color;
+    ctx.shadowBlur = isHovered ? 25 : 15;
+    
+    // Круг
+    ctx.fillStyle = isHovered ? `${color}cc` : `${color}88`;
     ctx.beginPath();
-    ctx.roundRect(rightX, y, panelWidth / 2 - 40, 28, 6);
+    ctx.arc(x, y, radius, 0, Math.PI * 2);
     ctx.fill();
-    ctx.fillStyle = '#888';
-    ctx.font = '12px Arial';
-    ctx.textAlign = 'left';
-    ctx.fillText(stat.label, rightX + 8, y + 14);
-    ctx.fillStyle = stat.color;
-    ctx.font = 'bold 13px Arial';
-    ctx.textAlign = 'right';
-    ctx.fillText(stat.value.toString(), rightX + panelWidth / 2 - 48, y + 14);
-    y += 35;
+    
+    // Обводка
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(x, y, radius, 0, Math.PI * 2);
+    ctx.stroke();
+    
+    ctx.shadowBlur = 0;
+    
+    // Иконка внутри круга
+    ctx.fillStyle = '#fff';
+    ctx.font = `${raid.type === 'red' ? 24 : 20}px Arial`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(raid.completed ? '✅' : raid.isRunning ? '⏳' : '⚠️', x, y);
+    
+    // Подпись
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 11px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText(raid.name, x, y + radius + 15);
+    
+    // Время
+    ctx.fillStyle = '#aaa';
+    ctx.font = '10px Arial';
+    ctx.fillText(raid.type === 'red' ? '30 мин' : '15 мин', x, y + radius + 28);
+    
+    buttons.push({ x: x - radius, y: y - radius, width: radius * 2, height: radius * 2, id: `raid_${raid.id}` });
   });
-};
-
-const getProfileButtons = (width: number, height: number): ButtonPosition[] => {
-  const padding = 20;
-  const closeX = width - 70;
-  const closeY = padding + 10;
-  
-  return [{
-    x: closeX,
-    y: closeY,
-    width: 60,
-    height: 30,
-    id: 'close_profile'
-  }];
 };
 
 const drawMapPanel = (ctx: CanvasRenderingContext2D, width: number, height: number) => {
@@ -744,11 +883,11 @@ const drawBossModal = (
   // Кнопка назад (слева вверху)
   const backX = 20;
   const backY = 10;
-  ctx.fillStyle = 'rgba(80, 80, 80, 0.6)';
+  ctx.fillStyle = isHovered && hX > backX && hX < backX + 80 && hY > backY && hY < backY + 30 ? 'rgba(255, 100, 100, 0.8)' : 'rgba(200, 50, 50, 0.6)';
   ctx.beginPath();
   ctx.roundRect(backX, backY, 80, 30, 6);
   ctx.fill();
-  ctx.strokeStyle = '#888';
+  ctx.strokeStyle = '#ff6666';
   ctx.lineWidth = 1;
   ctx.beginPath();
   ctx.roundRect(backX, backY, 80, 30, 6);

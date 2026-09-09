@@ -3,7 +3,7 @@ import { GameIcons, Task } from './types';
 import { drawBackground } from './drawBackground';
 import { drawCharacter, CHARACTER_POSITION } from './drawCharacter';
 import { spawnParticles, updateParticles, drawParticles } from './particles';
-import { drawUI, ButtonPosition, ProfileData, UIFlags, BossData } from './drawUI';
+import { drawUI, ButtonPosition, ProfileData, UIFlags, BossData, MapRaid } from './drawUI';
 
 export const useCanvas = (
   backgroundImage: HTMLImageElement | null,
@@ -21,36 +21,24 @@ export const useCanvas = (
   currentLocation: string = 'location1',
   carLevel: number = 1,
   level: number = 1,
-  currentDistrict: string = '',
   districtName: string = '',
+  playerName: string = 'Игрок',
+  avatarImage: HTMLImageElement | null = null,
   // Callbacks
   onProfileClick?: () => void,
   onBattleClick?: () => void,
   onBossModalClose?: () => void,
-  onBackToMain?: () => void,
-  onFriendsClick?: () => void,
-  onWorkshopClick?: () => void,
-  onRaidClick?: () => void,
-  onClanClick?: () => void,
-  onInventoryClick?: () => void,
-  onQuestsClick?: () => void,
-  onCraftingClick?: () => void,
-  onLotteryClick?: () => void,
-  onDailyGoldClick?: () => void,
-  onRestoreSpicki?: () => void,
-  onRestoreBullets?: () => void,
-  onRestoreGold?: () => void,
-  onRestoreZhetons?: () => void,
-  onGoCloth?: () => void,
-  onGoKomnata?: () => void,
-  onGoKazino?: () => void,
-  onGoDistrict?: () => void,
+  onCloseMap?: () => void,
   onOpenBossModal?: () => void,
+  onCloseProfile?: () => void,
   // State
   showProfile: boolean = false,
   showBossModal: boolean = false,
+  showMap: boolean = false,
   profileData: ProfileData | null = null,
   bosses: BossData[] = [],
+  mapRaids: MapRaid[] = [],
+  mapImage: HTMLImageElement | null = null,
   fullscreen: boolean = false
 ) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -60,29 +48,13 @@ export const useCanvas = (
   const carouselOffsetRef = useRef(0);
 
   // Refs для callback'ов чтобы не менять зависимости
-  const callbacksRef = useRef({
+  const callbacksRef = useRef<Record<string, (() => void) | undefined>>({
     onProfileClick,
     onBattleClick,
     onBossModalClose,
-    onBackToMain,
-    onFriendsClick,
-    onWorkshopClick,
-    onRaidClick,
-    onClanClick,
-    onInventoryClick,
-    onQuestsClick,
-    onCraftingClick,
-    onLotteryClick,
-    onDailyGoldClick,
-    onRestoreSpicki,
-    onRestoreBullets,
-    onRestoreGold,
-    onRestoreZhetons,
-    onGoCloth,
-    onGoKomnata,
-    onGoKazino,
-    onGoDistrict,
+    onCloseMap,
     onOpenBossModal,
+    onCloseProfile,
   });
 
   // Обновляем ref callback'ов при каждом изменении
@@ -91,33 +63,13 @@ export const useCanvas = (
       onProfileClick,
       onBattleClick,
       onBossModalClose,
-      onBackToMain,
-      onFriendsClick,
-      onWorkshopClick,
-      onRaidClick,
-      onClanClick,
-      onInventoryClick,
-      onQuestsClick,
-      onCraftingClick,
-      onLotteryClick,
-      onDailyGoldClick,
-      onRestoreSpicki,
-      onRestoreBullets,
-      onRestoreGold,
-      onRestoreZhetons,
-      onGoCloth,
-      onGoKomnata,
-      onGoKazino,
-      onGoDistrict,
+      onCloseMap,
       onOpenBossModal,
+      onCloseProfile,
     };
   }, [
-    onProfileClick, onBattleClick, onBossModalClose, onBackToMain,
-    onFriendsClick,
-    onWorkshopClick, onRaidClick, onClanClick, onInventoryClick,
-    onQuestsClick, onCraftingClick, onLotteryClick, onDailyGoldClick,
-    onRestoreSpicki, onRestoreBullets, onRestoreGold, onRestoreZhetons,
-    onGoCloth, onGoKomnata, onGoKazino, onGoDistrict, onOpenBossModal
+    onProfileClick, onBattleClick, onBossModalClose, onCloseMap,
+    onOpenBossModal, onCloseProfile
   ]);
 
   const render = useCallback(() => {
@@ -151,11 +103,11 @@ export const useCanvas = (
     updateParticles();
     drawParticles(ctx);
 
-    const flags: UIFlags = { showProfile, showBossModal };
+    const flags: UIFlags = { showProfile, showBossModal, showMap };
 
     const buttons = drawUI(
       ctx, w, h,
-      { energy, maxEnergy, spicki, bullets, gold, zhetons, level, carLevel, currentDistrict, districtName, currentLocation, authority },
+      { energy, maxEnergy, spicki, bullets, gold, zhetons, level, carLevel, districtName, authority, playerName, avatarImage },
       profileData,
       flags,
       {
@@ -176,12 +128,16 @@ export const useCanvas = (
       carouselOffsetRef.current,
       hoveredRef.current.x,
       hoveredRef.current.y,
-      bosses
+      bosses,
+      characterImage,
+      appearanceColor,
+      flags.showMap ? mapRaids : [],
+      mapImage
     );
 
     buttonPositionsRef.current = buttons;
     needsRenderRef.current = false;
-  }, [backgroundImage, characterImage, icons, energy, maxEnergy, authority, spicki, bullets, gold, zhetons, tasks, appearanceColor, currentLocation, carLevel, level, currentDistrict, districtName, showProfile, showBossModal, profileData, bosses, fullscreen]);
+  }, [backgroundImage, characterImage, icons, energy, maxEnergy, authority, spicki, bullets, gold, zhetons, tasks, appearanceColor, currentLocation, carLevel, level, districtName, playerName, avatarImage, showProfile, showBossModal, showMap, profileData, bosses, mapRaids, mapImage, fullscreen]);
 
   // Рендер когда нужно
   useEffect(() => {
@@ -209,9 +165,12 @@ export const useCanvas = (
 
     for (const btn of buttons) {
       if (x > btn.x && x < btn.x + btn.width && y > btn.y && y < btn.y + btn.height) {
-        if (btn.id === 'close_profile') { cb.onProfileClick?.(); return; }
+        if (btn.id === 'close_profile') { cb.onCloseProfile?.(); return; }
         if (btn.id === 'close_boss_modal') { cb.onBossModalClose?.(); return; }
-        if (btn.id === 'back_to_main') { cb.onBackToMain?.(); return; }
+        if (btn.id === 'back_to_main') { 
+          cb.onCloseMap?.();
+          return;
+        }
         if (btn.id.startsWith('attack_boss_')) { cb.onBattleClick?.(); return; }
         if (btn.id === 'go_battle') { cb.onBattleClick?.(); return; }
         if (btn.id === 'go_district') { cb.onGoDistrict?.(); return; }

@@ -734,6 +734,63 @@ export const gameReducer = (state: GameState, action: GameAction): GameState => 
       return { ...state, showMap: !state.showMap };
     case 'TOGGLE_BOSS_MODAL':
       return { ...state, showBossModal: !state.showBossModal };
+    case 'START_RAID': {
+      const raid = state.mapRaids.find(r => r.id === action.raidId);
+      if (!raid || raid.isRunning) return state;
+      if (state.energy < raid.energyCost) return state;
+      
+      const raidDuration = raid.type === 'yellow' ? 15 * 60 * 1000 : 30 * 60 * 1000; // 15 или 30 минут в мс
+      const now = Date.now();
+      
+      return {
+        ...state,
+        energy: state.energy - raid.energyCost,
+        showRaidModal: true,
+        activeRaid: {
+          ...raid,
+          isRunning: true,
+          startTime: now,
+          endTime: now + raidDuration,
+        },
+        mapRaids: state.mapRaids.map(r =>
+          r.id === action.raidId ? { ...r, isRunning: true, startTime: now, endTime: now + raidDuration } : r
+        ),
+      };
+    }
+    case 'CANCEL_RAID': {
+      const activeRaid = state.activeRaid;
+      if (!activeRaid || !activeRaid.isRunning) return state;
+      
+      // Возвращаем часть энергии (50%)
+      const refund = Math.floor(activeRaid.energyCost * 0.5);
+      
+      return {
+        ...state,
+        energy: state.energy + refund,
+        showRaidModal: false,
+        activeRaid: null,
+        mapRaids: state.mapRaids.map(r =>
+          r.id === action.raidId ? { ...r, isRunning: false, startTime: undefined, endTime: undefined } : r
+        ),
+      };
+    }
+    case 'CLAIM_RAID_REWARD': {
+      const activeRaid = state.activeRaid;
+      if (!activeRaid || !activeRaid.isRunning || !activeRaid.endTime) return state;
+      if (Date.now() < activeRaid.endTime) return state;
+      
+      return {
+        ...state,
+        bullets: state.bullets + activeRaid.rewards.bullets,
+        matches: state.matches + activeRaid.rewards.matches,
+        keys: state.keys + activeRaid.rewards.materials,
+        showRaidModal: false,
+        activeRaid: null,
+        mapRaids: state.mapRaids.map(r =>
+          r.id === action.raidId ? { ...r, isRunning: false, completed: true, startTime: undefined, endTime: undefined } : r
+        ),
+      };
+    }
     case 'CHANGE_LOCATION':
       return { ...state, currentLocation: action.locationId };
     default:
