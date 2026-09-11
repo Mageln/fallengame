@@ -1,9 +1,9 @@
-import { createContext, useContext, useEffect, useMemo, useReducer, ReactNode, useState, useCallback } from 'react';
+import { createContext, useContext, useEffect, useMemo, useReducer, ReactNode, useState, useRef } from 'react';
 import { ENERGY_TICK_MS, INVENTORY_ITEMS } from './constants';
 import { gameReducer, hydrateState } from './reducer';
 import { createInitialState } from './initialState';
-import { loadState, saveState } from './storage';
-import { getVkUser, VkUser } from '../services/vkApi';
+import { loadStateSync, saveState, setCurrentUserId } from './storage';
+import { getVkUser, getVkUserId, VkUser } from '../services/vkApi';
 import { DailyQuestProgress, GameAction, GameState } from './types';
 import {
   critChance,
@@ -35,49 +35,36 @@ interface GameContextValue {
 
 const GameContext = createContext<GameContextValue | null>(null);
 
-// Синхронная версия loadState для инициализации
-const loadStateSync = (): GameState | null => {
-  try {
-    const raw = localStorage.getItem('ergate-save-v1');
-    if (!raw) return null;
-    const s = JSON.parse(raw) as GameState;
-    return {
-      ...s,
-      showBossModal: false,
-      showMap: false,
-      showRaidModal: false,
-      activeRaid: null,
-    };
-  } catch {
-    return null;
-  }
-};
-
 export const GameProvider = ({ children }: { children: ReactNode }) => {
   const [state, dispatch] = useReducer(
     gameReducer,
-    createInitialState(),
-    (base) => hydrateState(loadStateSync() ?? base)
+    undefined,
+    () => hydrateState(createInitialState())
   );
   
   const [vkUser, setVkUser] = useState<VkUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const hydratedRef = useRef(false);
 
-  // Загрузка данных VK пользователя и сохранённой игры
+  // Определение пользователя и загрузка ЕГО сохранения (у каждого свои ресурсы)
   useEffect(() => {
     const init = async () => {
       try {
-        // Получаем данные VK пользователя
+        // Получаем VK ID пользователя (или мок в режиме разработки)
+        const userId = await getVkUserId();
+        
+        // Устанавливаем ключ сохранения: ergate-save-{vkId}
+        setCurrentUserId(userId);
+        
+        // Загружаем данные пользователя (имя, аватар)
         const user = await getVkUser();
         setVkUser(user);
         
-        // Загружаем сохранение с VK ID
-        const savedState = await loadState();
-        if (savedState) {
-          // Обновляем state через dispatch
-          Object.entries(savedState).forEach(([key, value]) => {
-            // Применяем сохранённые данные
-          });
+        // Загружаем сохранение этого пользователя
+        const saved = loadStateSync();
+        if (saved) {
+          hydratedRef.current = true;
+          dispatch({ type: 'HYDRATE_STATE', state: saved });
         }
       } catch (error) {
         console.error('Ошибка инициализации:', error);
@@ -89,9 +76,12 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
     init();
   }, []);
 
+  // Сохранение состояния текущего пользователя
+  // Пока идёт загрузка, не сохраняем — чтобы не затереть его сохранение стартовым состоянием
   useEffect(() => {
+    if (isLoading) return;
     saveState(state);
-  }, [state]);
+  }, [state, isLoading]);
 
   useEffect(() => {
     const id = window.setInterval(() => dispatch({ type: 'RESTORE_ENERGY_TICK' }), ENERGY_TICK_MS);

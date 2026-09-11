@@ -176,10 +176,11 @@ export const drawProfile = (
 ): ButtonPosition[] => {
   const buttonPositions: ButtonPosition[] = [];
   const padding = 15;
+  const topBarHeight = 55; // верхняя панель всегда видна поверх профиля
   const panelWidth = canvasWidth - padding * 2;
-  const panelHeight = canvasHeight - padding * 2;
+  const panelHeight = canvasHeight - padding - topBarHeight + padding;
   const panelX = padding;
-  const panelY = padding;
+  const panelY = topBarHeight + padding - 15; // панель начинается сразу под верхней панелью
 
   // ===== ФОН ПАНЕЛИ =====
   // Градиентный фон

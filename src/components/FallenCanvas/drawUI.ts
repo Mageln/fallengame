@@ -25,6 +25,7 @@ export interface MapRaid {
   name: string;
   isRunning: boolean;
   completed: boolean;
+  energyCost?: number; // сколько энергии требуется для рейда
 }
 
 // Универсальная кнопка "Назад"
@@ -555,62 +556,151 @@ const drawTopBar = (
   buttons.push({ x: profileX, y: profileY, width: profileSize, height: profileSize, id: 'go_profile' });
   
   // ===== РЕСУРСЫ (правая часть) =====
-  const resX = width - 20;
-  let currentX = resX;
-  
-  // Золото
-  currentX -= 55;
-  const goldIcon = icons.gold;
-  if (goldIcon && goldIcon instanceof HTMLImageElement && goldIcon.complete) {
-    ctx.drawImage(goldIcon, currentX - 10, 28, 20, 20);
-  } else {
-    ctx.font = '14px Arial';
-    ctx.textAlign = 'right';
-    ctx.fillText('💰', currentX, 38);
+  // Иконки из public/icon/resource: zheton.png, gold.png, spicki.png, bullets.png, energy.png
+  // Каждый ресурс — отдельная "капсула": [иконка] [значение] [+]
+  const resIconSize = 18;
+  const resCenterY = 27;   // единая вертикальная ось для всей капсулы
+  let currentX = width - 12; // правый отступ
+
+  // Вспомогательная функция отрисовки ресурса-капсулы: [иконка] [значение] [+]
+  const drawResource = (
+    value: number | string,
+    iconImg: HTMLImageElement | null,
+    fallbackEmoji: string,
+    accentColor: string,
+    plusId?: string
+  ) => {
+    // --- Габариты капсулы ---
+    const valueText = String(value);
+    ctx.font = 'bold 12px Arial';
+    const valueWidth = ctx.measureText(valueText).width;
+    const plusSize = 16;
+    const plusGap = 3;
+    const hasPlus = !!plusId;
+    const capW = resIconSize + 4 + valueWidth + (hasPlus ? plusGap + plusSize : 0) + 12; // паддинги
+    const capH = 26;
+    const capX = currentX - capW;
+    const capY = resCenterY - capH / 2;
+
+    // --- Фон капсулы (тёмный, с акцентной рамкой ресурса) ---
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.55)';
+    ctx.beginPath();
+    ctx.roundRect(capX, capY, capW, capH, 13);
+    ctx.fill();
+    ctx.strokeStyle = accentColor + '88'; // полупрозрачный акцент
+    ctx.lineWidth = 1;
+    ctx.stroke();
+
+    // --- Иконка (слева в капсуле) ---
+    const iconX = capX + 6;
+    if (iconImg && iconImg.complete && iconImg.naturalWidth > 0) {
+      ctx.drawImage(iconImg, iconX, resCenterY - resIconSize / 2, resIconSize, resIconSize);
+    } else {
+      ctx.font = '14px Arial';
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(fallbackEmoji, iconX, resCenterY);
+    }
+
+    // --- Значение (по центру капсулы) ---
+    ctx.fillStyle = accentColor;
+    ctx.font = 'bold 12px Arial';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(valueText, iconX + resIconSize + 4, resCenterY);
+
+    // --- Кнопка "+" (справа в капсуле) ---
+    if (plusId) {
+      const plusX = capX + capW - plusSize - 4;
+      const plusY = resCenterY - plusSize / 2;
+      const isPlusHovered = hoveredX > plusX && hoveredX < plusX + plusSize &&
+                            hoveredY > plusY && hoveredY < plusY + plusSize;
+
+      if (isPlusHovered) {
+        ctx.shadowColor = accentColor;
+        ctx.shadowBlur = 8;
+      }
+      ctx.fillStyle = isPlusHovered ? accentColor : 'rgba(255, 255, 255, 0.12)';
+      ctx.beginPath();
+      ctx.arc(plusX + plusSize / 2, resCenterY, plusSize / 2, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.shadowBlur = 0;
+
+      ctx.strokeStyle = isPlusHovered ? '#fff' : accentColor;
+      ctx.lineWidth = 1;
+      ctx.stroke();
+
+      // Знак +
+      ctx.strokeStyle = isPlusHovered ? '#000' : accentColor;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(plusX + 4, resCenterY);
+      ctx.lineTo(plusX + plusSize - 4, resCenterY);
+      ctx.moveTo(plusX + plusSize / 2, plusY + 4);
+      ctx.lineTo(plusX + plusSize / 2, plusY + plusSize - 4);
+      ctx.stroke();
+
+      buttons.push({ x: plusX - 2, y: plusY - 2, width: plusSize + 4, height: plusSize + 4, id: plusId });
+    }
+
+    // Кликабельная область всей капсулы не нужна — только кнопка "+"
+
+    currentX = capX - 6; // следующий ресурс левее с зазором
+  };
+
+  // Порядок справа налево: жетоны, спички, патроны, золото, энергия
+  drawResource(zhetons, icons.zhetons, '🎰', '#fff', 'restore_zhetons');
+  drawResource(spicki, icons.spicki, '🔥', '#ff8844', 'restore_spicki');
+  drawResource(bullets, icons.bullets, '🔫', '#ccc', 'restore_bullets');
+  drawResource(gold, icons.gold, '💰', '#ffd700', 'restore_gold');
+  drawResource(`${energy}/${maxEnergy}`, icons.energy, '⚡', '#ffaa00', 'restore_energy');
+
+  // ===== КНОПКА FULLSCREEN (правее ресурсов, на одном уровне) =====
+  // currentX указывает на левый край последней капсулы — рисуем кнопку левее
+  const fsBtnSize = 26;
+  const fsBtnX = currentX - fsBtnSize - 4;
+  const fsBtnY = resCenterY - fsBtnSize / 2;
+  const isFsHovered = hoveredX > fsBtnX && hoveredX < fsBtnX + fsBtnSize &&
+                      hoveredY > fsBtnY && hoveredY < fsBtnY + fsBtnSize;
+
+  if (isFsHovered) {
+    ctx.shadowColor = '#fff';
+    ctx.shadowBlur = 8;
   }
-  ctx.fillStyle = '#ffd700';
-  ctx.font = 'bold 12px Arial';
-  ctx.textAlign = 'right';
-  ctx.fillText('24.8K', currentX, 18);
-  
-  // Черепы
-  currentX -= 65;
-  ctx.fillStyle = '#8b0000';
-  ctx.font = 'bold 12px Arial';
-  ctx.textAlign = 'right';
-  ctx.fillText('405', currentX, 18);
-  ctx.font = '14px Arial';
-  ctx.fillText('💀', currentX, 38);
-  
-  // Энергия
-  currentX -= 65;
-  const energyIcon = icons.energy;
-  if (energyIcon && energyIcon instanceof HTMLImageElement && energyIcon.complete) {
-    ctx.drawImage(energyIcon, currentX - 10, 28, 20, 20);
-  } else {
-    ctx.font = '14px Arial';
-    ctx.textAlign = 'right';
-    ctx.fillText('⚡', currentX, 38);
-  }
-  ctx.fillStyle = '#ffaa00';
-  ctx.font = 'bold 12px Arial';
-  ctx.textAlign = 'right';
-  ctx.fillText('50', currentX, 18);
-  
-  // Жетоны
-  currentX -= 65;
-  const zhetonsIcon = icons.zhetons;
-  if (zhetonsIcon && zhetonsIcon instanceof HTMLImageElement && zhetonsIcon.complete) {
-    ctx.drawImage(zhetonsIcon, currentX - 10, 28, 20, 20);
-  } else {
-    ctx.font = '14px Arial';
-    ctx.textAlign = 'right';
-    ctx.fillText('🎰', currentX, 38);
-  }
-  ctx.fillStyle = '#fff';
-  ctx.font = 'bold 12px Arial';
-  ctx.textAlign = 'right';
-  ctx.fillText('0', currentX, 18);
+  ctx.fillStyle = isFsHovered ? 'rgba(255, 255, 255, 0.25)' : 'rgba(0, 0, 0, 0.55)';
+  ctx.beginPath();
+  ctx.roundRect(fsBtnX, fsBtnY, fsBtnSize, fsBtnSize, 8);
+  ctx.fill();
+  ctx.shadowBlur = 0;
+  ctx.strokeStyle = isFsHovered ? '#fff' : 'rgba(255, 255, 255, 0.4)';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+
+  // Иконка fullscreen (уголки)
+  ctx.strokeStyle = isFsHovered ? '#fff' : 'rgba(255, 255, 255, 0.8)';
+  ctx.lineWidth = 2;
+  const m = 7; // отступ уголков от края кнопки
+  const c = 5; // длина уголка
+  // Верхний левый угол
+  ctx.beginPath();
+  ctx.moveTo(fsBtnX + m, fsBtnY + m + c);
+  ctx.lineTo(fsBtnX + m, fsBtnY + m);
+  ctx.lineTo(fsBtnX + m + c, fsBtnY + m);
+  // Верхний правый угол
+  ctx.moveTo(fsBtnX + fsBtnSize - m - c, fsBtnY + m);
+  ctx.lineTo(fsBtnX + fsBtnSize - m, fsBtnY + m);
+  ctx.lineTo(fsBtnX + fsBtnSize - m, fsBtnY + m + c);
+  // Нижний правый угол
+  ctx.moveTo(fsBtnX + fsBtnSize - m, fsBtnY + fsBtnSize - m - c);
+  ctx.lineTo(fsBtnX + fsBtnSize - m, fsBtnY + fsBtnSize - m);
+  ctx.lineTo(fsBtnX + fsBtnSize - m - c, fsBtnY + fsBtnSize - m);
+  // Нижний левый угол
+  ctx.moveTo(fsBtnX + m + c, fsBtnY + fsBtnSize - m);
+  ctx.lineTo(fsBtnX + m, fsBtnY + fsBtnSize - m);
+  ctx.lineTo(fsBtnX + m, fsBtnY + fsBtnSize - m - c);
+  ctx.stroke();
+
+  buttons.push({ x: fsBtnX, y: fsBtnY, width: fsBtnSize, height: fsBtnSize, id: 'toggle_fullscreen' });
 };
 
 export const drawUI = (
@@ -632,7 +722,33 @@ export const drawUI = (
 ): ButtonPosition[] => {
   const buttons: ButtonPosition[] = [];
   
-  // ===== Верхняя панель =====
+  // ===== Оверлеи (рисуются ПЕРВЫМИ, верхняя панель будет поверх них) =====
+  let overlayButtons: ButtonPosition[] | null = null;
+
+  if (flags.showProfile && profileData) {
+    overlayButtons = drawProfile(
+      ctx,
+      width,
+      height,
+      icons,
+      characterImage,
+      appearanceColor,
+      profileData,
+      true,
+      hoveredX,
+      hoveredY
+    );
+  } else if (flags.showBossModal) {
+    overlayButtons = [];
+    drawBossModal(ctx, width, height, bosses, icons, hoveredX, hoveredY, overlayButtons);
+    overlayButtons.push({ x: width - 70, y: 15, width: 60, height: 30, id: 'close_boss_modal' });
+    overlayButtons.push({ x: width / 2 - 60, y: height - 80, width: 120, height: 35, id: 'back_to_main' });
+  } else if (flags.showMap) {
+    overlayButtons = [];
+    drawMapRaids(ctx, width, height, mapRaids, hoveredX, hoveredY, overlayButtons, mapImage);
+  }
+
+  // ===== Верхняя панель (рисуется ПОСЛЕДНЕЙ — видна везде, поверх оверлеев) =====
   drawTopBar(
     ctx,
     width,
@@ -654,33 +770,11 @@ export const drawUI = (
     hoveredY,
     buttons
   );
-  
-  if (flags.showProfile && profileData) {
-    const profileButtons = drawProfile(
-      ctx,
-      width,
-      height,
-      icons,
-      characterImage,
-      appearanceColor,
-      profileData,
-      true,
-      hoveredX,
-      hoveredY
-    );
-    buttons.push(...profileButtons);
-    return buttons;
-  }
-  
-  if (flags.showBossModal) {
-    drawBossModal(ctx, width, height, bosses, icons, hoveredX, hoveredY, buttons);
-    buttons.push({ x: width - 70, y: 15, width: 60, height: 30, id: 'close_boss_modal' });
-    buttons.push({ x: width / 2 - 60, y: height - 80, width: 120, height: 35, id: 'back_to_main' });
-    return buttons;
-  }
-  
-  if (flags.showMap) {
-    drawMapRaids(ctx, width, height, mapRaids, hoveredX, hoveredY, buttons, mapImage);
+
+  // Кнопки оверлея добавляем после панели — чтобы клики по оверлею работали,
+  // а клики по верхней панели обрабатывались первыми (панель идёт раньше в массиве)
+  if (overlayButtons) {
+    buttons.push(...overlayButtons);
     return buttons;
   }
   
@@ -738,12 +832,12 @@ const drawMapRaids = (
     ctx.font = 'bold 16px Arial';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText('🗺️ КАРТА РАЙОНОВ', width / 2, 50);
+    ctx.fillText('🗺️ КАРТА РАЙОНОВ', width / 2, 75);
   }
   
-  // Кнопка назад
+  // Кнопка назад (ниже верхней панели, высота которой 55)
   const backBtnX = 20;
-  const backBtnY = 20;
+  const backBtnY = 65;
   const isBackHovered = hoveredX > backBtnX && hoveredX < backBtnX + 100 && hoveredY > backBtnY && hoveredY < backBtnY + 40;
   
   ctx.fillStyle = isBackHovered ? 'rgba(255, 100, 100, 0.8)' : 'rgba(200, 50, 50, 0.6)';
@@ -809,6 +903,8 @@ const drawMapRaids = (
     ctx.textBaseline = 'middle';
     ctx.fillText(raid.completed ? '✅' : raid.isRunning ? '⏳' : '⚠️', x, y);
     
+    ctx.shadowBlur = 0;
+    
     // Подпись
     ctx.fillStyle = '#fff';
     ctx.font = 'bold 11px Arial';
@@ -819,6 +915,36 @@ const drawMapRaids = (
     ctx.fillStyle = '#aaa';
     ctx.font = '10px Arial';
     ctx.fillText(raid.type === 'red' ? '30 мин' : '15 мин', x, y + radius + 28);
+    
+    // Затраты энергии рядом с иконкой (маленькая капсула ⚡N)
+    if (!raid.completed) {
+      const energyText = String(raid.energyCost ?? (raid.type === 'red' ? 20 : 15));
+      ctx.font = 'bold 10px Arial';
+      const badgeW = ctx.measureText(energyText).width + 26; // место под ⚡ и паддинги
+      const badgeH = 16;
+      const badgeX = x + radius - 4;  // правый верхний край кружка рейда
+      const badgeY = y - radius - 6;
+      
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.75)';
+      ctx.beginPath();
+      ctx.roundRect(badgeX, badgeY, badgeW, badgeH, 8);
+      ctx.fill();
+      ctx.strokeStyle = '#ffaa00';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+      
+      // Молния
+      ctx.fillStyle = '#ffaa00';
+      ctx.font = '9px Arial';
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('⚡', badgeX + 4, badgeY + badgeH / 2 + 1);
+      
+      // Число
+      ctx.fillStyle = '#fff';
+      ctx.font = 'bold 10px Arial';
+      ctx.fillText(energyText, badgeX + 15, badgeY + badgeH / 2 + 1);
+    }
     
     buttons.push({ x: x - radius, y: y - radius, width: radius * 2, height: radius * 2, id: `raid_${raid.id}` });
   });
@@ -873,17 +999,17 @@ const drawBossModal = (
   ctx.fill();
   ctx.globalAlpha = 1.0;
   
-  // Заголовок
+  // Заголовок (ниже верхней панели, высота которой 55)
   ctx.fillStyle = '#ff4444';
   ctx.font = 'bold 20px Arial';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText('⚔️ БОССЫ', width / 2, 25);
+  ctx.fillText('⚔️ БОССЫ', width / 2, 70);
   
-  // Кнопка назад (слева вверху)
+  // Кнопка назад (слева, ниже верхней панели)
   const backX = 20;
-  const backY = 10;
-  ctx.fillStyle = isHovered && hX > backX && hX < backX + 80 && hY > backY && hY < backY + 30 ? 'rgba(255, 100, 100, 0.8)' : 'rgba(200, 50, 50, 0.6)';
+  const backY = 62;
+  ctx.fillStyle = hX > backX && hX < backX + 80 && hY > backY && hY < backY + 30 ? 'rgba(255, 100, 100, 0.8)' : 'rgba(200, 50, 50, 0.6)';
   ctx.beginPath();
   ctx.roundRect(backX, backY, 80, 30, 6);
   ctx.fill();
@@ -898,9 +1024,9 @@ const drawBossModal = (
   ctx.fillText('← Назад', backX + 40, backY + 16);
   buttons.push({ x: backX, y: backY, width: 80, height: 30, id: 'back_to_main' });
   
-  // Кнопка закрыть (справа вверху)
+  // Кнопка закрыть (справа, ниже верхней панели)
   const closeX = width - 60;
-  const closeY = 10;
+  const closeY = 62;
   ctx.fillStyle = 'rgba(139, 0, 0, 0.6)';
   ctx.beginPath();
   ctx.roundRect(closeX, closeY, 50, 30, 6);

@@ -31,6 +31,17 @@ export const useCanvas = (
   onCloseMap?: () => void,
   onOpenBossModal?: () => void,
   onCloseProfile?: () => void,
+  onBackToMain?: () => void,
+  onGoDistrict?: () => void,
+  // Колбэки кнопок "+" у ресурсов
+  onRestoreEnergy?: () => void,
+  onRestoreSpicki?: () => void,
+  onRestoreBullets?: () => void,
+  onRestoreGold?: () => void,
+  onRestoreZhetons?: () => void,
+  onToggleFullscreen?: () => void,
+  // Клик по рейду на карте (id рейда передаётся аргументом)
+  onMapRaidClick?: (raidId: string) => void,
   // State
   showProfile: boolean = false,
   showBossModal: boolean = false,
@@ -48,13 +59,22 @@ export const useCanvas = (
   const carouselOffsetRef = useRef(0);
 
   // Refs для callback'ов чтобы не менять зависимости
-  const callbacksRef = useRef<Record<string, (() => void) | undefined>>({
+  const callbacksRef = useRef<Record<string, ((...args: any[]) => any) | undefined>>({
     onProfileClick,
     onBattleClick,
     onBossModalClose,
     onCloseMap,
     onOpenBossModal,
     onCloseProfile,
+    onBackToMain,
+    onGoDistrict,
+    onRestoreEnergy,
+    onRestoreSpicki,
+    onRestoreBullets,
+    onRestoreGold,
+    onRestoreZhetons,
+    onToggleFullscreen,
+    onMapRaidClick,
   });
 
   // Обновляем ref callback'ов при каждом изменении
@@ -66,10 +86,21 @@ export const useCanvas = (
       onCloseMap,
       onOpenBossModal,
       onCloseProfile,
+      onBackToMain,
+      onGoDistrict,
+      onRestoreEnergy,
+      onRestoreSpicki,
+      onRestoreBullets,
+      onRestoreGold,
+      onRestoreZhetons,
+      onToggleFullscreen,
+      onMapRaidClick,
     };
   }, [
     onProfileClick, onBattleClick, onBossModalClose, onCloseMap,
-    onOpenBossModal, onCloseProfile
+    onOpenBossModal, onCloseProfile, onBackToMain, onGoDistrict,
+    onRestoreEnergy, onRestoreSpicki, onRestoreBullets, onRestoreGold, onRestoreZhetons,
+    onToggleFullscreen, onMapRaidClick
   ]);
 
   const render = useCallback(() => {
@@ -165,10 +196,11 @@ export const useCanvas = (
 
     for (const btn of buttons) {
       if (x > btn.x && x < btn.x + btn.width && y > btn.y && y < btn.y + btn.height) {
-        if (btn.id === 'close_profile') { cb.onCloseProfile?.(); return; }
-        if (btn.id === 'close_boss_modal') { cb.onBossModalClose?.(); return; }
-        if (btn.id === 'back_to_main') { 
-          cb.onCloseMap?.();
+        // Все кнопки "Назад" / "Закрыть" возвращают на главную страницу
+        if (btn.id === 'close_profile') { cb.onBackToMain?.(); return; }
+        if (btn.id === 'close_boss_modal') { cb.onBackToMain?.(); return; }
+        if (btn.id === 'back_to_main') {
+          cb.onBackToMain?.();
           return;
         }
         if (btn.id.startsWith('attack_boss_')) { cb.onBattleClick?.(); return; }
@@ -181,10 +213,14 @@ export const useCanvas = (
         if (btn.id === 'restore_bullets') { cb.onRestoreBullets?.(); return; }
         if (btn.id === 'restore_gold') { cb.onRestoreGold?.(); return; }
         if (btn.id === 'restore_zhetons') { cb.onRestoreZhetons?.(); return; }
+        if (btn.id === 'restore_energy') { cb.onRestoreEnergy?.(); return; }
+        if (btn.id === 'toggle_fullscreen') { cb.onToggleFullscreen?.(); return; }
         if (btn.id === 'carousel_up') { carouselOffsetRef.current = Math.max(0, carouselOffsetRef.current - 1); return; }
         if (btn.id === 'carousel_down') { carouselOffsetRef.current = Math.min(7, carouselOffsetRef.current + 1); return; }
         if (btn.id === 'go_workshop') { cb.onWorkshopClick?.(); return; }
         if (btn.id === 'go_raid') { cb.onRaidClick?.(); return; }
+        // Клик по рейду на карте районов
+        if (btn.id.startsWith('raid_')) { cb.onMapRaidClick?.(btn.id.slice('raid_'.length)); return; }
         if (btn.id === 'go_clan') { cb.onClanClick?.(); return; }
         if (btn.id === 'go_inventory') { cb.onInventoryClick?.(); return; }
         if (btn.id === 'go_quests') { cb.onQuestsClick?.(); return; }

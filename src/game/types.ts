@@ -211,4 +211,6 @@ export type GameAction =
   | { type: 'CANCEL_RAID'; raidId: string }
   | { type: 'CLAIM_RAID_REWARD'; raidId: string }
   | { type: 'CHANGE_LOCATION'; locationId: string }
+  | { type: 'HYDRATE_STATE'; state: GameState }
+  | { type: 'ADD_RESOURCE'; resource: 'energy' | 'bullets' | 'gold' | 'matches' | 'zhetons'; amount: number }
   | { type: 'CLEAR_MESSAGE' };

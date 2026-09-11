@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import styles from "../../style/PrisonCanvas/PrisonCanvas.module.scss";
 import { PrisonCanvasProps } from "./types";
 import { useCanvas } from "./useCanvas";
@@ -304,6 +304,26 @@ export const FallenCanvas: React.FC<PrisonCanvasProps & {
     if (onZombieClick) onZombieClick();
   }, [onZombieClick]);
 
+  // Все кнопки "Назад" закрывают все оверлеи и возвращают на главную
+  const handleBackToMain = useCallback(() => {
+    onProfileClose?.();
+    if (state.showBossModal) dispatch({ type: 'TOGGLE_BOSS_MODAL' });
+    if (state.showMap) dispatch({ type: 'TOGGLE_MAP' });
+  }, [onProfileClose, state.showBossModal, state.showMap, dispatch]);
+
+  // Кнопки "+" — пополнение ресурсов (тестовый вариант: +10 за клик)
+  const handleRestoreEnergy = useCallback(() => dispatch({ type: 'ADD_RESOURCE', resource: 'energy', amount: 10 }), [dispatch]);
+  const handleRestoreSpicki = useCallback(() => dispatch({ type: 'ADD_RESOURCE', resource: 'matches', amount: 10 }), [dispatch]);
+  const handleRestoreBullets = useCallback(() => dispatch({ type: 'ADD_RESOURCE', resource: 'bullets', amount: 10 }), [dispatch]);
+  const handleRestoreGold = useCallback(() => dispatch({ type: 'ADD_RESOURCE', resource: 'gold', amount: 10 }), [dispatch]);
+  const handleRestoreZhetons = useCallback(() => dispatch({ type: 'ADD_RESOURCE', resource: 'zhetons', amount: 10 }), [dispatch]);
+
+  // Кнопка fullscreen (теперь рисуется на канвасе, правее ресурсов)
+  const toggleFullscreenRef = useRef<(() => void) | null>(null);
+  const handleToggleFullscreen = useCallback(() => {
+    toggleFullscreenRef.current?.();
+  }, []);
+
   const { canvasRef, handleCanvasClick, handleMouseMove, toggleFullscreen } = useCanvas(
     backgroundImage,
     characterImage,
@@ -330,6 +350,15 @@ export const FallenCanvas: React.FC<PrisonCanvasProps & {
     onCloseMap,        // onCloseMap
     onOpenBossModal,   // onOpenBossModal
     onProfileClose,    // onCloseProfile
+    handleBackToMain,  // onBackToMain — все кнопки "Назад" ведут на главную
+    onGoDistrict,      // onGoDistrict — кнопка "Районы" открывает карту
+    handleRestoreEnergy,
+    handleRestoreSpicki,
+    handleRestoreBullets,
+    handleRestoreGold,
+    handleRestoreZhetons,
+    handleToggleFullscreen,
+    onRaidClick,       // клик по рейду на карте районов
     // State
     showProfile,
     showBossModal,
@@ -341,6 +370,9 @@ export const FallenCanvas: React.FC<PrisonCanvasProps & {
     false // fullscreen
   );
 
+  // Связываем ref с реальной функцией fullscreen из useCanvas
+  toggleFullscreenRef.current = toggleFullscreen;
+
   return (
     <div className={styles.canvasWrapper}>
       <canvas
@@ -350,26 +382,6 @@ export const FallenCanvas: React.FC<PrisonCanvasProps & {
         onMouseMove={handleMouseMove}
         onMouseLeave={() => undefined}
       />
-      {/* Кнопка fullscreen */}
-      <button
-        onClick={(e) => {
-          e.stopPropagation();
-          toggleFullscreen();
-        }}
-        style={{
-          position: 'absolute',
-          border: "none",
-          top: 1,
-          right: 100,
-          zIndex: 100,
-          background: "transparent",
-          padding: '8px 12px',
-          cursor: 'pointer',
-          fontSize: 14,
-        }}
-      >
-        ⛶
-      </button>
       
       {/* Модальное окно рейда */}
       {state.showRaidModal && state.activeRaid && onRaidClick && (

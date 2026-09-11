@@ -40,7 +40,7 @@ const ICON_SRCS = {
   personaz: '/icon/personaz.jpg',
   kazino: '/icon/kazino.jpg',
   cloth: '/icon/cloth.jpg',
-  gold: '/icon/gold.png',
+  gold: '/icon/resource/gold.png',
 } as const;
 
 const loadIconWithTimeout = (src: string, timeout = 3000): Promise<HTMLImageElement> => {
@@ -90,11 +90,11 @@ export const useIcon = () => {
   useEffect(() => {
     const loadAllIcons = async () => {
       const results = await Promise.allSettled([
-        loadIconWithTimeout('/icon/energy.png', 2000),
-        loadIconWithTimeout('/icon/spicki.png', 2000),
-        loadIconWithTimeout('/icon/bullets.png', 2000),
-        loadIconWithTimeout('/icon/zheton.png', 2000),
-        loadIconWithTimeout('/icon/gold.png', 2000),
+        loadIconWithTimeout('/icon/resource/energy.png', 2000),
+        loadIconWithTimeout('/icon/resource/spicki.png', 2000),
+        loadIconWithTimeout('/icon/resource/bullets.png', 2000),
+        loadIconWithTimeout('/icon/resource/zheton.png', 2000),
+        loadIconWithTimeout('/icon/resource/gold.png', 2000),
         loadIconWithTimeout('/icon/plus.png', 2000),
         loadIconWithTimeout('/icon/zombie.png', 2000),
         // Кнопки нижней панели

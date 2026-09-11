@@ -189,6 +189,34 @@ export const hydrateState = (state: GameState): GameState => {
 
 export const gameReducer = (state: GameState, action: GameAction): GameState => {
   switch (action.type) {
+    case 'HYDRATE_STATE':
+      // Загрузка сохранения конкретного пользователя (после определения его VK ID)
+      return hydrateState({
+        ...action.state,
+        showBossModal: false,
+        showMap: false,
+        showRaidModal: false,
+        activeRaid: null,
+      });
+    case 'ADD_RESOURCE': {
+      // Пополнение ресурса кнопкой "+" в панели ресурсов
+      const amount = Math.max(0, Math.floor(action.amount));
+      if (amount === 0) return state;
+      switch (action.resource) {
+        case 'energy':
+          return { ...state, energy: Math.min(state.maxEnergy, state.energy + amount), lastMessage: `+${amount} энергии` };
+        case 'bullets':
+          return { ...state, bullets: state.bullets + amount, lastMessage: `+${amount} патронов` };
+        case 'gold':
+          return { ...state, gold: state.gold + amount, lastMessage: `+${amount} золота` };
+        case 'matches':
+          return { ...state, matches: state.matches + amount, lastMessage: `+${amount} спичек` };
+        case 'zhetons':
+          return { ...state, zhetons: state.zhetons + amount, lastMessage: `+${amount} жетонов` };
+        default:
+          return state;
+      }
+    }
     case 'CLEAR_MESSAGE':
       return { ...state, lastMessage: '' };
     case 'SET_APPEARANCE':
@@ -736,8 +764,11 @@ export const gameReducer = (state: GameState, action: GameAction): GameState => 
       return { ...state, showBossModal: !state.showBossModal };
     case 'START_RAID': {
       const raid = state.mapRaids.find(r => r.id === action.raidId);
-      if (!raid || raid.isRunning) return state;
-      if (state.energy < raid.energyCost) return state;
+      if (!raid) return msg(state, 'Рейд не найден.');
+      if (raid.isRunning) return msg(state, `${raid.name}: рейд уже идёт.`);
+      if (state.energy < raid.energyCost) {
+        return msg(state, `Не хватает энергии: нужно ${raid.energyCost}, у вас ${state.energy}.`);
+      }
       
       const raidDuration = raid.type === 'yellow' ? 15 * 60 * 1000 : 30 * 60 * 1000; // 15 или 30 минут в мс
       const now = Date.now();

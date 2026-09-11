@@ -2,42 +2,45 @@ import { GameState } from './types';
 
 const KEY_PREFIX = 'ergate-save-';
 
+// Текущий идентификатор пользователя (VK ID или 'local' в режиме разработки)
+// Устанавливается через setCurrentUserId() после получения данных из VK
+let currentUserId: string | number | null = null;
+
 /**
- * Получает ключ localStorage для текущего пользователя
+ * Устанавливает текущего пользователя — от этого зависит, в какой ключ
+ * localStorage сохраняются ресурсы (у каждого пользователя свои ресурсы)
  */
-export const getStorageKey = async (): Promise<string> => {
-  try {
-    const { getUser } = await import('@vkontakte/vk-bridge');
-    const user = await getUser();
-    return `${KEY_PREFIX}${user.id}`;
-  } catch {
-    // Если не в VK, используем дефолтный ключ
-    return `${KEY_PREFIX}local`;
-  }
+export const setCurrentUserId = (userId: string | number | null): void => {
+  currentUserId = userId;
 };
 
-export const loadState = async (): Promise<GameState | null> => {
+/**
+ * Возвращает ключ localStorage для текущего пользователя
+ */
+export const getStorageKey = (): string => {
+  return `${KEY_PREFIX}${currentUserId ?? 'local'}`;
+};
+
+/**
+ * Синхронно загружает сохранение текущего пользователя
+ */
+export const loadStateSync = (): GameState | null => {
   try {
-    const key = await getStorageKey();
-    const raw = localStorage.getItem(key);
+    const raw = localStorage.getItem(getStorageKey());
     if (!raw) return null;
-    const state = JSON.parse(raw) as GameState;
-    return {
-      ...state,
-      showBossModal: false,
-      showMap: false,
-      showRaidModal: false,
-      activeRaid: null,
-    };
+    return JSON.parse(raw) as GameState;
   } catch {
     return null;
   }
 };
 
-export const saveState = async (state: GameState) => {
+export const loadState = async (): Promise<GameState | null> => {
+  return loadStateSync();
+};
+
+export const saveState = (state: GameState) => {
   try {
-    const key = await getStorageKey();
-    localStorage.setItem(key, JSON.stringify(state));
+    localStorage.setItem(getStorageKey(), JSON.stringify(state));
   } catch {
     /* ignore quota */
   }
