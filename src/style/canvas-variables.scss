@@ -1,0 +1,54 @@
+// @use 'variables' as *;
+
+// // Цветовая схема
+// $panel-bg: rgba(0, 0, 0, 0.75);
+// $panel-border: #444;
+// $panel-shadow: rgba(0, 0, 0, 0.3);
+
+// $text-primary: #fff;
+// $text-secondary: #888;
+// $text-muted: #aaa;
+// $text-gold: #ffd700;
+
+// // Градиенты
+// $auth-gradient-start: #ff4444;
+// $auth-gradient-middle: #ff8800;
+// $auth-gradient-end: #ffd700;
+
+// // Размеры
+// $panel-padding: 10px;
+// $panel-height: 65px;
+// $panel-border-radius: 10px;
+// $auth-bar-height: 6px;
+// $auth-bar-radius: 3px;
+// $auth-max-value: 2000;
+
+// // Шрифты
+// $font-monospace: 'Courier New', monospace;
+// $resource-font-size: 14px;
+// $label-font-size: 8px;
+// $auth-font-size: 7px;
+
+// // Экспорт переменных для JS
+// :export {
+//   panelBg: $panel-bg;
+//   panelBorder: $panel-border;
+//   panelShadow: $panel-shadow;
+//   textPrimary: $text-primary;
+//   textSecondary: $text-secondary;
+//   textMuted: $text-muted;
+//   textGold: $text-gold;
+//   authGradientStart: $auth-gradient-start;
+//   authGradientMiddle: $auth-gradient-middle;
+//   authGradientEnd: $auth-gradient-end;
+//   panelPadding: $panel-padding;
+//   panelHeight: $panel-height;
+//   panelBorderRadius: $panel-border-radius;
+//   authBarHeight: $auth-bar-height;
+//   authBarRadius: $auth-bar-radius;
+//   authMaxValue: $auth-max-value;
+//   fontMonospace: $font-monospace;
+//   resourceFontSize: $resource-font-size;
+//   labelFontSize: $label-font-size;
+//   authFontSize: $auth-font-size;
+// }

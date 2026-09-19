@@ -1,0 +1,63 @@
+// Список боссов для окна "Боссы".
+// Максимальное здоровье босса всегда считается как уровень * 10.
+
+import { BossData } from './drawUI';
+
+type BossTemplate = Omit<BossData, 'hp' | 'maxHealth'>;
+
+const makeBoss = (template: BossTemplate): BossData => ({
+  ...template,
+  maxHealth: template.level * 10,
+  hp: template.level * 10,
+});
+
+export const FAKE_BOSSES: BossData[] = [
+  makeBoss({
+    id: '1',
+    name: 'Михалыч',
+    subtitle: 'Хозяин района',
+    description: 'Держит двор и следит за порядком на своей улице. Неплохо вооружён, но с ним справится тот, кто не жалеет патронов.',
+    requirements: 'Ключ района — 1',
+    color: '#8b0000',
+    level: 10,
+    isSpecial: false,
+    attackReward: { gold: 200, bullets: 15, zones: 1 },
+    soloReward: { gold: 350, bullets: 25, tokens: 2 },
+  }),
+  makeBoss({
+    id: '2',
+    name: 'Департамент',
+    subtitle: 'Чистильщики подвала',
+    description: 'Отряд, который зачищает подвалы от слабых. Действуют слаженно, поэтому без аптечек в бой лучше не идти.',
+    requirements: 'Ключ района — 2',
+    color: '#1f4d8b',
+    level: 25,
+    isSpecial: false,
+    attackReward: { gold: 500, bullets: 30, zones: 1 },
+    soloReward: { gold: 800, bullets: 50, tokens: 3 },
+  }),
+  makeBoss({
+    id: '3',
+    name: 'Тюменец',
+    subtitle: 'Стрелок с вышки',
+    description: 'Снайпер, который держит промзону под контролем. Бьёт точно и наказывает за любую заминку в бою.',
+    requirements: 'Ключ района — 2, патроны — 40',
+    color: '#6b3fa0',
+    level: 50,
+    isSpecial: true,
+    attackReward: { gold: 900, bullets: 60, zones: 2 },
+    soloReward: { gold: 1400, bullets: 90, tokens: 5 },
+  }),
+  makeBoss({
+    id: '4',
+    name: 'Сотник',
+    subtitle: 'Командир охраны',
+    description: 'Самый защищённый босс района: броня, тяжёлое оружие и большой запас здоровья. Идти к нему стоит только с прокачанным авто.',
+    requirements: 'Ключ района — 3, патроны — 80',
+    color: '#a06a1f',
+    level: 100,
+    isSpecial: true,
+    attackReward: { gold: 1600, bullets: 120, zones: 3 },
+    soloReward: { gold: 2400, bullets: 180, tokens: 8 },
+  }),
+];

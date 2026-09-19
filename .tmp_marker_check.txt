@@ -1,0 +1,75 @@
+Get-Item src/App.tsx | Select-Object FullName,Length,LastWriteTime | Format-List; Get-ChildItem src -Name; Get-ChildItem src/panels -Name -ErrorAction SilentlyContinue
+
+
+FullName      : C:\Users\magel\OneDrive\Desktop\fallengame-dev\src\App.tsx
+Length        : 915
+LastWriteTime : 15.09.2026 15:18:39
+
+
+
+assets
+components
+config
+game
+hooks
+panels
+services
+style
+utils
+App.tsx
+AppConfig.tsx
+eruda.ts
+main.tsx
+routes.ts
+vite-env.d.ts
+panelHeader
+Battle.tsx
+Clan.tsx
+Crafting.tsx
+Home.tsx
+index.ts
+Inventory.tsx
+MapPanel.tsx
+Profile.tsx
+Quests.tsx
+Raid.tsx
+RaidModal.tsx
+Workshop.tsx
+Get-Item src/App.tsx | Select-Object FullName,Length,LastWriteTime | Format-List; Get-ChildItem src -Name; Get-ChildItem src/panels -Name -ErrorAction SilentlyContinue
+
+
+FullName      : C:\Users\magel\OneDrive\Desktop\fallengame-dev\src\App.tsx
+Length        : 915
+LastWriteTime : 15.09.2026 15:18:39
+
+
+
+assets
+components
+config
+game
+hooks
+panels
+services
+style
+utils
+App.tsx
+AppConfig.tsx
+eruda.ts
+main.tsx
+routes.ts
+vite-env.d.ts
+panelHeader
+Battle.tsx
+Clan.tsx
+Crafting.tsx
+Home.tsx
+index.ts
+Inventory.tsx
+MapPanel.tsx
+Profile.tsx
+Quests.tsx
+Raid.tsx
+RaidModal.tsx
+Workshop.tsx
+marker
