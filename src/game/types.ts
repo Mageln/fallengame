@@ -108,6 +108,15 @@ export interface MapRaid {
   startTime?: number; // timestamp начала рейда
   endTime?: number; // timestamp окончания
   completed: boolean;
+  notified?: boolean; // уведомление о завершении уже создано
+}
+
+export interface GameNotification {
+  id: string;
+  text: string;
+  createdAt: number;
+  read: boolean;
+  raidId?: string;
 }
 
 export interface ClanState {
@@ -163,8 +172,11 @@ export interface GameState {
   showMap: boolean;
   showBossModal: boolean;
   showRaidModal: boolean;
-  activeRaid: MapRaid | null;
+  // id рейда, окно которого сейчас открыто (рейд при этом может идти в фоне)
+  activeRaidId: string | null;
   mapRaids: MapRaid[];
+  notifications: GameNotification[];
+  showNotifications: boolean;
 }
 
 export type GameAction =
@@ -207,8 +219,12 @@ export type GameAction =
   | { type: 'TOGGLE_SOUND' }
   | { type: 'TOGGLE_MAP' }
   | { type: 'TOGGLE_BOSS_MODAL' }
-  | { type: 'START_RAID'; raidId: string }
   | { type: 'CANCEL_RAID'; raidId: string }
+  | { type: 'MINIMIZE_RAID' }
+  | { type: 'CHECK_RAIDS' }
+  | { type: 'TOGGLE_NOTIFICATIONS' }
+  | { type: 'REMOVE_NOTIFICATION'; id: string }
+  | { type: 'CLEAR_NOTIFICATIONS' }
   | { type: 'CLAIM_RAID_REWARD'; raidId: string }
   | { type: 'CHANGE_LOCATION'; locationId: string }
   | { type: 'HYDRATE_STATE'; state: GameState }

@@ -1,18 +1,7 @@
-// Список боссов для окна "Боссы".
-// Максимальное здоровье босса всегда считается как уровень * 10.
-
 import { BossData } from './drawUI';
 
-type BossTemplate = Omit<BossData, 'hp' | 'maxHealth'>;
-
-const makeBoss = (template: BossTemplate): BossData => ({
-  ...template,
-  maxHealth: template.level * 10,
-  hp: template.level * 10,
-});
-
 export const FAKE_BOSSES: BossData[] = [
-  makeBoss({
+  {
     id: '1',
     name: 'Михалыч',
     subtitle: 'Хозяин района',
@@ -23,8 +12,8 @@ export const FAKE_BOSSES: BossData[] = [
     isSpecial: false,
     attackReward: { gold: 200, bullets: 15, zones: 1 },
     soloReward: { gold: 350, bullets: 25, tokens: 2 },
-  }),
-  makeBoss({
+  },
+  {
     id: '2',
     name: 'Департамент',
     subtitle: 'Чистильщики подвала',
@@ -35,8 +24,8 @@ export const FAKE_BOSSES: BossData[] = [
     isSpecial: false,
     attackReward: { gold: 500, bullets: 30, zones: 1 },
     soloReward: { gold: 800, bullets: 50, tokens: 3 },
-  }),
-  makeBoss({
+  },
+  {
     id: '3',
     name: 'Тюменец',
     subtitle: 'Стрелок с вышки',
@@ -47,8 +36,8 @@ export const FAKE_BOSSES: BossData[] = [
     isSpecial: true,
     attackReward: { gold: 900, bullets: 60, zones: 2 },
     soloReward: { gold: 1400, bullets: 90, tokens: 5 },
-  }),
-  makeBoss({
+  },
+  {
     id: '4',
     name: 'Сотник',
     subtitle: 'Командир охраны',
@@ -59,5 +48,5 @@ export const FAKE_BOSSES: BossData[] = [
     isSpecial: true,
     attackReward: { gold: 1600, bullets: 120, zones: 3 },
     soloReward: { gold: 2400, bullets: 180, tokens: 8 },
-  }),
+  },
 ];

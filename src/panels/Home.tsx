@@ -5,7 +5,6 @@ import { DISTRICT_TASKS } from '../game/constants';
 import { getDistrict } from '../game/formulas';
 import { useRouteNavigator } from '@vkontakte/vk-mini-apps-router';
 import { DEFAULT_VIEW_PANELS } from '../routes';
-import { RaidModal } from './RaidModal';
 import { vkApiJsonp } from '../services/vkApi';
 
 interface HomeProps {
@@ -18,7 +17,6 @@ export const Home = ({ id }: HomeProps) => {
   const { state, dispatch, derived, vkUser, isLoading } = useGame();
   const district = getDistrict(state.currentDistrict);
   const [showProfile, setShowProfile] = useState(false);
-  const [activeRaid, setActiveRaid] = useState<string | null>(null);
   const [customVkToken, setCustomVkToken] = useState<string>('dd0ca6b1dd0ca6b1dd0ca6b13dde4f3e0cddd0cdd0ca6b1b7ad935eb87f55fa9d2924b6');
   const [showTokenInput, setShowTokenInput] = useState(false);
 
@@ -35,6 +33,17 @@ export const Home = ({ id }: HomeProps) => {
   const openBattle = (districtId: string) => {
     dispatch({ type: 'START_BOSS', districtId });
   };
+
+  // Пока есть идущие рейды — раз в секунду проверяем, не завершились ли они,
+  // чтобы положить уведомление в верхнюю панель
+  const hasRunningRaids = state.mapRaids.some((r) => r.isRunning && !r.notified);
+  useEffect(() => {
+    if (!hasRunningRaids) return;
+    const interval = setInterval(() => dispatch({ type: 'CHECK_RAIDS' }), 1000);
+    return () => clearInterval(interval);
+  }, [hasRunningRaids, dispatch]);
+
+  const unreadNotifications = state.notifications.filter((n) => !n.read).length;
 
   // Имя пользователя из VK
   const playerName = vkUser 
@@ -105,20 +114,6 @@ export const Home = ({ id }: HomeProps) => {
   // Обработчики для рейдов
   const handleRaidClick = (raidId: string) => {
     dispatch({ type: 'START_RAID', raidId });
-  };
-
-  const handleClaimRaid = () => {
-    if (activeRaid) {
-      dispatch({ type: 'CLAIM_RAID_REWARD', raidId: activeRaid });
-      setActiveRaid(null);
-    }
-  };
-
-  const handleCancelRaid = () => {
-    if (activeRaid) {
-      dispatch({ type: 'CANCEL_RAID', raidId: activeRaid });
-      setActiveRaid(null);
-    }
   };
 
   return (
@@ -294,8 +289,20 @@ export const Home = ({ id }: HomeProps) => {
         showMap={state.showMap}
         mapRaids={state.mapRaids}
         onRaidClick={handleRaidClick}
+        notifications={state.notifications}
+        showNotifications={state.showNotifications}
+        unreadNotifications={unreadNotifications}
+        onNotificationsClick={() => dispatch({ type: 'TOGGLE_NOTIFICATIONS' })}
+        onNotificationRaidClick={(raidId) => {
+          // Закрываем панель уведомлений и открываем окно рейда
+          dispatch({ type: 'TOGGLE_NOTIFICATIONS' });
+          dispatch({ type: 'START_RAID', raidId });
+        }}
+        onNotificationRemove={(id) => dispatch({ type: 'REMOVE_NOTIFICATION', id })}
+        onNotificationsClear={() => dispatch({ type: 'CLEAR_NOTIFICATIONS' })}
         playerName={`${vkUser?.first_name || 'Игрок'} ${vkUser?.last_name || ''}`.trim()}
         avatarUrl={vkUser?.photo_200}
+        lastMessage={state.lastMessage}
       />
     </div>
   );

@@ -32,7 +32,7 @@ import {
   weaponUpgradeUpgradeCost,
   weekKey,
 } from './formulas';
-import { BattleState, GameAction, GameState } from './types';
+import { BattleState, GameAction, GameNotification, GameState } from './types';
 
 const msg = (state: GameState, lastMessage: string): GameState => ({ ...state, lastMessage });
 
@@ -183,7 +183,16 @@ export const hydrateState = (state: GameState): GameState => {
   if (typeof normalized.soundEnabled === 'undefined') {
     normalized = { ...normalized, soundEnabled: true };
   }
-  
+  if (!Array.isArray(normalized.notifications)) {
+    normalized = { ...normalized, notifications: [] };
+  }
+  if (typeof normalized.showNotifications === 'undefined') {
+    normalized = { ...normalized, showNotifications: false };
+  }
+  if (typeof normalized.activeRaidId === 'undefined') {
+    normalized = { ...normalized, activeRaidId: null };
+  }
+
   return applyDailyReset(normalized);
 };
 
@@ -196,7 +205,8 @@ export const gameReducer = (state: GameState, action: GameAction): GameState => 
         showBossModal: false,
         showMap: false,
         showRaidModal: false,
-        activeRaid: null,
+        activeRaidId: null,
+        showNotifications: false,
       });
     case 'ADD_RESOURCE': {
       // Пополнение ресурса кнопкой "+" в панели ресурсов
@@ -499,6 +509,39 @@ export const gameReducer = (state: GameState, action: GameAction): GameState => 
     case 'LEAVE_BATTLE':
       return { ...state, battle: null };
     case 'START_RAID': {
+      // Рейды с карты районов: запускают таймер и открывают окно рейда
+      const mapRaid = state.mapRaids.find((r) => r.id === action.raidId);
+      if (mapRaid) {
+        // Рейд уже идёт (или ждёт получения награды) — просто открываем его окно,
+        // энергию повторно не списываем и другие рейды не трогаем
+        if (mapRaid.isRunning) {
+          return {
+            ...state,
+            showRaidModal: true,
+            activeRaidId: mapRaid.id,
+            lastMessage: `${mapRaid.name}: рейд уже идёт.`,
+          };
+        }
+        if (state.energy < mapRaid.energyCost) {
+          return msg(state, `Не хватает энергии: нужно ${mapRaid.energyCost}, у вас ${state.energy}.`);
+        }
+        const raidDuration = mapRaid.type === 'yellow' ? 15 * 60 * 1000 : 30 * 60 * 1000; // 15 или 30 минут
+        const now = Date.now();
+        return {
+          ...state,
+          energy: state.energy - mapRaid.energyCost,
+          showRaidModal: true,
+          activeRaidId: mapRaid.id,
+          mapRaids: state.mapRaids.map((r) =>
+            r.id === action.raidId
+              ? { ...r, isRunning: true, completed: false, notified: false, startTime: now, endTime: now + raidDuration }
+              : r
+          ),
+          lastMessage: `${mapRaid.name}: рейд начат. Можно свернуть окно — время продолжится.`,
+        };
+      }
+
+      // Рейды из панели «Рейды»: пошаговый проход со сбором ящиков
       const raid = RAIDS.find((r) => r.id === action.raidId);
       if (!raid) return state;
       const next = spend(state, raid.energy);
@@ -762,64 +805,88 @@ export const gameReducer = (state: GameState, action: GameAction): GameState => 
       return { ...state, showMap: !state.showMap };
     case 'TOGGLE_BOSS_MODAL':
       return { ...state, showBossModal: !state.showBossModal };
-    case 'START_RAID': {
-      const raid = state.mapRaids.find(r => r.id === action.raidId);
-      if (!raid) return msg(state, 'Рейд не найден.');
-      if (raid.isRunning) return msg(state, `${raid.name}: рейд уже идёт.`);
-      if (state.energy < raid.energyCost) {
-        return msg(state, `Не хватает энергии: нужно ${raid.energyCost}, у вас ${state.energy}.`);
-      }
-      
-      const raidDuration = raid.type === 'yellow' ? 15 * 60 * 1000 : 30 * 60 * 1000; // 15 или 30 минут в мс
+    case 'MINIMIZE_RAID':
+      // Сворачиваем окно: рейд продолжает идти в фоне, энергия уже потрачена
+      return { ...state, showRaidModal: false, activeRaidId: null };
+    case 'CHECK_RAIDS': {
+      // Вызывается по таймеру: создаёт уведомление для каждого рейда, время которого вышло
       const now = Date.now();
-      
+      const finished = state.mapRaids.filter(
+        (r) => r.isRunning && !r.notified && !!r.endTime && now >= r.endTime
+      );
+      if (finished.length === 0) return state;
+
+      const newNotifications: GameNotification[] = finished.map((r) => ({
+        id: `raid_done_${r.id}_${r.endTime}`,
+        text: `Рейд «${r.name}» завершён — награда ждёт получения`,
+        createdAt: now,
+        read: false,
+        raidId: r.id,
+      }));
+
       return {
         ...state,
-        energy: state.energy - raid.energyCost,
-        showRaidModal: true,
-        activeRaid: {
-          ...raid,
-          isRunning: true,
-          startTime: now,
-          endTime: now + raidDuration,
-        },
-        mapRaids: state.mapRaids.map(r =>
-          r.id === action.raidId ? { ...r, isRunning: true, startTime: now, endTime: now + raidDuration } : r
+        notifications: [...newNotifications, ...state.notifications].slice(0, 30),
+        mapRaids: state.mapRaids.map((r) =>
+          finished.some((f) => f.id === r.id) ? { ...r, notified: true } : r
         ),
+        lastMessage: finished.length === 1
+          ? `${finished[0].name}: рейд завершён.`
+          : `Завершено рейдов: ${finished.length}.`,
       };
     }
+    case 'TOGGLE_NOTIFICATIONS': {
+      const show = !state.showNotifications;
+      return {
+        ...state,
+        showNotifications: show,
+        // Открыли панель — считаем уведомления прочитанными
+        notifications: show ? state.notifications.map((n) => ({ ...n, read: true })) : state.notifications,
+      };
+    }
+    case 'REMOVE_NOTIFICATION':
+      // Удаляем конкретное уведомление (крестик в списке)
+      return {
+        ...state,
+        notifications: state.notifications.filter((n) => n.id !== action.id),
+      };
+    case 'CLEAR_NOTIFICATIONS':
+      // Очищаем весь список уведомлений
+      return { ...state, notifications: [] };
     case 'CANCEL_RAID': {
-      const activeRaid = state.activeRaid;
-      if (!activeRaid || !activeRaid.isRunning) return state;
-      
+      const raid = state.mapRaids.find((r) => r.id === action.raidId);
+      if (!raid || !raid.isRunning) return state;
+
       // Возвращаем часть энергии (50%)
-      const refund = Math.floor(activeRaid.energyCost * 0.5);
-      
+      const refund = Math.floor(raid.energyCost * 0.5);
+
       return {
         ...state,
         energy: state.energy + refund,
         showRaidModal: false,
-        activeRaid: null,
-        mapRaids: state.mapRaids.map(r =>
+        activeRaidId: null,
+        mapRaids: state.mapRaids.map((r) =>
           r.id === action.raidId ? { ...r, isRunning: false, startTime: undefined, endTime: undefined } : r
         ),
+        lastMessage: `${raid.name}: рейд отменён, возвращено ${refund} энергии.`,
       };
     }
     case 'CLAIM_RAID_REWARD': {
-      const activeRaid = state.activeRaid;
-      if (!activeRaid || !activeRaid.isRunning || !activeRaid.endTime) return state;
-      if (Date.now() < activeRaid.endTime) return state;
-      
+      const raid = state.mapRaids.find((r) => r.id === action.raidId);
+      if (!raid || !raid.isRunning || !raid.endTime) return state;
+      if (Date.now() < raid.endTime) return msg(state, 'Рейд ещё не завершён.');
+
       return {
         ...state,
-        bullets: state.bullets + activeRaid.rewards.bullets,
-        matches: state.matches + activeRaid.rewards.matches,
-        keys: state.keys + activeRaid.rewards.materials,
+        bullets: state.bullets + raid.rewards.bullets,
+        matches: state.matches + raid.rewards.matches,
+        keys: state.keys + raid.rewards.materials,
         showRaidModal: false,
-        activeRaid: null,
-        mapRaids: state.mapRaids.map(r =>
+        activeRaidId: null,
+        mapRaids: state.mapRaids.map((r) =>
           r.id === action.raidId ? { ...r, isRunning: false, completed: true, startTime: undefined, endTime: undefined } : r
         ),
+        lastMessage: `${raid.name}: награда получена.`,
       };
     }
     case 'CHANGE_LOCATION':

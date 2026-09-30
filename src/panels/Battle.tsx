@@ -226,8 +226,8 @@ export const Battle = ({ id }: Props) => {
             <Text style={{ fontSize: 24, fontWeight: 'bold' }}>
               {playerWon ? '🏆 Победа!' : '💀 Вы погибли!'}
             </Text>
-            {playerWon ? <span style={{display:'none'}}>{playSound('victory')}</span> : null}
-            {playerDead ? <span style={{display:'none'}}>{playSound('defeat')}</span> : null}
+            {playerWon ? (playSound('victory'), null) : null}
+            {playerDead ? (playSound('defeat'), null) : null}
             <Button style={{ marginTop: 12 }} onClick={() => { dispatch({ type: 'LEAVE_BATTLE' }); navigator.back(); }}>
               Продолжить
             </Button>

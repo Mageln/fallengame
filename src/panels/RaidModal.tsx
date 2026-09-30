@@ -5,33 +5,30 @@ interface RaidModalProps {
   raidId: string;
   onClaim: () => void;
   onCancel: () => void;
+  onMinimize: () => void;
 }
 
-export const RaidModal = ({ raidId, onClaim, onCancel }: RaidModalProps) => {
-  const { state, dispatch } = useGame();
+export const RaidModal = ({ raidId, onClaim, onCancel, onMinimize }: RaidModalProps) => {
+  const { state } = useGame();
   const [timeLeft, setTimeLeft] = useState(0);
   const [isCompleted, setIsCompleted] = useState(false);
-  
-  const raid = state.mapRaids.find(r => r.id === raidId);
-  const activeRaid = state.activeRaid;
-  
-  const raidData = activeRaid || raid;
-  
-  const raidDuration = raidData?.type === 'yellow' ? 15 * 60 * 1000 : 30 * 60 * 1000;
-  
+
+  // Берём рейд из списка — он живёт в состоянии и продолжает идти, даже если окно свёрнуто
+  const raidData = state.mapRaids.find((r) => r.id === raidId);
+
   const formatTime = (ms: number): string => {
     const totalSeconds = Math.floor(ms / 1000);
     const minutes = Math.floor(totalSeconds / 60);
     const seconds = totalSeconds % 60;
     return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
   };
-  
+
   const updateTimer = useCallback(() => {
     if (!raidData?.endTime) return;
-    
+
     const now = Date.now();
     const remaining = raidData.endTime - now;
-    
+
     if (remaining <= 0) {
       setTimeLeft(0);
       setIsCompleted(true);
@@ -39,21 +36,21 @@ export const RaidModal = ({ raidId, onClaim, onCancel }: RaidModalProps) => {
       setTimeLeft(remaining);
       setIsCompleted(false);
     }
-  }, [raidData]);
-  
+  }, [raidData?.endTime]);
+
   useEffect(() => {
     updateTimer();
     const interval = setInterval(updateTimer, 1000);
     return () => clearInterval(interval);
   }, [updateTimer]);
-  
+
   if (!raidData) return null;
-  
+
   const isRed = raidData.type === 'red';
   const borderColor = isRed ? '#ff4444' : '#ffaa00';
   const bgColor = isRed ? 'rgba(255, 68, 68, 0.1)' : 'rgba(255, 170, 0, 0.1)';
   const zoneLabel = isRed ? 'ОПАСНАЯ ЗОНА' : 'СРЕДНЯЯ ЗОНА';
-  
+
   return (
     <div
       style={{
@@ -68,7 +65,7 @@ export const RaidModal = ({ raidId, onClaim, onCancel }: RaidModalProps) => {
         justifyContent: 'center',
         zIndex: 10000,
       }}
-      onClick={onCancel}
+      onClick={onMinimize}
     >
       <div
         style={{
@@ -79,10 +76,31 @@ export const RaidModal = ({ raidId, onClaim, onCancel }: RaidModalProps) => {
           width: '90%',
           border: `2px solid ${borderColor}`,
           boxShadow: `0 0 30px ${borderColor}40`,
+          position: 'relative',
         }}
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Заголовок */}
+        {/* Кнопка сворачивания */}
+        <button
+          onClick={onMinimize}
+          title="Свернуть (рейд продолжится)"
+          style={{
+            position: 'absolute',
+            top: 10,
+            right: 10,
+            width: 30,
+            height: 30,
+            borderRadius: 8,
+            background: 'rgba(255, 255, 255, 0.1)',
+            border: '1px solid #555',
+            color: '#fff',
+            fontSize: 16,
+            lineHeight: 1,
+            cursor: 'pointer',
+          }}
+        >
+          ─
+        </button>        {/* Заголовок */}
         <div style={{ textAlign: 'center', marginBottom: 20 }}>
           <div
             style={{
@@ -117,7 +135,7 @@ export const RaidModal = ({ raidId, onClaim, onCancel }: RaidModalProps) => {
             {isCompleted ? '✅ ГОТОВО' : formatTime(timeLeft)}
           </div>
           <p style={{ margin: '8px 0 0', color: '#666', fontSize: 12 }}>
-            {isCompleted ? 'Ресурсы готовы к получению' : 'Рейд в процессе...'}
+            {isCompleted ? 'Ресурсы готовы к получению' : 'Рейд в процессе... Можно свернуть — время продолжится.'}
           </p>
         </div>
         

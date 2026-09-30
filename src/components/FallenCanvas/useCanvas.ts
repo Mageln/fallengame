@@ -3,7 +3,7 @@ import { GameIcons, Task } from './types';
 import { drawBackground } from './drawBackground';
 import { drawCharacter, CHARACTER_POSITION } from './drawCharacter';
 import { spawnParticles, updateParticles, drawParticles } from './particles';
-import { drawUI, ButtonPosition, ProfileData, UIFlags, BossData, MapRaid, RIGHT_PANEL_MAX_OFFSET, HoverAnim, BOSS_VISIBLE } from './drawUI';
+import { drawUI, ButtonPosition, ProfileData, UIFlags, BossData, BossFight, MapRaid, RIGHT_PANEL_MAX_OFFSET, HoverAnim, BOSS_VISIBLE } from './drawUI';
 
 export const useCanvas = (
   backgroundImage: HTMLImageElement | null,
@@ -44,16 +44,24 @@ export const useCanvas = (
   onMapRaidClick?: (raidId: string) => void,
   // Атака босса из окна боссов (id босса)
   onBossAttack?: (bossId: string) => void,
+  // Кнопки окна боя с боссом
+  onFightAttack?: () => void,
+  onFightLeave?: () => void,
   // State
   showProfile: boolean = false,
   showBossModal: boolean = false,
   showMap: boolean = false,
   profileData: ProfileData | null = null,
   bosses: BossData[] = [],
+  bossFight: BossFight | null = null,
   mapRaids: MapRaid[] = [],
   mapImage: HTMLImageElement | null = null,
   topBarImage: HTMLImageElement | null = null,
-  fullscreen: boolean = false
+  bossImage: HTMLImageElement | null = null,
+  fullscreen: boolean = false,
+  mapMessage: string = '',
+  unreadNotifications: number = 0,
+  onNotificationsClick?: () => void
 ) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const hoveredRef = useRef({ x: 0, y: 0 });
@@ -88,6 +96,9 @@ export const useCanvas = (
     onToggleFullscreen,
     onMapRaidClick,
     onBossAttack,
+    onFightAttack,
+    onFightLeave,
+    onNotificationsClick,
   });
 
   // Обновляем ref callback'ов при каждом изменении
@@ -109,12 +120,15 @@ export const useCanvas = (
       onToggleFullscreen,
       onMapRaidClick,
       onBossAttack,
+      onFightAttack,
+      onFightLeave,
+      onNotificationsClick,
     };
   }, [
     onProfileClick, onBattleClick, onBossModalClose, onCloseMap,
     onOpenBossModal, onCloseProfile, onBackToMain, onGoDistrict,
     onRestoreEnergy, onRestoreSpicki, onRestoreBullets, onRestoreGold, onRestoreZhetons,
-    onToggleFullscreen, onMapRaidClick, onBossAttack
+    onToggleFullscreen, onMapRaidClick, onBossAttack, onFightAttack, onFightLeave, onNotificationsClick
   ]);
 
   const render = useCallback(() => {
@@ -148,11 +162,11 @@ export const useCanvas = (
     updateParticles();
     drawParticles(ctx);
 
-    const flags: UIFlags = { showProfile, showBossModal, showMap };
+    const flags: UIFlags = { showProfile, showBossModal, showMap, bossFight };
 
     const buttons = drawUI(
       ctx, w, h,
-      { energy, maxEnergy, spicki, bullets, gold, zhetons, level, carLevel, districtName, authority, playerName, avatarImage },
+      { energy, maxEnergy, spicki, bullets, gold, zhetons, level, carLevel, districtName, authority, playerName, avatarImage, unreadNotifications },
       profileData,
       flags,
       {
@@ -186,12 +200,14 @@ export const useCanvas = (
       mapImage,
       topBarImage,
       hoverAnimRef.current,
-      bossScrollRef.current
+      bossScrollRef.current,
+      bossImage,
+      mapMessage
     );
 
     buttonPositionsRef.current = buttons;
     needsRenderRef.current = false;
-  }, [backgroundImage, characterImage, icons, energy, maxEnergy, authority, spicki, bullets, gold, zhetons, tasks, appearanceColor, currentLocation, carLevel, level, districtName, playerName, avatarImage, showProfile, showBossModal, showMap, profileData, bosses, mapRaids, mapImage, topBarImage, fullscreen]);
+  }, [backgroundImage, characterImage, icons, energy, maxEnergy, authority, spicki, bullets, gold, zhetons, tasks, appearanceColor, currentLocation, carLevel, level, districtName, playerName, avatarImage, showProfile, showBossModal, showMap, bossFight, profileData, bosses, mapRaids, mapImage, topBarImage, bossImage, fullscreen, mapMessage, unreadNotifications]);
 
   // Всегда актуальная версия render для обработчика кликов
   renderRef.current = render;
@@ -277,6 +293,31 @@ export const useCanvas = (
     needsRenderRef.current = true;
   }, [bosses]);
 
+  // Окно боя анимируется по времени (покачивание, вспышки) — рисуем кадры постоянно
+  useEffect(() => {
+    if (!bossFight) return;
+    let raf = 0;
+    const tick = () => {
+      renderRef.current();
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [bossFight]);
+
+  // Карта районов: пока есть идущие рейды, обновляем кадры — на маркерах идёт обратный отсчёт
+  useEffect(() => {
+    if (!showMap) return;
+    if (!mapRaids.some((raid) => raid.isRunning)) return;
+    let raf = 0;
+    const tick = () => {
+      renderRef.current();
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [showMap, mapRaids]);
+
   // Рендер когда нужно
   useEffect(() => {
     if (!needsRenderRef.current) return;
@@ -312,9 +353,16 @@ export const useCanvas = (
         }
         if (btn.id === 'go_battle') { cb.onBattleClick?.(); return; }
         if (btn.id === 'go_boss') { cb.onOpenBossModal?.(); return; }
+        // Окно боя с боссом: "Удар" и "Отступить"/"Закрыть"
+        if (btn.id === 'fight_attack') { cb.onFightAttack?.(); return; }
+        if (btn.id === 'fight_leave') { cb.onFightLeave?.(); return; }
         // Атака по конкретному боссу в окне боссов: уменьшаем его HP
         if (btn.id.startsWith('attack_boss_')) {
           cb.onBossAttack?.(btn.id.slice('attack_boss_'.length));
+          return;
+        }
+        if (btn.id.startsWith('boss_fight_')) {
+          cb.onBossAttack?.(btn.id.slice('boss_fight_'.length));
           return;
         }
         if (btn.id.startsWith('solo_boss_')) {
@@ -328,6 +376,7 @@ export const useCanvas = (
         if (btn.id === 'restore_zhetons') { cb.onRestoreZhetons?.(); return; }
         if (btn.id === 'restore_energy') { cb.onRestoreEnergy?.(); return; }
         if (btn.id === 'toggle_fullscreen') { cb.onToggleFullscreen?.(); return; }
+        if (btn.id === 'notifications') { cb.onNotificationsClick?.(); return; }
         if (btn.id === 'carousel_up' || btn.id === 'carousel_down') {
           carouselOffsetRef.current = btn.id === 'carousel_up'
             ? Math.max(0, carouselOffsetRef.current - 1)
@@ -344,6 +393,7 @@ export const useCanvas = (
         if (btn.id === 'go_inventory') { cb.onInventoryClick?.(); return; }
         if (btn.id === 'go_quests') { cb.onQuestsClick?.(); return; }
         if (btn.id === 'go_crafting') { cb.onCraftingClick?.(); return; }
+        if (btn.id === 'go_district') { cb.onGoDistrict?.(); return; }
         if (btn.id === 'go_cloth') { cb.onGoCloth?.(); return; }
         if (btn.id === 'go_komnata') { cb.onGoKomnata?.(); return; }
         if (btn.id === 'go_kazino') { cb.onGoKazino?.(); return; }

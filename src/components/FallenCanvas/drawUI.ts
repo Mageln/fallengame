@@ -27,6 +27,8 @@ export interface MapRaid {
   isRunning: boolean;
   completed: boolean;
   energyCost?: number;
+  startTime?: number;
+  endTime?: number;
 }
 
 // Универсальная кнопка "Назад"
@@ -74,6 +76,7 @@ export interface GameData {
   districtName: string;
   playerName?: string;
   avatarImage?: HTMLImageElement | null;
+  unreadNotifications?: number;
 }
 
 export interface ProfileData {
@@ -99,8 +102,6 @@ export interface BossData {
   requirements: string;
   color: string;
   level: number;
-  hp: number;
-  maxHealth: number;
   isSpecial: boolean;
   attackReward: { gold: number; bullets: number; zones: number };
   soloReward: { gold: number; bullets: number; tokens: number };
@@ -122,6 +123,9 @@ export interface BossFight {
   playerHitAt: number;
   lastDamage: number;
   outcome: 'fighting' | 'won' | 'lost';
+  // Итог боя: момент окончания (для анимации окна) и выданная за победу награда
+  endedAt?: number;
+  reward?: { gold: number; bullets: number };
 }
 
 const drawIcon = (
@@ -458,7 +462,8 @@ const drawTopBar = (
   hoveredX: number,
   hoveredY: number,
   buttons: ButtonPosition[],
-  topBarImage: HTMLImageElement | null = null
+  topBarImage: HTMLImageElement | null = null,
+  unreadNotifications: number = 0
 ) => {
   const topBarHeight = 55;
   
@@ -760,6 +765,58 @@ const drawTopBar = (
   ctx.stroke();
 
   buttons.push({ x: fsBtnX, y: fsBtnY, width: fsBtnSize, height: fsBtnSize, id: 'toggle_fullscreen' });
+
+  // ===== КНОПКА УВЕДОМЛЕНИЙ (левее fullscreen) =====
+  const notifSize = 26;
+  const notifX = fsBtnX - notifSize - 6;
+  const notifY = resCenterY - notifSize / 2;
+  const isNotifHovered = hoveredX > notifX && hoveredX < notifX + notifSize &&
+                         hoveredY > notifY && hoveredY < notifY + notifSize;
+
+  if (isNotifHovered) {
+    ctx.shadowColor = '#ffd700';
+    ctx.shadowBlur = 8;
+  }
+  ctx.fillStyle = isNotifHovered ? 'rgba(255, 215, 0, 0.25)' : 'rgba(0, 0, 0, 0.55)';
+  ctx.beginPath();
+  ctx.roundRect(notifX, notifY, notifSize, notifSize, 8);
+  ctx.fill();
+  ctx.shadowBlur = 0;
+  ctx.strokeStyle = isNotifHovered ? '#ffd700' : 'rgba(255, 215, 0, 0.5)';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+
+  // Колокольчик
+  ctx.font = '15px Arial';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('🔔', notifX + notifSize / 2, notifY + notifSize / 2 + 1);
+
+  // Бейдж с числом непрочитанных уведомлений
+  const unread = unreadNotifications ?? 0;
+  if (unread > 0) {
+    const badgeText = unread > 9 ? '9+' : String(unread);
+    ctx.font = 'bold 10px Arial';
+    const badgeW = Math.max(16, ctx.measureText(badgeText).width + 10);
+    const badgeH = 15;
+    const badgeX = notifX + notifSize - badgeW + 7;
+    const badgeY = notifY - 5;
+
+    ctx.fillStyle = '#ff3333';
+    ctx.beginPath();
+    ctx.roundRect(badgeX, badgeY, badgeW, badgeH, badgeH / 2);
+    ctx.fill();
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+
+    ctx.fillStyle = '#fff';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(badgeText, badgeX + badgeW / 2, badgeY + badgeH / 2 + 1);
+  }
+
+  buttons.push({ x: notifX, y: notifY, width: notifSize, height: notifSize, id: 'notifications' });
 };
 
 export const drawUI = (
@@ -780,7 +837,9 @@ export const drawUI = (
   mapImage: HTMLImageElement | null = null,
   topBarImage: HTMLImageElement | null = null,
   hoverAnim: HoverAnim = EMPTY_HOVER_ANIM,
-  bossScroll: number = 0
+  bossScroll: number = 0,
+  bossImage: HTMLImageElement | null = null,
+  mapMessage: string = ''
 ): ButtonPosition[] => {
   const buttons: ButtonPosition[] = [];
   
@@ -807,7 +866,7 @@ export const drawUI = (
     overlayButtons.push({ x: width / 2 - 60, y: height - 80, width: 120, height: 35, id: 'back_to_main' });
   } else if (flags.showMap) {
     overlayButtons = [];
-    drawMapRaids(ctx, width, height, mapRaids, hoveredX, hoveredY, overlayButtons, mapImage);
+    drawMapRaids(ctx, width, height, mapRaids, hoveredX, hoveredY, overlayButtons, mapImage, mapMessage);
   }
 
   // ===== Верхняя панель (рисуется ПОСЛЕДНЕЙ — видна везде, поверх оверлеев) =====
@@ -831,13 +890,14 @@ export const drawUI = (
     hoveredX,
     hoveredY,
     buttons,
-    topBarImage
+    topBarImage,
+    data.unreadNotifications ?? 0
   );
 
   // Бой с боссом — рисуется поверх всего и перехватывает все клики
   if (flags.bossFight) {
     const fightButtons: ButtonPosition[] = [];
-    drawBossFight(ctx, width, height, flags.bossFight, icons, characterImage, hoveredX, hoveredY, fightButtons);
+    drawBossFight(ctx, width, height, flags.bossFight, icons, hoveredX, hoveredY, fightButtons, bossImage);
     return fightButtons;
   }
 
@@ -865,7 +925,8 @@ const drawMapRaids = (
   hoveredX: number,
   hoveredY: number,
   buttons: ButtonPosition[],
-  mapImage: HTMLImageElement | null = null
+  mapImage: HTMLImageElement | null = null,
+  message: string = ''
 ) => {
   // Фон карты
   ctx.fillStyle = 'rgba(10, 15, 20, 0.9)';
@@ -930,71 +991,105 @@ const drawMapRaids = (
   buttons.push({ x: backBtnX, y: backBtnY, width: 100, height: 40, id: 'back_to_main' });
   
   // Рисуем отметки рейдов
+  const now = Date.now();
+  let runningCount = 0;
+  let readyCount = 0;
+
+  const formatRaidTime = (ms: number) => {
+    const total = Math.max(0, Math.floor(ms / 1000));
+    const m = Math.floor(total / 60);
+    const s = total % 60;
+    return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+  };
+
   raids.forEach((raid) => {
     const x = (raid.x / 100) * width;
     const y = (raid.y / 100) * height;
     const radius = raid.type === 'red' ? 25 : 20;
-    
+
     const isHovered = hoveredX > x - radius && hoveredX < x + radius && hoveredY > y - radius && hoveredY < y + radius;
-    
-    // Цвет в зависимости от типа и статуса
+
+    // Рейд идёт и время уже вышло — награда ждёт получения
+    const ready = !raid.completed && raid.isRunning && !!raid.endTime && now >= raid.endTime;
+    if (ready) readyCount++;
+    else if (raid.isRunning) runningCount++;
+
+    // Цвет в зависимости от статуса
     let color: string;
-    if (raid.completed) {
+    if (ready) {
       color = '#00ff88';
+    } else if (raid.completed) {
+      color = '#00cc66';
     } else if (raid.isRunning) {
       color = '#ffaa00';
     } else {
       color = raid.type === 'red' ? '#ff4444' : '#ffaa00';
     }
-    
+
     // Свечение
     ctx.shadowColor = color;
     ctx.shadowBlur = isHovered ? 25 : 15;
-    
+
     // Круг
     ctx.fillStyle = isHovered ? `${color}cc` : `${color}88`;
     ctx.beginPath();
     ctx.arc(x, y, radius, 0, Math.PI * 2);
     ctx.fill();
-    
+
     // Обводка
     ctx.strokeStyle = color;
     ctx.lineWidth = 3;
     ctx.beginPath();
     ctx.arc(x, y, radius, 0, Math.PI * 2);
     ctx.stroke();
-    
+
     ctx.shadowBlur = 0;
-    
+
     // Иконка внутри круга
     ctx.fillStyle = '#fff';
     ctx.font = `${raid.type === 'red' ? 24 : 20}px Arial`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText(raid.completed ? '✅' : raid.isRunning ? '⏳' : '⚠️', x, y);
-    
+    const icon = ready ? '💰' : raid.completed ? '✅' : raid.isRunning ? '⏳' : '⚠️';
+    ctx.fillText(icon, x, y);
+
     ctx.shadowBlur = 0;
-    
+
     // Подпись
     ctx.fillStyle = '#fff';
     ctx.font = 'bold 11px Arial';
     ctx.textAlign = 'center';
     ctx.fillText(raid.name, x, y + radius + 15);
-    
-    // Время
-    ctx.fillStyle = '#aaa';
+
+    // Статус: обратный отсчёт, «Готово» или длительность
+    let statusText: string;
+    let statusColor: string;
+    if (ready) {
+      statusText = 'Готово! Забрать';
+      statusColor = '#00ff88';
+    } else if (raid.isRunning && raid.endTime) {
+      statusText = formatRaidTime(raid.endTime - now);
+      statusColor = '#ffaa00';
+    } else if (raid.completed) {
+      statusText = 'Завершён';
+      statusColor = '#00cc66';
+    } else {
+      statusText = raid.type === 'red' ? '30 мин' : '15 мин';
+      statusColor = '#aaa';
+    }
+    ctx.fillStyle = statusColor;
     ctx.font = '10px Arial';
-    ctx.fillText(raid.type === 'red' ? '30 мин' : '15 мин', x, y + radius + 28);
-    
-    // Затраты энергии рядом с иконкой (маленькая капсула ⚡N)
-    if (!raid.completed) {
+    ctx.fillText(statusText, x, y + radius + 28);
+
+    // Затраты энергии рядом с иконкой (только для рейда, который ещё не запущен)
+    if (!raid.completed && !raid.isRunning) {
       const energyText = String(raid.energyCost ?? (raid.type === 'red' ? 20 : 15));
       ctx.font = 'bold 10px Arial';
       const badgeW = ctx.measureText(energyText).width + 26; // место под ⚡ и паддинги
       const badgeH = 16;
       const badgeX = x + radius - 4;  // правый верхний край кружка рейда
       const badgeY = y - radius - 6;
-      
+
       ctx.fillStyle = 'rgba(0, 0, 0, 0.75)';
       ctx.beginPath();
       ctx.roundRect(badgeX, badgeY, badgeW, badgeH, 8);
@@ -1002,22 +1097,78 @@ const drawMapRaids = (
       ctx.strokeStyle = '#ffaa00';
       ctx.lineWidth = 1;
       ctx.stroke();
-      
+
       // Молния
       ctx.fillStyle = '#ffaa00';
       ctx.font = '9px Arial';
       ctx.textAlign = 'left';
       ctx.textBaseline = 'middle';
       ctx.fillText('⚡', badgeX + 4, badgeY + badgeH / 2 + 1);
-      
+
       // Число
       ctx.fillStyle = '#fff';
       ctx.font = 'bold 10px Arial';
       ctx.fillText(energyText, badgeX + 15, badgeY + badgeH / 2 + 1);
     }
-    
+
     buttons.push({ x: x - radius, y: y - radius, width: radius * 2, height: radius * 2, id: `raid_${raid.id}` });
   });
+
+  // Счётчик активных рейдов под верхней панелью справа
+  if (runningCount > 0 || readyCount > 0) {
+    const parts: string[] = [];
+    if (runningCount > 0) parts.push(`⏳ идут: ${runningCount}`);
+    if (readyCount > 0) parts.push(`💰 готовы: ${readyCount}`);
+    const text = parts.join('   ');
+
+    ctx.font = 'bold 12px Arial';
+    const textWidth = ctx.measureText(text).width;
+    const boxW = textWidth + 24;
+    const boxH = 28;
+    const boxX = width - boxW - 20;
+    const boxY = 65;
+
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.75)';
+    ctx.beginPath();
+    ctx.roundRect(boxX, boxY, boxW, boxH, 8);
+    ctx.fill();
+    ctx.strokeStyle = readyCount > 0 ? '#00ff88' : '#ffaa00';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.roundRect(boxX, boxY, boxW, boxH, 8);
+    ctx.stroke();
+
+    ctx.fillStyle = '#fff';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(text, boxX + boxW / 2, boxY + boxH / 2 + 1);
+  }
+
+
+  // Плашка с последним сообщением (например, почему рейд не запустился)
+  if (message) {
+    ctx.font = 'bold 13px Arial';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    const textWidth = ctx.measureText(message).width;
+    const boxW = Math.min(width - 40, textWidth + 40);
+    const boxH = 34;
+    const boxX = (width - boxW) / 2;
+    const boxY = height - boxH - 16;
+
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+    ctx.beginPath();
+    ctx.roundRect(boxX, boxY, boxW, boxH, 10);
+    ctx.fill();
+    ctx.strokeStyle = '#ffaa00';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.roundRect(boxX, boxY, boxW, boxH, 10);
+    ctx.stroke();
+
+    ctx.fillStyle = '#fff';
+    ctx.fillText(message, width / 2, boxY + boxH / 2 + 1);
+  }
 };
 
 const drawMapPanel = (ctx: CanvasRenderingContext2D, width: number, height: number) => {
@@ -1274,44 +1425,8 @@ const drawBossCard = (
   ctx.fillText('Купить', ratingX + ratingW / 2, buyY + buyH / 2);
   buttons.push({ x: ratingX, y: buyY, width: ratingW, height: buyH, id: `buy_boss_${boss.id}` });
 
-  // ===== Здоровье босса (максимум = уровень * 10) =====
-  const hpMax = boss.maxHealth;
-  const hp = Math.max(0, Math.min(boss.hp, hpMax));
-  const hpX = leftColX + Math.round(8 * k);
-  const hpW = leftColWidth - Math.round(16 * k);
-  const hpBarY = avatarCY + avatarR + Math.round(34 * k);
-  const hpBarH = Math.round(12 * k);
-
-  ctx.fillStyle = '#dddddd';
-  ctx.font = `bold ${Math.round(11 * k)}px Arial`;
-  ctx.textAlign = 'center';
-  ctx.fillText('Здоровье', avatarCX, hpBarY - Math.round(9 * k));
-
-  ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
-  ctx.beginPath();
-  ctx.roundRect(hpX, hpBarY, hpW, hpBarH, 3);
-  ctx.fill();
-
-  const hpRatio = hpMax > 0 ? hp / hpMax : 0;
-  if (hpRatio > 0) {
-    ctx.fillStyle = hpRatio > 0.5 ? '#3fae4a' : hpRatio > 0.25 ? '#d8a12a' : '#c0392b';
-    ctx.beginPath();
-    ctx.roundRect(hpX, hpBarY, Math.max(3, hpW * hpRatio), hpBarH, 3);
-    ctx.fill();
-  }
-
-  ctx.strokeStyle = 'rgba(255, 255, 255, 0.25)';
-  ctx.lineWidth = 1;
-  ctx.beginPath();
-  ctx.roundRect(hpX, hpBarY, hpW, hpBarH, 3);
-  ctx.stroke();
-
-  ctx.fillStyle = '#ffffff';
-  ctx.font = `bold ${Math.round(10 * k)}px Arial`;
-  ctx.fillText(`${hp} / ${hpMax}`, avatarCX, hpBarY + hpBarH + Math.round(10 * k));
-
-  // ===== Кнопка "В бой" — активна, пока у босса есть текущее здоровье =====
-  if (boss.hp !== undefined) {
+  // ===== Кнопка "В бой" =====
+  {
     const fightH = Math.round(26 * k);
     const fightY = ratingY - fightH - Math.round(8 * k);
     const fightHovered = hX > ratingX && hX < ratingX + ratingW && hY > fightY && hY < fightY + fightH;
@@ -1327,9 +1442,11 @@ const drawBossCard = (
     ctx.stroke();
     ctx.fillStyle = '#ffdddd';
     ctx.font = `bold ${Math.round(13 * k)}px Arial`;
+    ctx.textAlign = 'center';
     ctx.fillText('В БОЙ', ratingX + ratingW / 2, fightY + fightH / 2);
     buttons.push({ x: ratingX, y: fightY, width: ratingW, height: fightH, id: `boss_fight_${boss.id}` });
   }
+
 
 
   // ===== ЦЕНТРАЛЬНАЯ КОЛОНКА: награда и требования =====
@@ -1623,150 +1740,239 @@ const drawBossFight = (
   height: number,
   fight: BossFight,
   icons: Record<string, HTMLImageElement | null>,
-  characterImage: HTMLImageElement | null,
   hX: number,
   hY: number,
-  buttons: ButtonPosition[]
+  buttons: ButtonPosition[],
+  bossImage: HTMLImageElement | null = null
 ) => {
   const now = performance.now();
 
-  // Затемнение всего экрана
-  ctx.fillStyle = 'rgba(0, 0, 0, 0.82)';
+  // Бой занимает весь экран: полностью перекрываем остальной интерфейс
+  ctx.fillStyle = '#050505';
   ctx.fillRect(0, 0, width, height);
 
-  const s = Math.max(0.72, Math.min(1.15, height / 700));
-  const pw = Math.min(560, width - 20);
-  const ph = Math.min(430 * s, height - 20);
-  const px = (width - pw) / 2;
-  const py = (height - ph) / 2;
+  const hitWindow = 340;
+  const hurt = (t: number) => Math.min(1, (now - t) / hitWindow);
+  const bossHurt = hurt(fight.bossHitAt);
+  const playerHurt = hurt(fight.playerHitAt);
 
-  const panelBg = ctx.createLinearGradient(px, py, px, py + ph);
-  panelBg.addColorStop(0, 'rgba(34, 16, 16, 0.98)');
-  panelBg.addColorStop(1, 'rgba(10, 8, 8, 0.98)');
-  ctx.fillStyle = panelBg;
-  ctx.beginPath();
-  ctx.roundRect(px, py, pw, ph, 14);
-  ctx.fill();
+  // Босс на весь экран + лёгкая анимация:
+  // «дыхание», покачивание в простое, тряска при попадании
+  const bossShake = bossHurt < 1 ? Math.sin(bossHurt * Math.PI * 5) * (1 - bossHurt) * 14 : 0;
+  const bossBreath = 1 + Math.sin(now / 900) * 0.02;
+  const idleY = Math.sin(now / 520) * 6;
 
-  ctx.strokeStyle = fight.bossColor;
-  ctx.lineWidth = 2;
-  ctx.beginPath();
-  ctx.roundRect(px, py, pw, ph, 14);
-  ctx.stroke();
+  ctx.save();
+  ctx.translate(bossShake, idleY);
+  ctx.translate(width / 2, height / 2);
+  ctx.scale(bossBreath, bossBreath);
+  ctx.translate(-width / 2, -height / 2);
 
+  if (bossImage && bossImage.complete && bossImage.naturalWidth > 0) {
+    // Босс растянут на весь экран (cover по центру)
+    const imgRatio = bossImage.naturalWidth / bossImage.naturalHeight;
+    const boxRatio = width / height;
+    let dw = width;
+    let dh = height;
+    if (imgRatio > boxRatio) dw = height * imgRatio;
+    else dh = width / imgRatio;
+    ctx.drawImage(bossImage, (width - dw) / 2, (height - dh) / 2, dw, dh);
+  } else {
+    // Запасной вариант, если картинка не загрузилась
+    const size = Math.min(width, height) * 0.65;
+    drawFightSprite(
+      ctx,
+      icons.boss || null,
+      (width - size) / 2,
+      (height - size) / 2,
+      size,
+      `${fight.bossColor}55`,
+      getInitials(fight.bossName)
+    );
+  }
+  ctx.restore();
+
+  // Красная вспышка на весь экран, когда босс получает урон
+  if (bossHurt < 1) {
+    ctx.save();
+    ctx.globalAlpha = (1 - bossHurt) * 0.35;
+    ctx.fillStyle = '#ff2222';
+    ctx.fillRect(0, 0, width, height);
+    ctx.restore();
+  }
+
+  // Затемнение, когда бьёт босс
+  if (playerHurt < 1) {
+    ctx.save();
+    ctx.globalAlpha = (1 - playerHurt) * 0.4;
+    const vignette = ctx.createRadialGradient(
+      width / 2, height / 2, Math.min(width, height) * 0.25,
+      width / 2, height / 2, Math.max(width, height) * 0.7
+    );
+    vignette.addColorStop(0, 'rgba(255, 60, 40, 0)');
+    vignette.addColorStop(1, 'rgba(255, 40, 20, 0.9)');
+    ctx.fillStyle = vignette;
+    ctx.fillRect(0, 0, width, height);
+    ctx.restore();
+  }
+
+  // Затемнения сверху и снизу, чтобы текст и кнопки читались поверх картинки
+  const fadeH = Math.round(Math.min(height * 0.3, 200));
+  const topFade = ctx.createLinearGradient(0, 0, 0, fadeH);
+  topFade.addColorStop(0, 'rgba(0, 0, 0, 0.88)');
+  topFade.addColorStop(1, 'rgba(0, 0, 0, 0)');
+  ctx.fillStyle = topFade;
+  ctx.fillRect(0, 0, width, fadeH);
+
+  const bottomFade = ctx.createLinearGradient(0, height, 0, height - fadeH);
+  bottomFade.addColorStop(0, 'rgba(0, 0, 0, 0.9)');
+  bottomFade.addColorStop(1, 'rgba(0, 0, 0, 0)');
+  ctx.fillStyle = bottomFade;
+  ctx.fillRect(0, height - fadeH, width, fadeH);
+
+  const s = Math.max(0.8, Math.min(1.3, Math.min(width, height) / 700));
   const pad = Math.round(16 * s);
+  const uiW = Math.min(width - pad * 2, 620);
+  const uiX = (width - uiW) / 2;
 
   // Заголовок
   ctx.fillStyle = '#ff5555';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  fitFont(ctx, `БОЙ: ${fight.bossName}`, pw - pad * 2, Math.round(20 * s));
-  ctx.fillText(`БОЙ: ${fight.bossName}`, px + pw / 2, py + Math.round(24 * s));
+  fitFont(ctx, `БОЙ: ${fight.bossName}`, uiW, Math.round(26 * s));
+  ctx.fillText(`БОЙ: ${fight.bossName}`, width / 2, pad + Math.round(12 * s));
 
   // Полоса здоровья босса
-  const barH = Math.round(18 * s);
-  drawHpBar(ctx, px + pad, py + Math.round(44 * s), pw - pad * 2, barH, fight.bossHp, fight.bossMaxHp, 'БОСС');
+  const barH = Math.round(20 * s);
+  drawHpBar(ctx, uiX, pad + Math.round(36 * s), uiW, barH, fight.bossHp, fight.bossMaxHp, 'БОСС');
 
-  // Арена: персонаж слева, босс справа
-  const buttonsH = Math.round(42 * s);
-  const arenaTop = py + Math.round(72 * s);
-  const arenaBottom = py + ph - buttonsH - Math.round(46 * s);
-  const arenaH = Math.max(60, arenaBottom - arenaTop);
-  const spriteSize = Math.min(arenaH, (pw - pad * 3) / 2);
-  const groundY = arenaBottom - spriteSize;
-
-  const idle = Math.sin(now / 520) * 3 * s;
-  const hitWindow = 340;
-  const playerProgress = Math.min(1, (now - fight.bossHitAt) / hitWindow);
-  const bossProgress = Math.min(1, (now - fight.playerHitAt) / hitWindow);
-  const lunge = Math.sin(playerProgress * Math.PI) * 26 * s;
-  const bossLunge = Math.sin(bossProgress * Math.PI) * 26 * s;
-
-  const playerX = px + pad + (spriteSize < (pw - pad * 3) / 2 ? 0 : 0);
-  const bossX = px + pw - pad - spriteSize;
-
-  // Персонаж игрока
-  drawFightSprite(
-    ctx,
-    characterImage,
-    playerX + lunge,
-    groundY + idle,
-    spriteSize,
-    'rgba(40, 70, 40, 0.9)',
-    'ВЫ'
-  );
-
-  // Босс: при попадании трясётся и подсвечивается красным
-  const bossShake = bossProgress < 1 ? Math.sin(bossProgress * Math.PI * 5) * (1 - bossProgress) * 9 * s : 0;
-  drawFightSprite(
-    ctx,
-    icons.boss || null,
-    bossX - bossLunge + bossShake,
-    groundY - idle,
-    spriteSize,
-    `${fight.bossColor}55`,
-    getInitials(fight.bossName)
-  );
-
-  if (bossProgress < 1) {
-    ctx.save();
-    ctx.globalAlpha = (1 - bossProgress) * 0.45;
-    ctx.fillStyle = '#ff2222';
-    ctx.beginPath();
-    ctx.roundRect(bossX - bossLunge + bossShake, groundY - idle, spriteSize, spriteSize, 10);
-    ctx.fill();
-    ctx.restore();
-  }
-
-  // Урон по боссу
+  // Урон по боссу — всплывает по центру экрана
   if (fight.lastDamage > 0 && now - fight.bossHitAt < 800) {
     const p = (now - fight.bossHitAt) / 800;
     ctx.save();
     ctx.globalAlpha = 1 - p;
     ctx.fillStyle = '#ffe066';
-    ctx.font = `bold ${Math.round(24 * s)}px Arial`;
+    ctx.font = `bold ${Math.round(40 * s)}px Arial`;
     ctx.textAlign = 'center';
-    ctx.fillText(`-${fight.lastDamage}`, bossX + spriteSize / 2, groundY - idle - 10 * s - p * 28 * s);
+    ctx.fillText(`-${fight.lastDamage}`, width / 2, height * 0.45 - p * 40 * s);
     ctx.restore();
   }
 
-  // Полоса здоровья игрока
+  // Кнопки внизу
+  const buttonsH = Math.round(46 * s);
+  const gap = Math.round(12 * s);
+  const btnW = (uiW - gap) / 2;
+  const btnY = height - pad - buttonsH;
+
+  // Полоса здоровья игрока — над кнопками
   drawHpBar(
     ctx,
-    px + pad,
-    arenaBottom + Math.round(8 * s),
-    pw - pad * 2,
+    uiX,
+    btnY - gap - barH,
+    uiW,
     barH,
     fight.playerHp,
     fight.playerMaxHp,
     'ГЕРОЙ'
   );
 
-  // Кнопки
-  const btnY = py + ph - buttonsH - pad;
-  const gap = Math.round(10 * s);
-  const btnW = (pw - pad * 2 - gap) / 2;
-
   if (fight.outcome === 'fighting') {
     drawFightButton(
-      ctx, px + pad, btnY, btnW, buttonsH, 'Удар', hX, hY, buttons, 'fight_attack',
+      ctx, uiX, btnY, btnW, buttonsH, 'Удар', hX, hY, buttons, 'fight_attack',
       { active: 'rgba(200, 40, 40, 0.95)', idle: 'rgba(140, 20, 20, 0.9)', border: '#ff5555', text: '#ffffff' }
     );
     drawFightButton(
-      ctx, px + pad + btnW + gap, btnY, btnW, buttonsH, 'Отступить', hX, hY, buttons, 'fight_leave',
+      ctx, uiX + btnW + gap, btnY, btnW, buttonsH, 'Отступить', hX, hY, buttons, 'fight_leave',
       { active: 'rgba(80, 80, 110, 0.95)', idle: 'rgba(50, 50, 80, 0.85)', border: '#7777aa', text: '#ddddff' }
     );
+  } else if (fight.outcome === 'won') {
+    // Победа: панель с наградой поверх сцены боя
+    const gold = fight.reward?.gold ?? 0;
+    const bullets = fight.reward?.bullets ?? 0;
+    const appearedAt = fight.endedAt ?? now;
+    const p = Math.min(1, (now - appearedAt) / 260);
+
+    ctx.save();
+    ctx.globalAlpha = 0.6 * p;
+    ctx.fillStyle = '#000000';
+    ctx.fillRect(0, 0, width, height);
+    ctx.restore();
+
+    const rowH = Math.round(34 * s);
+    const panelW = Math.min(uiW, 380);
+    const panelH = Math.round(150 * s) + rowH * 2;
+    const panelX = (width - panelW) / 2;
+    const panelCY = height * 0.46;
+    const panelY = panelCY - (panelH * p) / 2;
+    const curH = panelH * p;
+
+    ctx.save();
+    ctx.fillStyle = 'rgba(12, 18, 12, 0.96)';
+    ctx.beginPath();
+    ctx.roundRect(panelX, panelY, panelW, curH, 14);
+    ctx.fill();
+    ctx.strokeStyle = '#5aa85a';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    ctx.restore();
+
+    if (p >= 1) {
+      ctx.textAlign = 'center';
+      ctx.fillStyle = '#77dd77';
+      ctx.font = `bold ${Math.round(26 * s)}px Arial`;
+      ctx.fillText('БОСС ПОВЕРЖЕН', width / 2, panelY + Math.round(34 * s));
+
+      ctx.fillStyle = '#999999';
+      ctx.font = `${Math.round(13 * s)}px Arial`;
+      ctx.fillText('Награда за победу', width / 2, panelY + Math.round(60 * s));
+
+      const drawRewardRow = (label: string, value: number, color: string, img: HTMLImageElement | null, y: number) => {
+        const rowY = y;
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.05)';
+        ctx.beginPath();
+        ctx.roundRect(panelX + Math.round(14 * s), rowY, panelW - Math.round(28 * s), rowH - Math.round(6 * s), 6);
+        ctx.fill();
+
+        ctx.textAlign = 'left';
+        ctx.fillStyle = '#cccccc';
+        ctx.font = `${Math.round(14 * s)}px Arial`;
+        ctx.fillText(label, panelX + Math.round(24 * s), rowY + rowH / 2);
+
+        const iconSize = Math.round(20 * s);
+        const textW = ctx.measureText(`+${value}`).width;
+        const groupW = iconSize + 8 + textW;
+        const startX = panelX + panelW - Math.round(24 * s) - groupW;
+        if (img && img.complete && img.naturalWidth > 0) {
+          ctx.drawImage(img, startX, rowY + (rowH - iconSize) / 2, iconSize, iconSize);
+        }
+        ctx.textAlign = 'right';
+        ctx.fillStyle = color;
+        ctx.font = `bold ${Math.round(15 * s)}px Arial`;
+        ctx.fillText(`+${value}`, panelX + panelW - Math.round(24 * s), rowY + rowH / 2);
+      };
+
+      let ry = panelY + Math.round(76 * s);
+      drawRewardRow('Золото', gold, '#ffd700', icons.gold ?? null, ry);
+      ry += rowH;
+      drawRewardRow('Патроны', bullets, '#ffffff', icons.bullets ?? null, ry);
+      ctx.textAlign = 'left';
+    }
+
+    drawFightButton(
+      ctx, uiX, btnY, uiW, buttonsH, 'Забрать', hX, hY, buttons, 'fight_leave',
+      { active: 'rgba(50, 120, 60, 0.95)', idle: 'rgba(30, 80, 40, 0.9)', border: '#5aa85a', text: '#ffffff' }
+    );
   } else {
-    ctx.fillStyle = fight.outcome === 'won' ? '#77dd77' : '#ff6666';
-    ctx.font = `bold ${Math.round(16 * s)}px Arial`;
+    ctx.fillStyle = '#ff6666';
+    ctx.font = `bold ${Math.round(22 * s)}px Arial`;
     ctx.textAlign = 'center';
     ctx.fillText(
-      fight.outcome === 'won' ? 'БОСС ПОВЕРЖЕН' : 'ВЫ ВЫБЫЛИ ИЗ БОЯ',
-      px + pw / 2,
-      btnY - Math.round(10 * s)
+      'ВЫ ВЫБЫЛИ ИЗ БОЯ',
+      width / 2,
+      btnY - gap - barH - Math.round(22 * s)
     );
     drawFightButton(
-      ctx, px + pad, btnY, pw - pad * 2, buttonsH, 'Закрыть', hX, hY, buttons, 'fight_leave',
+      ctx, uiX, btnY, uiW, buttonsH, 'Закрыть', hX, hY, buttons, 'fight_leave',
       { active: 'rgba(80, 80, 110, 0.95)', idle: 'rgba(50, 50, 80, 0.85)', border: '#7777aa', text: '#ddddff' }
     );
   }
