@@ -1,9 +1,10 @@
 import { useRef, useEffect, useCallback } from 'react';
+import type { BattleState } from '../../game/types';
 import { GameIcons, Task } from './types';
 import { drawBackground } from './drawBackground';
 import { drawCharacter, CHARACTER_POSITION } from './drawCharacter';
 import { spawnParticles, updateParticles, drawParticles } from './particles';
-import { drawUI, ButtonPosition, ProfileData, UIFlags, BossData, BossFight, MapRaid, RIGHT_PANEL_MAX_OFFSET, HoverAnim, BOSS_VISIBLE } from './drawUI';
+import { drawUI, ButtonPosition, ProfileData, UIFlags, BossData, MapRaid, RIGHT_PANEL_MAX_OFFSET, HoverAnim, BOSS_VISIBLE } from './drawUI';
 
 export const useCanvas = (
   backgroundImage: HTMLImageElement | null,
@@ -47,13 +48,23 @@ export const useCanvas = (
   // Кнопки окна боя с боссом
   onFightAttack?: () => void,
   onFightLeave?: () => void,
+  // Нижняя панель (клан, инвентарь, квесты, крафт)
+  onClanClick?: () => void,
+  onInventoryClick?: () => void,
+  onQuestsClick?: () => void,
+  onCraftingClick?: () => void,
+  onGoClan?: () => void,
+  onGoInventory?: () => void,
+  onGoQuests?: () => void,
+  onGoCrafting?: () => void,
+  onFriendsClick?: () => void,
   // State
   showProfile: boolean = false,
   showBossModal: boolean = false,
   showMap: boolean = false,
   profileData: ProfileData | null = null,
   bosses: BossData[] = [],
-  bossFight: BossFight | null = null,
+  battle: BattleState | null = null,
   mapRaids: MapRaid[] = [],
   mapImage: HTMLImageElement | null = null,
   topBarImage: HTMLImageElement | null = null,
@@ -98,6 +109,15 @@ export const useCanvas = (
     onBossAttack,
     onFightAttack,
     onFightLeave,
+    onClanClick,
+    onInventoryClick,
+    onQuestsClick,
+    onCraftingClick,
+    onGoClan,
+    onGoInventory,
+    onGoQuests,
+    onGoCrafting,
+    onFriendsClick,
     onNotificationsClick,
   });
 
@@ -122,13 +142,25 @@ export const useCanvas = (
       onBossAttack,
       onFightAttack,
       onFightLeave,
+      onClanClick,
+      onInventoryClick,
+      onQuestsClick,
+      onCraftingClick,
+      onGoClan,
+      onGoInventory,
+      onGoQuests,
+      onGoCrafting,
+      onFriendsClick,
       onNotificationsClick,
     };
   }, [
     onProfileClick, onBattleClick, onBossModalClose, onCloseMap,
     onOpenBossModal, onCloseProfile, onBackToMain, onGoDistrict,
     onRestoreEnergy, onRestoreSpicki, onRestoreBullets, onRestoreGold, onRestoreZhetons,
-    onToggleFullscreen, onMapRaidClick, onBossAttack, onFightAttack, onFightLeave, onNotificationsClick
+    onToggleFullscreen, onMapRaidClick, onBossAttack, onFightAttack, onFightLeave,
+    onClanClick, onInventoryClick, onQuestsClick, onCraftingClick,
+    onGoClan, onGoInventory, onGoQuests, onGoCrafting, onFriendsClick,
+    onNotificationsClick
   ]);
 
   const render = useCallback(() => {
@@ -162,7 +194,7 @@ export const useCanvas = (
     updateParticles();
     drawParticles(ctx);
 
-    const flags: UIFlags = { showProfile, showBossModal, showMap, bossFight };
+    const flags: UIFlags = { showProfile, showBossModal, showMap, battle };
 
     const buttons = drawUI(
       ctx, w, h,
@@ -207,7 +239,7 @@ export const useCanvas = (
 
     buttonPositionsRef.current = buttons;
     needsRenderRef.current = false;
-  }, [backgroundImage, characterImage, icons, energy, maxEnergy, authority, spicki, bullets, gold, zhetons, tasks, appearanceColor, currentLocation, carLevel, level, districtName, playerName, avatarImage, showProfile, showBossModal, showMap, bossFight, profileData, bosses, mapRaids, mapImage, topBarImage, bossImage, fullscreen, mapMessage, unreadNotifications]);
+  }, [backgroundImage, characterImage, icons, energy, maxEnergy, authority, spicki, bullets, gold, zhetons, tasks, appearanceColor, currentLocation, carLevel, level, districtName, playerName, avatarImage, showProfile, showBossModal, showMap, battle, profileData, bosses, mapRaids, mapImage, topBarImage, bossImage, fullscreen, mapMessage, unreadNotifications]);
 
   // Всегда актуальная версия render для обработчика кликов
   renderRef.current = render;
@@ -295,7 +327,7 @@ export const useCanvas = (
 
   // Окно боя анимируется по времени (покачивание, вспышки) — рисуем кадры постоянно
   useEffect(() => {
-    if (!bossFight) return;
+    if (!battle) return;
     let raf = 0;
     const tick = () => {
       renderRef.current();
@@ -303,7 +335,7 @@ export const useCanvas = (
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, [bossFight]);
+  }, [battle]);
 
   // Карта районов: пока есть идущие рейды, обновляем кадры — на маркерах идёт обратный отсчёт
   useEffect(() => {
@@ -389,10 +421,11 @@ export const useCanvas = (
         if (btn.id === 'go_raid') { cb.onRaidClick?.(); return; }
         // Клик по рейду на карте районов
         if (btn.id.startsWith('raid_')) { cb.onMapRaidClick?.(btn.id.slice('raid_'.length)); return; }
-        if (btn.id === 'go_clan') { cb.onClanClick?.(); return; }
-        if (btn.id === 'go_inventory') { cb.onInventoryClick?.(); return; }
-        if (btn.id === 'go_quests') { cb.onQuestsClick?.(); return; }
-        if (btn.id === 'go_crafting') { cb.onCraftingClick?.(); return; }
+        if (btn.id === 'go_clan') { (cb.onClanClick ?? cb.onGoClan)?.(); return; }
+        if (btn.id === 'go_inventory') { (cb.onInventoryClick ?? cb.onGoInventory)?.(); return; }
+        if (btn.id === 'go_quests') { (cb.onQuestsClick ?? cb.onGoQuests)?.(); return; }
+        if (btn.id === 'go_crafting') { (cb.onCraftingClick ?? cb.onGoCrafting)?.(); return; }
+        if (btn.id === 'friends') { cb.onFriendsClick?.(); return; }
         if (btn.id === 'go_district') { cb.onGoDistrict?.(); return; }
         if (btn.id === 'go_cloth') { cb.onGoCloth?.(); return; }
         if (btn.id === 'go_komnata') { cb.onGoKomnata?.(); return; }

@@ -5,9 +5,10 @@ import { useCanvas } from "./useCanvas";
 import { useIcon } from "../../hooks/useIcon";
 import { APPEARANCES } from "../../game/constants";
 import { TASKS } from "./tasks";
-import { MapRaid, BossFight } from "./drawUI";
+import { MapRaid } from "./drawUI";
 import { FAKE_BOSSES } from "./bosses";
 import { RaidModal } from "../../panels/RaidModal";
+import { ClanModal } from "../../panels/Clan";
 import { NotificationsPanel } from "../NotificationsPanel";
 import { useGame } from "../../game/GameContext";
 import { MapRaid as MapRaidType, GameNotification } from "../../game/types";
@@ -130,91 +131,22 @@ export const FallenCanvas: React.FC<PrisonCanvasProps & {
   // Спрайт босса для окна боя
   const [bossImage, setBossImage] = useState<HTMLImageElement | null>(null);
 
-  // Боссы: текущее здоровье переживает закрытие окна боя (в BossData его больше нет)
-  const [bossHpById, setBossHpById] = useState<Record<string, number>>({});
-  const [bossFight, setBossFight] = useState<BossFight | null>(null);
-
-  // "Атаковать"/"В бой" — открывает модальное окно боя с этим боссом
+  // "Атаковать"/"В бой" — запускает бой через reducer (state.battle)
   const handleBossAttack = useCallback(
     (bossId: string) => {
-      const boss = FAKE_BOSSES.find((item) => item.id === bossId);
-      if (!boss) return;
-      const now = performance.now();
-      const bossMaxHp = boss.level * 10;
-      const savedHp = bossHpById[bossId] ?? bossMaxHp;
-      const playerMaxHp = Math.max(50, Math.round(profileData?.stamina ?? 100));
-      setBossFight({
-        bossId: boss.id,
-        bossName: boss.name,
-        bossColor: boss.color,
-        bossHp: savedHp > 0 ? savedHp : bossMaxHp,
-        bossMaxHp,
-        playerHp: playerMaxHp,
-        playerMaxHp,
-        startedAt: now,
-        bossHitAt: now,
-        playerHitAt: now,
-        lastDamage: 0,
-        outcome: 'fighting',
-      });
+      dispatch({ type: 'START_BOSS_FIGHT', bossId });
     },
-    [bossHpById, profileData?.stamina]
+    [dispatch]
   );
 
-  // Удар в окне боя: снимаем ХП боссу, босс отвечает сразу же
+  // Кнопки окна боя — dispatch в reducer
   const handleFightAttack = useCallback(() => {
-    setBossFight((prev) => {
-      if (!prev || prev.outcome !== 'fighting') return prev;
-      const now = performance.now();
-      const damage = Math.max(1, Math.round(profileData?.damage ?? 10));
-      const bossHp = Math.max(0, prev.bossHp - damage);
-      if (bossHp <= 0) {
-        return { ...prev, bossHp, bossHitAt: now, lastDamage: damage, outcome: 'won', endedAt: now };
-      }
-      const answer = Math.max(1, Math.round(prev.bossMaxHp / 40));
-      const playerHp = Math.max(0, prev.playerHp - answer);
-      return {
-        ...prev,
-        bossHp,
-        bossHitAt: now,
-        lastDamage: damage,
-        playerHp,
-        playerHitAt: now,
-        outcome: playerHp <= 0 ? 'lost' : 'fighting',
-      };
-    });
-  }, [profileData?.damage]);
+    dispatch({ type: 'BATTLE_ATTACK', technique: false });
+  }, [dispatch]);
 
-  // Награда за победу выдаётся сразу же — окно боя показывает уже начисленное
-  const rewardAppliedRef = useRef<string | null>(null);
-  useEffect(() => {
-    if (!bossFight || bossFight.outcome !== 'won') return;
-    const key = `${bossFight.bossId}:${bossFight.startedAt}`;
-    if (rewardAppliedRef.current === key) return;
-    const reward = FAKE_BOSSES.find((boss) => boss.id === bossFight.bossId)?.attackReward;
-    if (!reward) return;
-    rewardAppliedRef.current = key;
-    dispatch({ type: 'ADD_RESOURCE', resource: 'gold', amount: reward.gold });
-    dispatch({ type: 'ADD_RESOURCE', resource: 'bullets', amount: reward.bullets });
-    setBossFight((prev) =>
-      prev && prev.outcome === 'won' ? { ...prev, reward: { gold: reward.gold, bullets: reward.bullets } } : prev
-    );
-  }, [bossFight, dispatch]);
-
-  // Выход из боя: победа — сброс здоровья босса, отступление/поражение — босс остаётся раненым
   const handleFightLeave = useCallback(() => {
-    if (!bossFight) return;
-    const won = bossFight.outcome === 'won';
-
-    setBossHpById((prev) => {
-      const next = { ...prev };
-      if (won) delete next[bossFight.bossId];
-      else next[bossFight.bossId] = bossFight.bossHp;
-      return next;
-    });
-    setBossFight(null);
-  }, [bossFight, dispatch]);
-
+    dispatch({ type: 'LEAVE_BATTLE' });
+  }, [dispatch]);
 
   const { icons } = useIcon();
   const appearanceColor = APPEARANCES.find((item) => item.id === appearance)?.color ?? '#d4a574';
@@ -334,13 +266,23 @@ export const FallenCanvas: React.FC<PrisonCanvasProps & {
     handleBossAttack,  // "Атаковать"/"В бой" в окне боссов
     handleFightAttack, // "Удар" в окне боя
     handleFightLeave,  // "Отступить"/"Закрыть" в окне боя
+    // Нижняя панель (клан, инвентарь, квесты, крафт)
+    undefined, // onClanClick (не используется, вместо него onGoClan)
+    undefined, // onInventoryClick
+    undefined, // onQuestsClick
+    undefined, // onCraftingClick
+    onGoClan,
+    onGoInventory,
+    onGoQuests,
+    onGoCrafting,
+    onFriendsClick,
     // State
     showProfile,
     showBossModal,
     showMap,
     profileData,
     FAKE_BOSSES,
-    bossFight,
+    state.battle,
     mapRaids,
     mapImage,
     topBarImage,
@@ -390,6 +332,11 @@ export const FallenCanvas: React.FC<PrisonCanvasProps & {
             dispatch({ type: 'MINIMIZE_RAID' });
           }}
         />
+      )}
+
+      {/* Модальное окно клана */}
+      {state.showClanModal && (
+        <ClanModal onClose={() => dispatch({ type: 'TOGGLE_CLAN_MODAL' })} />
       )}
     </div>
   );

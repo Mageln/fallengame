@@ -145,6 +145,45 @@ export const Crafting = ({ id }: Props) => {
           📦 Открыть инвентарь
         </Button>
       </Group>
+
+      {/* Forge / Unforge */}
+      <Group header={<Header>Зачарование</Header>}>
+        <Card style={{ padding: 12, marginBottom: 8 }}>
+          <Box style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Box>
+              <Text style={{ fontWeight: 'bold' }}>⚒️ Зачаровать</Text>
+              <Text style={{ fontSize: 11, opacity: 0.6 }}>
+                Улучшите снаряжение за жетоны (бонус +20% урона)
+              </Text>
+            </Box>
+            <Button
+              size="s"
+              disabled={state.zhetons < 5}
+              onClick={() => dispatch({ type: 'FORGE_ITEM' })}
+            >
+              5 🎫
+            </Button>
+          </Box>
+        </Card>
+        <Card style={{ padding: 12 }}>
+          <Box style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Box>
+              <Text style={{ fontWeight: 'bold' }}>🔓 Расплавить</Text>
+              <Text style={{ fontSize: 11, opacity: 0.6 }}>
+                Вернуть ресурсы, снять зачарование
+              </Text>
+            </Box>
+            <Button
+              size="s"
+              mode="secondary"
+              disabled={state.inventory.filter((s) => s.forged).length === 0}
+              onClick={() => dispatch({ type: 'UNFORGE_ITEM' })}
+            >
+              Расплавить
+            </Button>
+          </Box>
+        </Card>
+      </Group>
     </Panel>
   );
 };

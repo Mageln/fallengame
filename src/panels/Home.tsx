@@ -264,7 +264,7 @@ export const Home = ({ id }: HomeProps) => {
         onGoProfile={() => setShowProfile(true)}
         onGoWorkshop={() => navigator.push(DEFAULT_VIEW_PANELS.WORKSHOP)}
         onGoRaid={() => navigator.push(DEFAULT_VIEW_PANELS.RAID)}
-        onGoClan={() => navigator.push(DEFAULT_VIEW_PANELS.CLAN)}
+        onGoClan={() => dispatch({ type: 'TOGGLE_CLAN_MODAL' })}
         onGoInventory={() => navigator.push(DEFAULT_VIEW_PANELS.INVENTORY)}
         onGoQuests={() => navigator.push(DEFAULT_VIEW_PANELS.QUESTS)}
         onGoCrafting={() => navigator.push(DEFAULT_VIEW_PANELS.CRAFTING)}
@@ -280,7 +280,7 @@ export const Home = ({ id }: HomeProps) => {
           district && openBattle(district.id);
         }}
         onFriendsClick={() => {
-          navigator.push(DEFAULT_VIEW_PANELS.CLAN);
+          dispatch({ type: 'TOGGLE_CLAN_MODAL' });
         }}
         onArenaClick={() => {
           // TODO: открыть арену

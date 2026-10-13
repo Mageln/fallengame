@@ -33,6 +33,7 @@ export interface InventoryItem {
 export interface InventorySlot {
   itemId: string;
   equipped: boolean;
+  forged?: boolean;
 }
 
 export interface CraftingRecipe {
@@ -61,12 +62,119 @@ export interface DailyQuestProgress {
   claimed: boolean;
 }
 
-export interface Weapon {
+// ===== ОРУЖИЕ =====
+export type WeaponType = 'melee' | 'firearm' | 'explosive' | 'improvised' | 'throwable';
+export type AmmoType = 'none' | 'bullets' | 'grenades' | 'nails';
+
+// Модификация оружия (заточка, прицел, глушитель...)
+export interface WeaponMod {
+  id: string;
   name: string;
-  level: number;
-  broken: boolean;
+  description: string;
+  rarity: Rarity;
+  damageMul?: number; // множитель урона
+  accuracyBonus?: number; // прибавка к точности
+  critBonus?: number; // прибавка к крит. шансу
+  durabilityMul?: number; // множитель максимальной прочности
+  ammoPerShot?: number; // переопределяет расход боеприпаса
+}
+
+export interface Weapon {
+  id: string;
+  name: string;
+  icon: string;
+  type: WeaponType;
+  rarity: Rarity;
+  // --- боевые характеристики ---
   baseDamage: number;
-  upgraded: boolean;
+  attackSpeed: number; // ударов за 10 ходов (влияет на шанс двойного удара)
+  accuracy: number; // 0..1 базовая точность
+  critChance: number; // 0..1 собственный крит. шанс оружия
+  critDamage: number; // множитель крит. урона (2.0 = x2)
+  range: number; // 1..6
+  ammoType: AmmoType;
+  ammoPerShot: number;
+  // --- состояние ---
+  durability: number;
+  maxDurability: number;
+  level: number; // 0..WEAPON_MAX_LEVEL
+  upgraded: boolean; // «доведено до ума»
+  broken: boolean;
+  mods: WeaponMod[];
+}
+
+// ===== АТРИБУТЫ ПЕРСОНАЖА =====
+export interface Stats {
+  strength: number; // сила: урон, пробитие брони
+  agility: number; // ловкость: точность, уклонение, контратака
+  endurance: number; // выносливость: HP, регенерация энергии
+  intellect: number; // интеллект: расход патронов, эффект аптечек
+  // Дополнительный бонус к удаче. Основное значение удачи лежит в GameState.luck
+  // (совместимость со старыми сохранениями), здесь — прибавка от новой системы статов.
+  luck: number;
+}
+
+// ===== ЗОМБИ =====
+// Полный состав зомби по гайдлайну: обычка, элита, боссы.
+export type ZombieType =
+  // обычные
+  | 'walker' | 'runner' | 'crawler' | 'spitter' | 'feral'
+  // элита
+  | 'brute' | 'screamer' | 'toxic' | 'armored' | 'necro'
+  // боссы
+  | 'mother' | 'abomination' | 'butcher' | 'plague_bearer';
+
+// Класс существа (не путать с Rarity предметов экипировки).
+export type EnemyTier = 'common' | 'elite' | 'boss';
+
+// Способность зомби (тег, а не функция — состояние должно оставаться сериализуемым)
+export type ZombieAbility =
+  | 'double_attack' // две атаки за ход раз в 3 хода
+  | 'toxic_burst' // взрыв токсинов при смерти (AoE)
+  | 'scream' // снижение точности игрока
+  | 'poison' // отравление на несколько ходов
+  | 'stun' // оглушение (пропуск хода)
+  | 'regen' // регенерация HP каждый ход
+  | 'split' // делится на мелких при смерти
+  | 'summon' // призывает minions раз в N ходов
+  | 'charge' // рывок: урон по всем + оглушение раз в N ходов
+  | 'frenzy' // +50% скорости при HP < 30%
+  | null;
+
+export interface ZombieReward {
+  xp: number;
+  bullets: number;
+  gold: number;
+  matches: number;
+  lootChance: number; // 0..1 шанс выпадения предмета
+}
+
+export interface Zombie {
+  id: string;
+  type: ZombieType;
+  name: string;
+  rarity: EnemyTier;
+  hp: number;
+  maxHp: number;
+  damage: number;
+  speed: number; // атак за ход (1..3)
+  armor: number;
+  evasion: number; // 0..1
+  weakness?: WeaponType[]; // типы оружия, против которых уязвим
+  ability?: ZombieAbility;
+  abilityCooldown?: number; // период способности в ходах (для summon/charge)
+  reward: ZombieReward;
+}
+
+export type BattleSource = 'district' | 'boss' | 'gast';
+
+export type BattleOutcome = 'fighting' | 'won' | 'lost';
+
+export interface BattleReward {
+  gold: number;
+  bullets: number;
+  zhetons: number;
+  exp: number;
 }
 
 export interface BattleState {
@@ -78,10 +186,36 @@ export interface BattleState {
   playerMaxHp: number;
   log: string[];
   friends: string[];
-  source: 'district' | 'raid' | 'gast';
+  source: 'district' | 'raid' | 'gast' | 'boss';
   shakeTimer: number;
   flashTimer: number;
   damageNumber: { value: number; x: number; y: number; crit: boolean } | null;
+  // ── пошаговая механика (Блок 2) ──
+  turn: number; // номер хода, растёт после ответа босса
+  turnLimit: number; // лимит ходов: за него бой считается проигранным
+  comboStreak: number; // серия попаданий подряд (бонусы урона, слабых точек)
+  blocking: boolean; // блок действует до следующего входящего удара
+  evading: boolean; // уход в уклонение: следующий удар босса игнорируется + ответный
+  cooldowns: {
+    technique: number;
+    power: number;
+    combo: number;
+    evade: number;
+  };
+  statuses: {
+    poisonTurns: number;
+    poisonDamage: number;
+    stunTurns: number;
+    aimDebuffTurns: number; // дебафф точности от крикунов
+  };
+  weakPointTurns: number; // открытая слабая точка (множитель WEAK_POINT_MUL)
+  // Результат последнего действия игрока — нужен UI для точных цифр и крита
+  lastHit: { damage: number; crit: boolean; missed: boolean } | null;
+  // ── унификация боя (Этап 1) ──
+  outcome: 'fighting' | 'won' | 'lost';
+  startedAt: number; // Date.now() на старте — ключ владения наградой
+  endedAt: number | null; // Date.now() на финале
+  reward: { gold: number; bullets: number; keys: number; zhetons: number } | null; // показывается на экране победы
 }
 
 export interface RaidState {
@@ -119,10 +253,37 @@ export interface GameNotification {
   raidId?: string;
 }
 
+// Кланы: войны (Блок 6)
 export interface ClanState {
   name: string;
   score: number;
   members: number;
+  // Клановые войны (ежедневные)
+  warRating: number;
+  warWins: number;
+  warLosses: number;
+  warStreak: number;
+}
+
+export interface ClanWarHistoryEntry {
+  dateKey: string;
+  enemyName: string;
+  clanScore: number;
+  enemyScore: number;
+  win: boolean;
+  gold: number;
+  ratingDelta: number;
+}
+
+export interface ClanWarState {
+  dateKey: string;
+  enemyName: string;
+  enemyRating: number;
+  enemyScore: number;
+  contributions: number;
+  clanScore: number;
+  claimed: boolean;
+  streak: number;
 }
 
 export interface DailyState {
@@ -153,6 +314,8 @@ export interface GameState {
   level: number;
   baseStamina: number;
   luck: number;
+  // Базовые атрибуты персонажа (сила, ловкость, выносливость, интеллект, удача)
+  attributes: Stats;
   carLevel: number;
   currentDistrict: string;
   currentLocation: string;
@@ -162,6 +325,9 @@ export interface GameState {
   inventory: InventorySlot[];
   craftingRecipes: string[];
   clan: ClanState | null;
+  clanRating: number;
+  clanWar: ClanWarState | null;
+  clanWarHistory: ClanWarHistoryEntry[];
   daily: DailyState;
   gast: GastState;
   battle: BattleState | null;
@@ -172,6 +338,7 @@ export interface GameState {
   showMap: boolean;
   showBossModal: boolean;
   showRaidModal: boolean;
+  showClanModal: boolean;
   // id рейда, окно которого сейчас открыто (рейд при этом может идти в фоне)
   activeRaidId: string | null;
   mapRaids: MapRaid[];
@@ -195,8 +362,13 @@ export type GameAction =
   | { type: 'UPGRADE_WEAPON_UPGRADE' }
   | { type: 'REPAIR_WEAPON' }
   | { type: 'START_BOSS'; districtId: string }
+  | { type: 'START_BOSS_FIGHT'; bossId: string }
   | { type: 'START_GAST' }
   | { type: 'BATTLE_ATTACK'; technique: boolean }
+  | { type: 'BATTLE_POWER' }
+  | { type: 'BATTLE_COMBO' }
+  | { type: 'BATTLE_BLOCK' }
+  | { type: 'BATTLE_EVADE' }
   | { type: 'BATTLE_GRENADES'; count: 1 | 3 | 10 | 30 }
   | { type: 'BATTLE_HEAL' }
   | { type: 'INVITE_FRIEND' }
@@ -211,6 +383,10 @@ export type GameAction =
   | { type: 'RADIO_HELP' }
   | { type: 'JOIN_CLAN' }
   | { type: 'CREATE_CLAN'; name: string }
+  | { type: 'CLAN_WAR_CONTRIBUTE' }
+  | { type: 'CLAN_WAR_CLAIM' }
+  | { type: 'FORGE_ITEM' }
+  | { type: 'UNFORGE_ITEM' }
   | { type: 'CLAIM_DAILY' }
   | { type: 'CLAIM_QUEST_REWARD'; questId: string }
   | { type: 'EQUIP_ITEM'; slotIndex: number }
@@ -219,6 +395,7 @@ export type GameAction =
   | { type: 'TOGGLE_SOUND' }
   | { type: 'TOGGLE_MAP' }
   | { type: 'TOGGLE_BOSS_MODAL' }
+  | { type: 'TOGGLE_CLAN_MODAL' }
   | { type: 'CANCEL_RAID'; raidId: string }
   | { type: 'MINIMIZE_RAID' }
   | { type: 'CHECK_RAIDS' }

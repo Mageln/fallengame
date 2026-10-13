@@ -1,4 +1,4 @@
-import { TUTORIAL, DAILY_QUESTS } from './constants';
+import { TUTORIAL, DAILY_QUESTS, STARTER_WEAPON, DEFAULT_STATS } from './constants';
 import { dateKey, weekKey } from './formulas';
 import { GameState } from './types';
 
@@ -15,23 +15,24 @@ export const createInitialState = (): GameState => ({
   grenades: 0,
   medkits: 0,
   keys: 0,
-  level: 1,
+  level: 30,
   baseStamina: 40,
   luck: 20,
+  // Базовые атрибуты героя (Блок 5). Стартовые значения из DEFAULT_STATS.
+  attributes: { ...DEFAULT_STATS },
   carLevel: 1,
   currentDistrict: 'southgate',
   unlockedDistricts: ['southgate'],
-  weapon: {
-    name: 'Ржавый пистолет',
-    level: 0,
-    broken: false,
-    baseDamage: 6,
-    upgraded: false,
-  },
+  // Полноценный стартовый ствол: раньше тут был объект без id/icon/type/ammo,
+  // из-за чего боевая математика не знала дальность, точность и боезапас.
+  weapon: { ...STARTER_WEAPON },
   equipmentIds: [],
   inventory: [],
   craftingRecipes: ['repair_kit', 'medkit_bundle'],
   clan: null,
+  clanRating: 0,
+  clanWar: null,
+  clanWarHistory: [],
   daily: {
     dateKey: dateKey(),
     lotteryUsed: false,
@@ -56,6 +57,7 @@ export const createInitialState = (): GameState => ({
   showMap: false,
   showBossModal: false,
   showRaidModal: false,
+  showClanModal: false,
   activeRaidId: null,
   notifications: [],
   showNotifications: false,

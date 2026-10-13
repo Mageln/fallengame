@@ -1,6 +1,40 @@
 ﻿// Отрисовка UI внутри Canvas
 
+import type { BattleState } from '../../game/types';
 import { drawProfile } from './drawProfile';
+import { getVisibleBounds } from './iconBounds';
+
+// === Анимации боя: вычисляются из изменений HP (модульное состояние) ===
+const _fightAnim = {
+  key: '',
+  bossHp: 0,
+  playerHp: 0,
+  bossHitAt: 0,
+  playerHitAt: 0,
+  lastDamage: 0,
+};
+
+const trackFightHit = (battle: BattleState) => {
+  const key = `${battle.bossId}:${battle.startedAt}`;
+  if (_fightAnim.key !== key) {
+    _fightAnim.key = key;
+    _fightAnim.bossHp = battle.bossHp;
+    _fightAnim.playerHp = battle.playerHp;
+    _fightAnim.bossHitAt = 0;
+    _fightAnim.playerHitAt = 0;
+    _fightAnim.lastDamage = 0;
+    return;
+  }
+  if (battle.bossHp < _fightAnim.bossHp) {
+    _fightAnim.bossHitAt = performance.now();
+    _fightAnim.lastDamage = _fightAnim.bossHp - battle.bossHp;
+  }
+  if (battle.playerHp < _fightAnim.playerHp) {
+    _fightAnim.playerHitAt = performance.now();
+  }
+  _fightAnim.bossHp = battle.bossHp;
+  _fightAnim.playerHp = battle.playerHp;
+};
 
 export interface ButtonPosition {
   x: number;
@@ -15,7 +49,9 @@ export interface UIFlags {
   showBossModal?: boolean;
   showMap?: boolean;
   playerName?: string;
-  bossFight?: BossFight | null;
+  battle?: BattleState | null;
+  // Расходники игрока для кнопок боя (в BattleState их нет — это ресурсы GameState)
+  battleResources?: { medkits: number; grenades: number };
 }
 
 export interface MapRaid {
@@ -123,10 +159,48 @@ export interface BossFight {
   playerHitAt: number;
   lastDamage: number;
   outcome: 'fighting' | 'won' | 'lost';
-  // Итог боя: момент окончания (для анимации окна) и выданная за победу награда
   endedAt?: number;
   reward?: { gold: number; bullets: number };
+  // ── Этап 3: боевые действия ──
+  turn?: number;
+  turnLimit?: number;
+  cooldowns?: { technique: number; power: number; combo: number; evade: number };
+  stunTurns?: number;
+  poisonTurns?: number;
+  poisonDamage?: number;
+  weakPointTurns?: number;
+  medkits?: number;
+  grenades?: number;
+  lastHit?: { damage: number; crit: boolean; missed: boolean } | null;
 }
+
+// Адаптер BattleState → BossFight для анимаций боя
+const battleToFight = (battle: BattleState, anim: typeof _fightAnim, res?: { medkits: number; grenades: number }): BossFight => ({
+  bossId: battle.bossId,
+  bossName: battle.bossName,
+  bossColor: '#aa3333',
+  bossHp: battle.bossHp,
+  bossMaxHp: battle.bossMaxHp,
+  playerHp: battle.playerHp,
+  playerMaxHp: battle.playerMaxHp,
+  startedAt: battle.startedAt,
+  bossHitAt: anim.bossHitAt ?? 0,
+  playerHitAt: anim.playerHitAt ?? 0,
+  lastDamage: anim.lastDamage,
+  outcome: battle.outcome,
+  endedAt: battle.endedAt ?? undefined,
+  reward: battle.reward ? { gold: battle.reward.gold, bullets: battle.reward.bullets } : undefined,
+  turn: battle.turn,
+  turnLimit: battle.turnLimit,
+  cooldowns: battle.cooldowns,
+  stunTurns: battle.statuses.stunTurns,
+  poisonTurns: battle.statuses.poisonTurns,
+  poisonDamage: battle.statuses.poisonDamage,
+  weakPointTurns: battle.weakPointTurns,
+  medkits: res?.medkits ?? 0,
+  grenades: res?.grenades ?? 0,
+  lastHit: battle.lastHit,
+});
 
 const drawIcon = (
   ctx: CanvasRenderingContext2D,
@@ -415,17 +489,33 @@ const drawBottomButtons = (
       ctx.fill();
     }
 
-    // Иконка вписывается в слот с сохранением пропорций (без сплющивания)
+    // Иконка вписывается в слот с сохранением пропорций.
+    // Нормируем по площади видимой части: картинки приходят с разными пропорциями
+    // и прозрачными полями, из-за чего раньше «Клан» выглядел крупнее «Друзей» и «Заданий».
     const icon = icons[item.iconKey] || icons[item.fallbackKey];
     if (icon && icon instanceof HTMLImageElement && icon.complete && icon.naturalWidth > 0) {
-      const ratio = icon.naturalWidth / icon.naturalHeight;
-      let drawW = innerW;
-      let drawH = innerW / ratio;
+      const bounds = getVisibleBounds(icon);
+      const vw = bounds.w;
+      const vh = bounds.h;
+
+      // Одинаковая визуальная масса: целевая площадь ~ половина слота
+      const targetArea = innerW * innerH * 0.5;
+      const fitScale = Math.sqrt(targetArea / (vw * vh));
+      let drawW = vw * fitScale;
+      let drawH = vh * fitScale;
+
+      // Не выходим за границы слота
+      if (drawW > innerW) {
+        drawW = innerW;
+        drawH = (innerW * vh) / vw;
+      }
       if (drawH > innerH) {
         drawH = innerH;
-        drawW = innerH * ratio;
+        drawW = (innerH * vw) / vh;
       }
-      ctx.drawImage(icon, -drawW / 2, -drawH / 2, drawW, drawH);
+
+      // Рисуем только видимую часть картинки (без прозрачных полей)
+      ctx.drawImage(icon, bounds.x, bounds.y, vw, vh, -drawW / 2, -drawH / 2, drawW, drawH);
     } else {
       ctx.font = `${Math.round(boxH * 0.55)}px Arial`;
       ctx.textAlign = 'center';
@@ -895,9 +985,11 @@ export const drawUI = (
   );
 
   // Бой с боссом — рисуется поверх всего и перехватывает все клики
-  if (flags.bossFight) {
+  if (flags.battle) {
+    trackFightHit(flags.battle);
+    const fight = battleToFight(flags.battle, _fightAnim, flags.battleResources);
     const fightButtons: ButtonPosition[] = [];
-    drawBossFight(ctx, width, height, flags.bossFight, icons, hoveredX, hoveredY, fightButtons, bossImage);
+    drawBossFight(ctx, width, height, fight, icons, hoveredX, hoveredY, fightButtons, bossImage);
     return fightButtons;
   }
 
