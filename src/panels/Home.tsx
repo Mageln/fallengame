@@ -14,7 +14,7 @@ interface HomeProps {
 
 export const Home = ({ id }: HomeProps) => {
   const navigator = useRouteNavigator();
-  const { state, dispatch, derived, vkUser, isLoading } = useGame();
+  const { state, dispatch, derived, vkUser } = useGame();
   const district = getDistrict(state.currentDistrict);
   const [showProfile, setShowProfile] = useState(false);
   const [customVkToken, setCustomVkToken] = useState<string>('dd0ca6b1dd0ca6b1dd0ca6b13dde4f3e0cddd0cdd0ca6b1b7ad935eb87f55fa9d2924b6');
@@ -44,11 +44,6 @@ export const Home = ({ id }: HomeProps) => {
   }, [hasRunningRaids, dispatch]);
 
   const unreadNotifications = state.notifications.filter((n) => !n.read).length;
-
-  // Имя пользователя из VK
-  const playerName = vkUser 
-    ? `${vkUser.first_name} ${vkUser.last_name}`
-    : 'Игрок';
 
   // Проверка ключа доступа через JSONP (обход CORS)
   const loadUserWithToken = async () => {

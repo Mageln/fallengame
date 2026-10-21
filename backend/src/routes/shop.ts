@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { prisma } from '../prisma';
+import { prisma } from '../prisma.js';
 
 export const shopRouter = Router();
 
@@ -57,6 +57,8 @@ shopRouter.get('/products', async (req, res) => {
 
 // Покупка товара через VK Pay
 shopRouter.post('/purchase', async (req, res) => {
+  // Демонстрационное начисление без подтверждения оплаты недопустимо в production.
+  if (process.env.NODE_ENV === 'production') return res.status(501).json({ error: 'Покупка недоступна до подключения VK Pay.' });
   try {
     const { vkId, productId } = req.body;
     

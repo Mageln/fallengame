@@ -1,10 +1,10 @@
 import express from 'express';
 import cors from 'cors';
-import { userRouter } from './routes/user';
-import { gameRouter } from './routes/game';
-import { clanRouter } from './routes/clan';
-import { shopRouter } from './routes/shop';
-import { casinoRouter } from './routes/casino';
+import { userRouter } from './routes/user.js';
+import { gameRouter } from './routes/game.js';
+import { clanRouter } from './routes/clan.js';
+import { shopRouter } from './routes/shop.js';
+import { casinoRouter } from './routes/casino.js';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -19,6 +19,8 @@ app.use(express.json());
 // Routes
 app.use('/api/user', userRouter);
 app.use('/api/game', gameRouter);
+app.use('/clans', clanRouter);
+app.use('/api/clans', clanRouter);
 app.use('/api/clan', clanRouter);
 app.use('/api/shop', shopRouter);
 app.use('/api/casino', casinoRouter);

@@ -84,17 +84,10 @@ export const MapPanel = ({ id, showMap, onCloseMap }: Props) => {
     setSelectedMarker(marker);
   };
 
-  const handleNavigateToDistrict = (districtId: string) => {
-    navigator.push('/');
-    // Dispatch ENTER_DISTRICT
-    // We need to access dispatch, but MapPanel doesn't have it. 
-    // Let's just close the map and user can navigate manually.
-  };
-
   if (!showMap) return null;
 
   return (
-    <Box style={{
+    <Box id={id} style={{
       position: 'fixed',
       top: 0,
       left: 0,

@@ -1,6 +1,5 @@
 import { CLAN_CREATE_GOLD,
-  CLAN_CREATE_LEVEL,
-  CLAN_JOIN_LEVEL,
+  CLAN_MAX_MEMBERS,
   CLAN_WAR_MIN_CONTRIB,
   CLAN_WAR_FULL_CONTRIB,
   CLAN_WAR_GOLD_BASE,
@@ -12,6 +11,7 @@ import { CLAN_CREATE_GOLD,
   DISTRICT_TASKS,
   DISTRICTS,
   LEVEL_GOLD,
+  LOCATIONS,
   RAIDS,
   SHOP,
   TUTORIAL,
@@ -71,9 +71,44 @@ import {
   resolveIncoming,
 } from './formulas';
 import { BOSSES } from './bosses';
-import { BattleState, ClanWarHistoryEntry, ClanWarState, GameAction, GameNotification, GameState } from './types';
+import { advanceClanContracts, clanRating, normalizeClanName, validateClanName, CLAN_EMBLEMS, CLAN_MEMBER_BONUS } from './clans';
+import { BattleState, ClanState, ClanTaskEvent, ClanWarHistoryEntry, ClanWarState, GameAction, GameNotification, GameState } from './types';
 
 const msg = (state: GameState, lastMessage: string): GameState => ({ ...state, lastMessage });
+
+const replaceClan = (state: GameState, clan: ClanState): GameState => ({
+  ...state,
+  clan: state.clan?.id === clan.id ? clan : state.clan,
+  clanDirectory: state.clanDirectory.some((entry) => entry.id === clan.id)
+    ? state.clanDirectory.map((entry) => entry.id === clan.id ? clan : entry)
+    : [...state.clanDirectory, clan],
+});
+
+const syncClans = (state: GameState, directory: ClanState[]): GameState => {
+  const clans = [...directory];
+  if (state.clan && !clans.some((entry) => entry.id === state.clan?.id)) clans.push(state.clan);
+  const membership = clans.find((entry) => entry.members.some((member) => member.id === state.playerId));
+  return {
+    ...state,
+    clanDirectory: clans,
+    clan: membership ?? null,
+    pendingClanId: membership || !clans.some((entry) => entry.id === state.pendingClanId && entry.applications.some((request) => request.userId === state.playerId))
+      ? null : state.pendingClanId,
+  };
+};
+
+const recordClanEvent = (state: GameState, event: ClanTaskEvent, amount = 1): GameState => {
+  if (!state.clan) return state;
+  const { clan, awarded } = advanceClanContracts(state.clan, event, amount);
+  if (clan === state.clan) return state;
+  const next = replaceClan(state, clan);
+  if (awarded === 0) return next;
+  return {
+    ...next,
+    notifications: [{ id: `clan-${Date.now()}-${event}`, text: `+${awarded} к рейтингу выживаемости`, createdAt: Date.now(), read: false }, ...state.notifications],
+    lastMessage: `Контракт выполнен! +${awarded} к рейтингу выживаемости.`,
+  };
+};
 
 const spend = (state: GameState, energy: number): GameState | null => {
   if (state.energy < energy) return null;
@@ -208,7 +243,8 @@ const startBattle = (
   bossId: string,
   bossName: string,
   bossHp: number,
-  source: BattleState['source']
+  source: BattleState['source'],
+  bossMaxHp = bossHp
 ): GameState => {
   if (state.weapon.broken) {
     return msg(state, 'Оружие сломано — урон не учитывается. Почините его в Мастерской.');
@@ -221,7 +257,7 @@ const startBattle = (
       bossId,
       bossName,
       bossHp,
-      bossMaxHp: bossHp,
+      bossMaxHp,
       playerHp: hp,
       playerMaxHp: hp,
       log: [`Бой: ${bossName}. Лимит — ${limit} ходов.`],
@@ -291,17 +327,38 @@ const bossKilled = (state: GameState, battle: BattleState): GameState => {
   const bullets = 12 + Math.floor(Math.random() * 10);
   const zhetons = battle.source === 'gast' ? 8 : 2;
   const gold = battle.source === 'gast' ? 5 : 0;
+  // Для канвасных боссов ('boss') берём награду из реестра BOSSES
+  const bossReward = battle.source === 'boss'
+    ? BOSSES.find((b) => b.id === battle.bossId)?.reward
+    : undefined;
+
+  // Разблокировка комнаты
+  const newRooms: string[] = [...state.unlockedRooms];
+  const roomUnlock = bossReward?.room;
+  let roomMessage = '';
+  if (roomUnlock && !state.unlockedRooms.includes(roomUnlock)) {
+    newRooms.push(roomUnlock);
+    roomMessage = ` Открыта комната «${LOCATIONS.find((room) => room.id === roomUnlock)?.name ?? roomUnlock}».`;
+  }
+
   return {
     ...state,
+    unlockedRooms: newRooms,
     battle: {
       ...battle,
       bossHp: 0,
       outcome: 'won',
       endedAt: Date.now(),
-      reward: { bullets, keys: 1, zhetons, gold },
+      reward: {
+        bullets: bossReward?.bullets ?? bullets,
+        keys: bossReward ? 1 : (battle.source === 'gast' ? 0 : 1),
+        zhetons: bossReward?.zhetons ?? zhetons,
+        gold: bossReward?.gold ?? gold,
+        room: roomUnlock ?? null,
+      },
       log: [...battle.log, `${battle.bossName} повержен! Забирайте награду.`],
     },
-    lastMessage: `${battle.bossName} повержен за ${battle.turn} ход.`,
+    lastMessage: `${battle.bossName} повержен за ${battle.turn} ход.${roomMessage}`,
   };
 };
 
@@ -344,7 +401,7 @@ const runRound = (state: GameState, battle: BattleState, opts: RoundOptions): Ga
 
   // 1) Босс добит ударом игрока
   if (bossHp <= 0) {
-    return bossKilled({ ...state, battle: { ...battle, bossHp: 0, log } }, battle);
+    return bossKilled(state, { ...battle, bossHp: 0, log, lastHit: opts.lastHit ?? battle.lastHit });
   }
 
   // 2) Ответ босса: уклонение → блок → броня → ярость
@@ -390,7 +447,7 @@ const runRound = (state: GameState, battle: BattleState, opts: RoundOptions): Ga
     log.push(`Ответ после уклонения: ${counter}`);
   }
   if (bossHpAfter <= 0) {
-    return bossKilled({ ...state, battle: { ...battle, bossHp: 0, log } }, battle);
+    return bossKilled(state, { ...battle, bossHp: 0, playerHp, log, lastHit: opts.lastHit ?? battle.lastHit });
   }
 
   // 4) Яд доедает в конце раунда
@@ -426,6 +483,9 @@ const runRound = (state: GameState, battle: BattleState, opts: RoundOptions): Ga
     return {
       ...state,
       battle: null,
+      woundedBosses: battle.source === 'boss'
+        ? { ...state.woundedBosses, [battle.bossId]: bossHpAfter }
+        : state.woundedBosses,
       lastMessage: `${battle.bossName} уходит в темноту. Лимит ${battle.turnLimit} ходов исчерпан — бой не завершён.`,
     };
   }
@@ -517,6 +577,10 @@ export const hydrateState = (state: GameState): GameState => {
   if (typeof normalized.showClanModal === 'undefined') {
     normalized = { ...normalized, showClanModal: false };
   }
+  // Раненые боссы появились вместе с унификацией боя (Этап 1)
+  if (!normalized.woundedBosses || typeof normalized.woundedBosses !== 'object') {
+    normalized = { ...normalized, woundedBosses: {} };
+  }
   // DEV: поднять игрока до 30 уровня (нужно для входа в клан с 20 ур.)
   // После первого применения уровень >= 30 и миграция больше не сработает.
   if (typeof normalized.level === 'number' && normalized.level < 30) {
@@ -529,25 +593,65 @@ export const hydrateState = (state: GameState): GameState => {
   if (!normalized.clanWarHistory) {
     normalized = { ...normalized, clanWarHistory: [] };
   }
+  if (!Array.isArray(normalized.unlockedRooms)) {
+    // Старые сохранения не отслеживали доступ к комнатам: оставляем текущую комнату.
+    const previousRoom = LOCATIONS.some((room) => room.id === normalized.currentLocation)
+      ? normalized.currentLocation
+      : 'location1';
+    normalized = { ...normalized, unlockedRooms: [...new Set(['location1', previousRoom])] };
+  }
+  if (!LOCATIONS.some((room) => room.id === normalized.currentLocation)) {
+    normalized = { ...normalized, currentLocation: 'location1' };
+  }
   if (typeof normalized.clanWar === 'undefined') {
     normalized = { ...normalized, clanWar: null };
   }
+  normalized = {
+    ...normalized,
+    playerId: normalized.playerId ?? 'local',
+    playerName: normalized.playerName ?? 'Выживший',
+    pendingClanId: normalized.pendingClanId ?? null,
+    clanDirectory: Array.isArray(normalized.clanDirectory) ? normalized.clanDirectory : [],
+  };
   if (normalized.clan) {
+    const old = normalized.clan;
+    const createdAt = old.createdAt ?? Date.now();
+    const leaderId = old.leaderId ?? normalized.playerId;
+    const members = Array.isArray(old.members) ? old.members : [
+      { id: normalized.playerId, name: normalized.playerName, role: 'leader' as const, joinedAt: createdAt },
+      ...Array.from({ length: Math.max(0, Math.min(CLAN_MAX_MEMBERS, Number(old.members) || 1) - 1) }, (_, index) => ({
+        id: `archive-${index}`, name: `Выживший ${index + 1}`, role: 'member' as const, joinedAt: createdAt,
+      })),
+    ];
+    const clan: ClanState = {
+      ...old,
+      id: old.id ?? `legacy-${normalized.playerId}`,
+      name: old.name ?? 'Убежище',
+      emblem: CLAN_EMBLEMS.some((entry) => entry.id === old.emblem) ? old.emblem : 'skull',
+      description: old.description ?? 'Старое убежище Эргейта.',
+      leaderId,
+      members,
+      applications: Array.isArray(old.applications) ? old.applications : [],
+      createdAt,
+      taskPoints: old.taskPoints ?? 0,
+      taskProgress: old.taskProgress ?? {},
+      rating: 0,
+      score: old.score ?? 0,
+      warRating: old.warRating ?? 0,
+      warWins: old.warWins ?? 0,
+      warLosses: old.warLosses ?? 0,
+      warStreak: old.warStreak ?? 0,
+    };
+    clan.rating = clanRating(clan);
+    const sharedClan = normalized.clanDirectory.find((entry) => entry.id === clan.id);
     normalized = {
       ...normalized,
-      clan: {
-        name: normalized.clan.name ?? 'Клан',
-        score: normalized.clan.score ?? 0,
-        members: normalized.clan.members ?? 1,
-        warRating: normalized.clan.warRating ?? 0,
-        warWins: normalized.clan.warWins ?? 0,
-        warLosses: normalized.clan.warLosses ?? 0,
-        warStreak: normalized.clan.warStreak ?? 0,
-      },
+      clan: sharedClan ?? clan,
+      clanDirectory: sharedClan ? normalized.clanDirectory : [...normalized.clanDirectory, clan],
     };
   }
 
-  return applyDailyReset(normalized);
+  return applyDailyReset(syncClans(normalized, normalized.clanDirectory));
 };
 
 export const gameReducer = (state: GameState, action: GameAction): GameState => {
@@ -782,7 +886,10 @@ export const gameReducer = (state: GameState, action: GameAction): GameState => 
       if (!boss) return state;
       if (state.battle && state.battle.bossId === action.bossId && state.battle.outcome === 'fighting')
         return state;
-      return startBattle(state, action.bossId, boss.name, boss.hp, 'boss');
+      // Босс может остаться раненым после прошлой попытки
+      const wounded = state.woundedBosses[action.bossId];
+      const hp = wounded && wounded > 0 && wounded <= boss.hp ? wounded : boss.hp;
+      return startBattle(state, action.bossId, boss.name, hp, 'boss', boss.hp);
     }
     case 'START_GAST': {
       if (!state.gast.active || !state.gast.districtId) {
@@ -829,11 +936,13 @@ export const gameReducer = (state: GameState, action: GameAction): GameState => 
       });
     }
     case 'BATTLE_GRENADES': {
-      if (!state.battle) return state;
-      if (state.grenades < action.count) return msg(state, 'Не хватает гранат.');
+      if (!state.battle || state.battle.outcome !== 'fighting') return state;
+      if (!Number.isInteger(action.count) || action.count < 1 || state.grenades < action.count) {
+        return msg(state, 'Не хватает гранат.');
+      }
       const battle = normalizeBattle(state.battle);
       if (battle.statuses.stunTurns > 0) return stunnedRound(state, battle);
-      const { state: s1, broke } = wearWeapon(state, action.count);
+      const { state: s1, broke } = wearWeapon({ ...state, grenades: state.grenades - action.count }, action.count);
       const s2 = spendAmmo(s1, 0).state;
       const hit = computeDamage(s2, {
         techniqueMul: 1,
@@ -854,7 +963,7 @@ export const gameReducer = (state: GameState, action: GameAction): GameState => 
       });
     }
     case 'BATTLE_HEAL': {
-      if (!state.battle) return state;
+      if (!state.battle || state.battle.outcome !== 'fighting') return state;
       if (state.medkits <= 0) return msg(state, 'Нет аптечек.');
       const battle = normalizeBattle(state.battle);
       if (battle.statuses.stunTurns > 0) return stunnedRound(state, battle);
@@ -868,7 +977,7 @@ export const gameReducer = (state: GameState, action: GameAction): GameState => 
     }
     // Мощный удар: x1.6 урона, игнорирует половину брони, долгий кулдаун
     case 'BATTLE_POWER': {
-      if (!state.battle) return state;
+      if (!state.battle || state.battle.outcome !== 'fighting') return state;
       const battle = normalizeBattle(state.battle);
       if (battle.statuses.stunTurns > 0) return stunnedRound(state, battle);
       if (battle.cooldowns.power > 0)
@@ -895,7 +1004,7 @@ export const gameReducer = (state: GameState, action: GameAction): GameState => 
     }
     // Серия: три удара по 70%, суммарно больше, но каждый может промахнуться
     case 'BATTLE_COMBO': {
-      if (!state.battle) return state;
+      if (!state.battle || state.battle.outcome !== 'fighting') return state;
       const battle = normalizeBattle(state.battle);
       if (battle.statuses.stunTurns > 0) return stunnedRound(state, battle);
       if (battle.cooldowns.combo > 0)
@@ -925,7 +1034,7 @@ export const gameReducer = (state: GameState, action: GameAction): GameState => 
     }
     // Блок: входящий урон x0.4, шанс контратаки, серия сохраняется
     case 'BATTLE_BLOCK': {
-      if (!state.battle) return state;
+      if (!state.battle || state.battle.outcome !== 'fighting') return state;
       const battle = normalizeBattle(state.battle);
       if (battle.statuses.stunTurns > 0) return stunnedRound(state, battle);
       return runRound(state, battle, {
@@ -937,7 +1046,7 @@ export const gameReducer = (state: GameState, action: GameAction): GameState => 
     }
     // Уклонение: следующий удар босса игнорируется + ответный удар
     case 'BATTLE_EVADE': {
-      if (!state.battle) return state;
+      if (!state.battle || state.battle.outcome !== 'fighting') return state;
       const battle = normalizeBattle(state.battle);
       if (battle.statuses.stunTurns > 0) return stunnedRound(state, battle);
       if (battle.cooldowns.evade > 0)
@@ -968,25 +1077,36 @@ export const gameReducer = (state: GameState, action: GameAction): GameState => 
     case 'LEAVE_BATTLE': {
       if (!state.battle) return state;
       const battle = state.battle;
-      // Применяем награду за победу / отменяем квесты за поражение
       if (battle.outcome === 'won') {
-        bumpKillQuests(state);
         const r = battle.reward;
+        // Победа: очистка раненого HP (если оно было)
+        const wb = { ...state.woundedBosses };
+        delete wb[battle.bossId];
         if (r) {
-          return {
-            ...state,
+          return recordClanEvent({
+            ...bumpKillQuests(state),
             bullets: state.bullets + r.bullets,
             keys: state.keys + (r.keys ?? 0),
             zhetons: state.zhetons + r.zhetons,
             gold: state.gold + r.gold,
             gast: battle.source === 'gast' ? { ...state.gast, active: false, districtId: null } : state.gast,
+            woundedBosses: wb,
             battle: null,
             lastMessage: `Награда получена: +${r.bullets} патр., +${r.keys} кл., +${r.zhetons} жет., +${r.gold} зол.`,
-          };
+          }, 'zombie');
         }
       }
-      if (battle.outcome === 'lost') {
-        return { ...state, battle: null, lastMessage: 'Бой окончен.' };
+      // Поражение или отступление: сохраняем урон канвасного босса
+      if (battle.source === 'boss' && battle.bossHp > 0) {
+        const wb = { ...state.woundedBosses, [battle.bossId]: battle.bossHp };
+        return {
+          ...state,
+          battle: null,
+          woundedBosses: wb,
+          lastMessage: battle.outcome === 'lost'
+            ? 'Вы выбыли из боя.'
+            : `Отступили от ${battle.bossName} (осталось ${battle.bossHp}/${battle.bossMaxHp} HP)`,
+        };
       }
       return { ...state, battle: null };
     }
@@ -1071,8 +1191,7 @@ export const gameReducer = (state: GameState, action: GameAction): GameState => 
         raid: { ...state.raid, cratesLooted: true },
       };
       // Loot drop from crates
-      const district = getDistrict(state.currentDistrict);
-      const drops = lootDrop(district?.carLevel ?? 1);
+      const drops = lootDrop();
       let dropMsg = '';
       for (const drop of drops) {
         const item = INVENTORY_ITEMS.find((i) => i.id === drop.itemId);
@@ -1103,7 +1222,7 @@ export const gameReducer = (state: GameState, action: GameAction): GameState => 
           },
         };
       }
-      return next;
+      return recordClanEvent(next, 'medkit', raid.medkits * bonus);
     }
     case 'LEAVE_RAID':
       return { ...state, raid: null };
@@ -1144,36 +1263,79 @@ export const gameReducer = (state: GameState, action: GameAction): GameState => 
         lastMessage: 'Помогли по рации: +6 патронов.',
       };
     }
-    case 'JOIN_CLAN': {
-      if (state.clan) return msg(state, 'Вы уже в клане.');
-      if (state.level < CLAN_JOIN_LEVEL) return msg(state, `Вступить можно с ${CLAN_JOIN_LEVEL} уровня.`);
-      // Вступили — и сразу получаем сегодняшнего противника, чтобы можно было внести вклад
-      return withTodayWar({
-        ...state,
-        clan: {
-          name: 'Стена Эргейта',
-          score: state.level * 10,
-          members: 48,
-          warRating: state.clanRating,
-          warWins: 0,
-          warLosses: 0,
-          warStreak: 0,
-        },
-        lastMessage: 'Вступили в клан. Война кланов открыта — вносите вклад!',
-      });
+    case 'SET_PLAYER': {
+      if (!action.id.trim()) return state;
+      return withTodayWar(syncClans({ ...state, playerId: action.id, playerName: action.name.trim() || 'Выживший' }, state.clanDirectory));
+    }
+    case 'SYNC_CLANS':
+      return withTodayWar(syncClans(state, action.clans));
+    case 'APPLY_TO_CLAN': {
+      if (state.clan || state.clanDirectory.some((entry) => entry.members.some((member) => member.id === state.playerId))) {
+        return msg(state, 'Вы уже состоите в убежище.');
+      }
+      if (state.pendingClanId) return msg(state, 'У вас уже есть заявка. Дождитесь ответа.');
+      const clan = state.clanDirectory.find((entry) => entry.id === action.clanId);
+      if (!clan) return msg(state, 'Убежище не найдено.');
+      if (clan.members.length >= CLAN_MAX_MEMBERS) return msg(state, 'В убежище больше нет мест.');
+      const updated = { ...clan, applications: [...clan.applications, { userId: state.playerId, userName: state.playerName, createdAt: Date.now() }] };
+      return { ...replaceClan(state, updated), pendingClanId: clan.id, lastMessage: 'Заявка передана по рации. Ожидайте ответа лидера.' };
+    }
+    case 'CANCEL_CLAN_APPLICATION': {
+      if (!state.pendingClanId) return state;
+      const clans = state.clanDirectory.map((entry) => entry.id === state.pendingClanId
+        ? { ...entry, applications: entry.applications.filter((request) => request.userId !== state.playerId) }
+        : entry);
+      return { ...state, clanDirectory: clans, pendingClanId: null, lastMessage: 'Заявка отозвана.' };
+    }
+    case 'RESOLVE_CLAN_APPLICATION': {
+      const clan = state.clanDirectory.find((entry) => entry.id === action.clanId);
+      if (!clan || clan.leaderId !== state.playerId) return msg(state, 'Заявки может обработать только лидер.');
+      const application = clan.applications.find((entry) => entry.userId === action.userId);
+      if (!application) return msg(state, 'Заявка уже обработана.');
+      if (action.accept && state.clanDirectory.some((entry) => entry.members.some((member) => member.id === application.userId))) {
+        return msg(state, 'Игрок уже вступил в другое убежище.');
+      }
+      if (action.accept && clan.members.length >= CLAN_MAX_MEMBERS) return msg(state, 'В убежище больше нет мест.');
+      const members = action.accept
+        ? [...clan.members, { id: application.userId, name: application.userName, role: 'member' as const, joinedAt: Date.now() }]
+        : clan.members;
+      const nextClan = { ...clan, members, applications: clan.applications.filter((entry) => entry.userId !== application.userId) };
+      nextClan.rating = clanRating(nextClan);
+      return { ...replaceClan(state, nextClan), lastMessage: action.accept ? 'Новый выживший принят в убежище.' : 'Заявка отклонена.' };
     }
     case 'CREATE_CLAN': {
-      if (state.clan) return msg(state, 'Вы уже в клане.');
-      if (state.level < CLAN_CREATE_LEVEL) return msg(state, `Создать клан можно с ${CLAN_CREATE_LEVEL} уровня.`);
-      if (state.gold < CLAN_CREATE_GOLD) return msg(state, `Создание клана: ${CLAN_CREATE_GOLD} золота.`);
-      const name = action.name.trim() || 'Клан';
+      if (state.clan || state.clanDirectory.some((entry) => entry.members.some((member) => member.id === state.playerId))) {
+        return msg(state, 'Вы уже состоите в убежище.');
+      }
+      if (state.gold < CLAN_CREATE_GOLD) return msg(state, `Нужно 🪙 ${CLAN_CREATE_GOLD} припасов.`);
+      const error = validateClanName(action.name, state.clanDirectory);
+      if (error) return msg(state, error);
+      if (!CLAN_EMBLEMS.some((entry) => entry.id === action.emblem)) return msg(state, 'Выберите эмблему.');
+      const name = normalizeClanName(action.name);
+      const createdAt = Date.now();
+      const clan: ClanState = {
+        id: globalThis.crypto?.randomUUID?.() ?? `clan-${createdAt}-${Math.random().toString(36).slice(2)}`,
+        name,
+        emblem: action.emblem,
+        description: 'Новое убежище выживших. Здесь найдётся место тем, кто не сдаётся.',
+        leaderId: state.playerId,
+        members: [{ id: state.playerId, name: state.playerName, role: 'leader', joinedAt: createdAt }],
+        applications: [], createdAt, taskPoints: 0, taskProgress: {}, rating: CLAN_MEMBER_BONUS,
+        score: 0, warRating: state.clanRating, warWins: 0, warLosses: 0, warStreak: 0,
+      };
+      const directory = state.clanDirectory.map((entry) => entry.id === state.pendingClanId
+        ? { ...entry, applications: entry.applications.filter((request) => request.userId !== state.playerId) }
+        : entry);
       return withTodayWar({
-        ...state,
+        ...replaceClan({ ...state, clan, clanDirectory: directory }, clan),
         gold: state.gold - CLAN_CREATE_GOLD,
-        clan: { name, score: state.level * 10, members: 1, warRating: state.clanRating, warWins: 0, warLosses: 0, warStreak: 0 },
-        lastMessage: `Клан «${name}» создан. Максимум 300 человек.`,
+        pendingClanId: null,
+        clan,
+        lastMessage: 'Убежище основано!',
       });
     }
+    case 'CLAN_TASK_EVENT':
+      return recordClanEvent(state, action.event, action.amount);
     case 'CLAN_WAR_CONTRIBUTE': {
       if (!state.clan) return msg(state, 'Нужен клан для участия в войнах.');
       const withWar = withTodayWar(state);
@@ -1207,17 +1369,17 @@ export const gameReducer = (state: GameState, action: GameAction): GameState => 
       };
       const history = [entry, ...state.clanWarHistory].slice(0, CLAN_WAR_HISTORY_LIMIT);
 
+      const updatedClan: ClanState = {
+        ...state.clan,
+        warRating: newRating,
+        warWins: state.clan.warWins + (win ? 1 : 0),
+        warLosses: state.clan.warLosses + (win ? 0 : 1),
+        warStreak: newStreak,
+      };
       return {
-        ...state,
+        ...replaceClan(state, updatedClan),
         gold: state.gold + goldReward,
         clanRating: newRating,
-        clan: {
-          ...state.clan,
-          warRating: newRating,
-          warWins: state.clan.warWins + (win ? 1 : 0),
-          warLosses: state.clan.warLosses + (win ? 0 : 1),
-          warStreak: newStreak,
-        },
         clanWar: { ...war, claimed: true },
         clanWarHistory: history,
         lastMessage: win
@@ -1316,7 +1478,7 @@ export const gameReducer = (state: GameState, action: GameAction): GameState => 
         } else if (cost.itemId === 'zhetons') {
           if (state.zhetons < cost.count) return msg(state, `Не хватает жетонов для крафта.`);
         } else {
-          const countInInventory = state.inventory.filter((s) => s.itemId === cost.itemId).length;
+          const countInInventory = state.inventory.filter((s) => s.itemId === cost.itemId && !s.equipped).length;
           if (countInInventory < cost.count) return msg(state, `Не хватает ресурсов: ${cost.itemId}.`);
         }
       }
@@ -1342,12 +1504,17 @@ export const gameReducer = (state: GameState, action: GameAction): GameState => 
           }, [] as typeof next.inventory),
         };
       }
-      // Add crafted item
+      // Аптечки попадают в боевые расходники, остальные изделия — в инвентарь.
+      const isMedkitBundle = recipe.id === 'medkit_bundle';
       const craftedItem = INVENTORY_ITEMS.find((i) => i.id === recipe.resultItemId);
-      if (!craftedItem) return msg(state, 'Ошибка крафта: результат не найден.');
+      if (!isMedkitBundle && !craftedItem) return msg(state, 'Ошибка крафта: результат не найден.');
       next = {
         ...next,
-        inventory: [...next.inventory, { itemId: recipe.resultItemId, equipped: false }],
+        medkits: next.medkits + (isMedkitBundle ? recipe.resultCount : 0),
+        inventory: isMedkitBundle ? next.inventory : [
+          ...next.inventory,
+          ...Array.from({ length: recipe.resultCount }, () => ({ itemId: recipe.resultItemId, equipped: false })),
+        ],
         craftingRecipes: [...next.craftingRecipes, recipe.id],
         lastMessage: `Скрафчено: ${recipe.name}!`,
       };
@@ -1366,6 +1533,8 @@ export const gameReducer = (state: GameState, action: GameAction): GameState => 
           },
         };
       }
+      if (recipe.id === 'barricade') return recordClanEvent(next, 'barricade');
+      if (isMedkitBundle) return recordClanEvent(next, 'medkit', recipe.resultCount);
       return next;
     }
     case 'TOGGLE_SOUND':
@@ -1447,7 +1616,7 @@ export const gameReducer = (state: GameState, action: GameAction): GameState => 
       if (!raid || !raid.isRunning || !raid.endTime) return state;
       if (Date.now() < raid.endTime) return msg(state, 'Рейд ещё не завершён.');
 
-      return {
+      return recordClanEvent({
         ...state,
         bullets: state.bullets + raid.rewards.bullets,
         matches: state.matches + raid.rewards.matches,
@@ -1458,10 +1627,15 @@ export const gameReducer = (state: GameState, action: GameAction): GameState => 
           r.id === action.raidId ? { ...r, isRunning: false, completed: true, startTime: undefined, endTime: undefined } : r
         ),
         lastMessage: `${raid.name}: награда получена.`,
-      };
+      }, 'raid');
     }
-    case 'CHANGE_LOCATION':
-      return { ...state, currentLocation: action.locationId };
+    case 'CHANGE_LOCATION': {
+      const room = LOCATIONS.find((location) => location.id === action.locationId);
+      if (!room || !state.unlockedRooms.includes(room.id)) {
+        return msg(state, 'Комната ещё закрыта. Победите босса, чтобы открыть её.');
+      }
+      return { ...state, currentLocation: room.id, lastMessage: `Вы вошли в комнату «${room.name}».` };
+    }
     default:
       return state;
   }

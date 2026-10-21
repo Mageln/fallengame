@@ -1,16 +1,35 @@
 import { Router } from 'express';
-import { prisma } from '../prisma';
+import { prisma } from '../prisma.js';
+import { requireVkUser } from '../vkAuth.js';
+import { Prisma } from '@prisma/client';
 
 export const casinoRouter = Router();
+casinoRouter.use(requireVkUser);
+
+const settleBet = async (userId: string, betAmount: number, winnings: number, gameType: string, result: string): Promise<number | null> => {
+  return prisma.$transaction(async (tx) => {
+    const debit = await tx.user.updateMany({
+      where: { id: userId, gold: { gte: betAmount } },
+      data: { gold: { increment: winnings - betAmount } },
+    });
+    if (debit.count !== 1) return null;
+    await tx.casinoGame.create({ data: { userId, gameType, betAmount, result, winnings } });
+    const user = await tx.user.findUniqueOrThrow({ where: { id: userId } });
+    return user.gold;
+  }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+};
+
+const validBet = (value: unknown): value is number => Number.isSafeInteger(value) && (value as number) > 0 && (value as number) <= 1_000_000;
 
 // Игра в монетку
 casinoRouter.post('/coinflip', async (req, res) => {
   try {
-    const { vkId, betAmount, choice } = req.body; // choice: 'heads' или 'tails'
-    
-    const user = await prisma.user.findUnique({
-      where: { vkId: parseInt(vkId) }
-    });
+    const { betAmount, choice } = req.body ?? {};
+    if (!validBet(betAmount) || (choice !== 'heads' && choice !== 'tails')) {
+      return res.status(400).json({ error: 'Неверная ставка или выбор.' });
+    }
+
+    const user = await prisma.user.findUnique({ where: { vkId: res.locals.vkId } });
     
     if (!user) {
       return res.status(404).json({ error: 'Пользователь не найден' });
@@ -26,32 +45,14 @@ casinoRouter.post('/coinflip', async (req, res) => {
     
     const winnings = isWin ? betAmount * 2 : 0;
     
-    // Обновляем баланс
-    await prisma.user.update({
-      where: { id: user.id },
-      data: {
-        gold: isWin 
-          ? { increment: winnings } 
-          : { decrement: betAmount }
-      }
-    });
-    
-    // Записываем игру
-    await prisma.casinoGame.create({
-      data: {
-        userId: user.id,
-        gameType: 'coinflip',
-        betAmount,
-        result: isWin ? 'win' : 'lose',
-        winnings
-      }
-    });
+    const newBalance = await settleBet(user.id, betAmount, winnings, 'coinflip', isWin ? 'win' : 'lose');
+    if (newBalance === null) return res.status(400).json({ error: 'Недостаточно золота' });
     
     res.json({
       result,
       isWin,
       winnings,
-      newBalance: user.gold + (isWin ? winnings : -betAmount)
+      newBalance
     });
   } catch (error) {
     res.status(500).json({ error: 'Ошибка сервера' });
@@ -61,11 +62,10 @@ casinoRouter.post('/coinflip', async (req, res) => {
 // Слоты
 casinoRouter.post('/slots', async (req, res) => {
   try {
-    const { vkId, betAmount } = req.body;
-    
-    const user = await prisma.user.findUnique({
-      where: { vkId: parseInt(vkId) }
-    });
+    const { betAmount } = req.body ?? {};
+    if (!validBet(betAmount)) return res.status(400).json({ error: 'Неверная ставка.' });
+
+    const user = await prisma.user.findUnique({ where: { vkId: res.locals.vkId } });
     
     if (!user) {
       return res.status(404).json({ error: 'Пользователь не найден' });
@@ -98,32 +98,14 @@ casinoRouter.post('/slots', async (req, res) => {
       result = 'win';
     }
     
-    // Обновляем баланс
-    await prisma.user.update({
-      where: { id: user.id },
-      data: {
-        gold: isWin || isPartialWin
-          ? { increment: winnings }
-          : { decrement: betAmount }
-      }
-    });
-    
-    // Записываем игру
-    await prisma.casinoGame.create({
-      data: {
-        userId: user.id,
-        gameType: 'slots',
-        betAmount,
-        result,
-        winnings
-      }
-    });
+    const newBalance = await settleBet(user.id, betAmount, winnings, 'slots', result);
+    if (newBalance === null) return res.status(400).json({ error: 'Недостаточно золота' });
     
     res.json({
       slots,
       isWin: result === 'win',
       winnings,
-      newBalance: user.gold + (result === 'win' ? winnings : -betAmount)
+      newBalance
     });
   } catch (error) {
     res.status(500).json({ error: 'Ошибка сервера' });
@@ -133,11 +115,10 @@ casinoRouter.post('/slots', async (req, res) => {
 // Получение истории игр
 casinoRouter.get('/history/:vkId', async (req, res) => {
   try {
-    const { vkId } = req.params;
-    
+    if (Number(req.params.vkId) !== res.locals.vkId) return res.status(403).json({ error: 'Чужая история недоступна.' });
     const games = await prisma.casinoGame.findMany({
       where: {
-        user: { vkId: parseInt(vkId) }
+        user: { vkId: res.locals.vkId }
       },
       orderBy: { playedAt: 'desc' },
       take: 50

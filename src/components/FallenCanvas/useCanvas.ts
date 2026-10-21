@@ -3,7 +3,7 @@ import type { BattleState } from '../../game/types';
 import { GameIcons, Task } from './types';
 import { drawBackground } from './drawBackground';
 import { drawCharacter, CHARACTER_POSITION } from './drawCharacter';
-import { spawnParticles, updateParticles, drawParticles } from './particles';
+import { updateParticles, drawParticles } from './particles';
 import { drawUI, ButtonPosition, ProfileData, UIFlags, BossData, MapRaid, RIGHT_PANEL_MAX_OFFSET, HoverAnim, BOSS_VISIBLE } from './drawUI';
 
 export const useCanvas = (
@@ -48,6 +48,13 @@ export const useCanvas = (
   // Кнопки окна боя с боссом
   onFightAttack?: () => void,
   onFightLeave?: () => void,
+  onFightTechnique?: () => void,
+  onFightPower?: () => void,
+  onFightCombo?: () => void,
+  onFightBlock?: () => void,
+  onFightEvade?: () => void,
+  onFightHeal?: () => void,
+  onFightGrenade?: () => void,
   // Нижняя панель (клан, инвентарь, квесты, крафт)
   onClanClick?: () => void,
   onInventoryClick?: () => void,
@@ -65,6 +72,8 @@ export const useCanvas = (
   profileData: ProfileData | null = null,
   bosses: BossData[] = [],
   battle: BattleState | null = null,
+  medkits: number = 0,
+  grenades: number = 0,
   mapRaids: MapRaid[] = [],
   mapImage: HTMLImageElement | null = null,
   topBarImage: HTMLImageElement | null = null,
@@ -72,7 +81,11 @@ export const useCanvas = (
   fullscreen: boolean = false,
   mapMessage: string = '',
   unreadNotifications: number = 0,
-  onNotificationsClick?: () => void
+  onNotificationsClick?: () => void,
+  showRoomModal: boolean = false,
+  unlockedRooms: string[] = [],
+  onOpenRoomModal?: () => void,
+  onSelectRoom?: (roomId: string) => void
 ) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const hoveredRef = useRef({ x: 0, y: 0 });
@@ -109,6 +122,15 @@ export const useCanvas = (
     onBossAttack,
     onFightAttack,
     onFightLeave,
+    onFightTechnique,
+    onFightPower,
+    onFightCombo,
+    onFightBlock,
+    onFightEvade,
+    onFightHeal,
+    onFightGrenade,
+    onOpenRoomModal,
+    onSelectRoom,
     onClanClick,
     onInventoryClick,
     onQuestsClick,
@@ -142,6 +164,15 @@ export const useCanvas = (
       onBossAttack,
       onFightAttack,
       onFightLeave,
+      onFightTechnique,
+      onFightPower,
+      onFightCombo,
+      onFightBlock,
+      onFightEvade,
+      onFightHeal,
+      onFightGrenade,
+      onOpenRoomModal,
+      onSelectRoom,
       onClanClick,
       onInventoryClick,
       onQuestsClick,
@@ -158,6 +189,8 @@ export const useCanvas = (
     onOpenBossModal, onCloseProfile, onBackToMain, onGoDistrict,
     onRestoreEnergy, onRestoreSpicki, onRestoreBullets, onRestoreGold, onRestoreZhetons,
     onToggleFullscreen, onMapRaidClick, onBossAttack, onFightAttack, onFightLeave,
+    onFightTechnique, onFightPower, onFightCombo, onFightBlock, onFightEvade,
+    onFightHeal, onFightGrenade, onOpenRoomModal, onSelectRoom,
     onClanClick, onInventoryClick, onQuestsClick, onCraftingClick,
     onGoClan, onGoInventory, onGoQuests, onGoCrafting, onFriendsClick,
     onNotificationsClick
@@ -194,7 +227,10 @@ export const useCanvas = (
     updateParticles();
     drawParticles(ctx);
 
-    const flags: UIFlags = { showProfile, showBossModal, showMap, battle };
+    const flags: UIFlags = {
+      showProfile, showBossModal, showMap, showRoomModal, currentLocation, unlockedRooms,
+      battle, battleResources: { medkits, grenades },
+    };
 
     const buttons = drawUI(
       ctx, w, h,
@@ -239,7 +275,7 @@ export const useCanvas = (
 
     buttonPositionsRef.current = buttons;
     needsRenderRef.current = false;
-  }, [backgroundImage, characterImage, icons, energy, maxEnergy, authority, spicki, bullets, gold, zhetons, tasks, appearanceColor, currentLocation, carLevel, level, districtName, playerName, avatarImage, showProfile, showBossModal, showMap, battle, profileData, bosses, mapRaids, mapImage, topBarImage, bossImage, fullscreen, mapMessage, unreadNotifications]);
+  }, [backgroundImage, characterImage, icons, energy, maxEnergy, authority, spicki, bullets, gold, zhetons, tasks, appearanceColor, currentLocation, carLevel, level, districtName, playerName, avatarImage, showProfile, showBossModal, showMap, showRoomModal, unlockedRooms, battle, profileData, bosses, medkits, grenades, mapRaids, mapImage, topBarImage, bossImage, fullscreen, mapMessage, unreadNotifications]);
 
   // Всегда актуальная версия render для обработчика кликов
   renderRef.current = render;
@@ -385,8 +421,15 @@ export const useCanvas = (
         }
         if (btn.id === 'go_battle') { cb.onBattleClick?.(); return; }
         if (btn.id === 'go_boss') { cb.onOpenBossModal?.(); return; }
-        // Окно боя с боссом: "Удар" и "Отступить"/"Закрыть"
+        // Окно боя с боссом: действия из сетки кнопок (3-й этап)
         if (btn.id === 'fight_attack') { cb.onFightAttack?.(); return; }
+        if (btn.id === 'fight_technique') { cb.onFightTechnique?.(); return; }
+        if (btn.id === 'fight_power') { cb.onFightPower?.(); return; }
+        if (btn.id === 'fight_combo') { cb.onFightCombo?.(); return; }
+        if (btn.id === 'fight_block') { cb.onFightBlock?.(); return; }
+        if (btn.id === 'fight_evade') { cb.onFightEvade?.(); return; }
+        if (btn.id === 'fight_heal') { cb.onFightHeal?.(); return; }
+        if (btn.id === 'fight_grenade') { cb.onFightGrenade?.(); return; }
         if (btn.id === 'fight_leave') { cb.onFightLeave?.(); return; }
         // Атака по конкретному боссу в окне боссов: уменьшаем его HP
         if (btn.id.startsWith('attack_boss_')) {
@@ -428,7 +471,8 @@ export const useCanvas = (
         if (btn.id === 'friends') { cb.onFriendsClick?.(); return; }
         if (btn.id === 'go_district') { cb.onGoDistrict?.(); return; }
         if (btn.id === 'go_cloth') { cb.onGoCloth?.(); return; }
-        if (btn.id === 'go_komnata') { cb.onGoKomnata?.(); return; }
+        if (btn.id === 'go_komnata') { cb.onOpenRoomModal?.(); return; }
+        if (btn.id.startsWith('room_select_')) { cb.onSelectRoom?.(btn.id.slice('room_select_'.length)); return; }
         if (btn.id === 'go_kazino') { cb.onGoKazino?.(); return; }
         if (btn.id === 'lottery') { cb.onLotteryClick?.(); return; }
         if (btn.id === 'claim_daily') { cb.onDailyGoldClick?.(); return; }

@@ -164,7 +164,6 @@ export const drawProfile = (
   ctx: CanvasRenderingContext2D,
   canvasWidth: number,
   canvasHeight: number,
-  icons: Record<string, HTMLImageElement | null>,
   characterImage: HTMLImageElement | null,
   appearanceColor: string,
   profileData: ProfileData,

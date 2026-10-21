@@ -11,7 +11,7 @@ export interface BossDef {
   /** Урон босса по игроку за ответный удар */
   damage: number;
   /** Награда за победу */
-  reward: { gold: number; bullets: number; zhetons: number; spirt: number };
+  reward: { gold: number; bullets: number; zhetons: number; spirt: number; room?: string };
   /** Минимальный уровень игрока для вызова */
   minLevel: number;
 }
@@ -24,7 +24,7 @@ export const BOSSES: BossDef[] = [
     description: 'Держит двор и следит за порядком на своей улице. Неплохо вооружён, но с ним справится тот, кто не жалеет патронов.',
     hp: 100,
     damage: 9,
-    reward: { gold: 200, bullets: 15, zhetons: 0, spirt: 0 },
+    reward: { gold: 200, bullets: 15, zhetons: 0, spirt: 0, room: 'location2' },
     minLevel: 1,
   },
   {
@@ -33,7 +33,7 @@ export const BOSSES: BossDef[] = [
     description: 'Отряд, который зачищает подвалы от слабых. Действуют слаженно, поэтому без аптечек в бой лучше не идти.',
     hp: 250,
     damage: 11,
-    reward: { gold: 500, bullets: 30, zhetons: 1, spirt: 0 },
+    reward: { gold: 500, bullets: 30, zhetons: 1, spirt: 0, room: 'location3' },
     minLevel: 1,
   },
   {
@@ -42,7 +42,7 @@ export const BOSSES: BossDef[] = [
     description: 'Снайпер, который держит промзону под контролем. Бьёт точно и наказывает за любую заминку в бою.',
     hp: 500,
     damage: 14,
-    reward: { gold: 900, bullets: 60, zhetons: 2, spirt: 1 },
+    reward: { gold: 900, bullets: 60, zhetons: 2, spirt: 1, room: 'location4' },
     minLevel: 1,
   },
   {
@@ -51,7 +51,7 @@ export const BOSSES: BossDef[] = [
     description: 'Самый защищённый босс района: броня, тяжёлое оружие и большой запас здоровья. Идти к нему стоит только с прокачанным авто.',
     hp: 1000,
     damage: 18,
-    reward: { gold: 1600, bullets: 120, zhetons: 3, spirt: 1 },
+    reward: { gold: 1600, bullets: 120, zhetons: 3, spirt: 1, room: 'location5' },
     minLevel: 1,
   },
   // Игровые боссы

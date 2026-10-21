@@ -273,7 +273,7 @@ export const rarityWeight = (rarity: Rarity): number => {
   }
 };
 
-export const lootDrop = (districtCarLevel: number): { itemId: string; count: number }[] => {
+export const lootDrop = (): { itemId: string; count: number }[] => {
   const weights: { id: string; rarity: Rarity; count: number }[] = [
     { id: 'scrap_metal', rarity: 'common', count: 1 + Math.floor(Math.random() * 3) },
     { id: 'leather', rarity: 'common', count: 1 + Math.floor(Math.random() * 2) },

@@ -1,5 +1,6 @@
 import { Router } from 'express';
-import { prisma } from '../prisma';
+import { prisma } from '../prisma.js';
+import { requireVkUser } from '../vkAuth.js';
 
 export const userRouter = Router();
 
@@ -37,17 +38,24 @@ userRouter.get('/:vkId', async (req, res) => {
   }
 });
 
-// Обновление характеристик пользователя
-userRouter.put('/:vkId', async (req, res) => {
+// Данные профиля можно менять только от имени подписанного пользователя.
+// Ресурсы и членство в клане меняют только игровые серверные операции.
+userRouter.put('/:vkId', requireVkUser, async (req, res) => {
   try {
-    const { vkId } = req.params;
-    const data = req.body;
-    
+    if (Number(req.params.vkId) !== res.locals.vkId) return res.status(403).json({ error: 'Чужой профиль недоступен.' });
+    const keys = Object.keys(req.body ?? {});
+    if (!keys.length || keys.some((key) => key !== 'username' && key !== 'avatarUrl')) {
+      return res.status(400).json({ error: 'Можно изменить только имя и аватар.' });
+    }
+    const { username, avatarUrl } = req.body;
+    if ((username !== undefined && (typeof username !== 'string' || username.length > 80)) ||
+        (avatarUrl !== undefined && (typeof avatarUrl !== 'string' || avatarUrl.length > 500))) {
+      return res.status(400).json({ error: 'Некорректные данные профиля.' });
+    }
     const user = await prisma.user.update({
-      where: { vkId: parseInt(vkId) },
-      data
+      where: { vkId: res.locals.vkId },
+      data: { ...(username !== undefined ? { username } : {}), ...(avatarUrl !== undefined ? { avatarUrl } : {}) }
     });
-    
     res.json(user);
   } catch (error) {
     res.status(500).json({ error: 'Ошибка сервера' });

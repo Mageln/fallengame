@@ -2,7 +2,7 @@ import { createContext, useContext, useEffect, useMemo, useReducer, ReactNode, u
 import { ENERGY_TICK_MS, INVENTORY_ITEMS } from './constants';
 import { gameReducer, hydrateState } from './reducer';
 import { createInitialState } from './initialState';
-import { loadStateSync, saveState, setCurrentUserId } from './storage';
+import { clanDirectoryKey, loadClanDirectory, loadStateSync, saveClanDirectory, saveState, setCurrentUserId } from './storage';
 import { getVkUser, getVkUserId, VkUser } from '../services/vkApi';
 import { DailyQuestProgress, GameAction, GameState } from './types';
 import {
@@ -62,10 +62,19 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
         
         // Загружаем сохранение этого пользователя
         const saved = loadStateSync();
-        if (saved) {
-          hydratedRef.current = true;
-          dispatch({ type: 'HYDRATE_STATE', state: saved });
-        }
+        const sharedClans = loadClanDirectory();
+        const playerId = String(userId ?? user?.id ?? 'local');
+        const playerName = user ? `${user.first_name} ${user.last_name}`.trim() : 'Выживший';
+        hydratedRef.current = true;
+        dispatch({
+          type: 'HYDRATE_STATE',
+          state: {
+            ...(saved ?? createInitialState()),
+            playerId,
+            playerName,
+            clanDirectory: sharedClans.length > 0 ? sharedClans : (saved?.clanDirectory ?? []),
+          },
+        });
       } catch (error) {
         console.error('Ошибка инициализации:', error);
       } finally {
@@ -82,6 +91,18 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
     if (isLoading) return;
     saveState(state);
   }, [state, isLoading]);
+
+  useEffect(() => {
+    if (!isLoading) saveClanDirectory(state.clanDirectory);
+  }, [state.clanDirectory, isLoading]);
+
+  useEffect(() => {
+    const onStorage = (event: StorageEvent) => {
+      if (event.key === clanDirectoryKey) dispatch({ type: 'SYNC_CLANS', clans: loadClanDirectory() });
+    };
+    window.addEventListener('storage', onStorage);
+    return () => window.removeEventListener('storage', onStorage);
+  }, []);
 
   useEffect(() => {
     const id = window.setInterval(() => dispatch({ type: 'RESTORE_ENERGY_TICK' }), ENERGY_TICK_MS);

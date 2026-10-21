@@ -12,6 +12,7 @@ export const FAKE_BOSSES: BossData[] = [
     isSpecial: false,
     attackReward: { gold: 200, bullets: 15, zones: 1 },
     soloReward: { gold: 350, bullets: 25, tokens: 2 },
+    roomReward: 'location2',
   },
   {
     id: '2',
@@ -24,6 +25,7 @@ export const FAKE_BOSSES: BossData[] = [
     isSpecial: false,
     attackReward: { gold: 500, bullets: 30, zones: 1 },
     soloReward: { gold: 800, bullets: 50, tokens: 3 },
+    roomReward: 'location3',
   },
   {
     id: '3',
@@ -36,6 +38,7 @@ export const FAKE_BOSSES: BossData[] = [
     isSpecial: true,
     attackReward: { gold: 900, bullets: 60, zones: 2 },
     soloReward: { gold: 1400, bullets: 90, tokens: 5 },
+    roomReward: 'location4',
   },
   {
     id: '4',
@@ -48,5 +51,6 @@ export const FAKE_BOSSES: BossData[] = [
     isSpecial: true,
     attackReward: { gold: 1600, bullets: 120, zones: 3 },
     soloReward: { gold: 2400, bullets: 180, tokens: 8 },
+    roomReward: 'location5',
   },
 ];

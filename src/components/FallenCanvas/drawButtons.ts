@@ -39,9 +39,7 @@ export const drawButtons = (
     raion: HTMLImageElement | null;
   },
   carLevel: number,
-  level: number,
   currentDistrict: string,
-  districtName: string,
   lockedDistricts: { id: string; name: string; carLevel: number }[]
 ): ButtonPosition[] => {
   const buttonPositions: ButtonPosition[] = [];

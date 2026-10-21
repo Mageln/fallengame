@@ -175,6 +175,7 @@ export interface BattleReward {
   bullets: number;
   zhetons: number;
   exp: number;
+  room?: string | null;
 }
 
 export interface BattleState {
@@ -215,7 +216,7 @@ export interface BattleState {
   outcome: 'fighting' | 'won' | 'lost';
   startedAt: number; // Date.now() на старте — ключ владения наградой
   endedAt: number | null; // Date.now() на финале
-  reward: { gold: number; bullets: number; keys: number; zhetons: number } | null; // показывается на экране победы
+  reward: { gold: number; bullets: number; keys: number; zhetons: number; room?: string | null } | null; // показывается на экране победы
 }
 
 export interface RaidState {
@@ -253,12 +254,42 @@ export interface GameNotification {
   raidId?: string;
 }
 
-// Кланы: войны (Блок 6)
-export interface ClanState {
+export type ClanEmblem = 'skull' | 'axe' | 'mask' | 'fuel';
+export type ClanTaskEvent = 'zombie' | 'raid' | 'medkit' | 'barricade';
+
+export interface ClanMember {
+  id: string;
   name: string;
+  role: 'leader' | 'member';
+  joinedAt: number;
+}
+
+export interface ClanApplication {
+  userId: string;
+  userName: string;
+  createdAt: number;
+}
+
+export interface ClanTaskProgress {
+  periodKey: string;
+  value: number;
+  completed: boolean;
+}
+
+export interface ClanState {
+  id: string;
+  name: string;
+  emblem: ClanEmblem;
+  description: string;
+  leaderId: string;
+  members: ClanMember[];
+  applications: ClanApplication[];
+  createdAt: number;
+  taskPoints: number;
+  taskProgress: Record<string, ClanTaskProgress>;
+  rating: number;
+  // Сохраняем отдельную статистику старых клановых войн.
   score: number;
-  members: number;
-  // Клановые войны (ежедневные)
   warRating: number;
   warWins: number;
   warLosses: number;
@@ -320,17 +351,25 @@ export interface GameState {
   currentDistrict: string;
   currentLocation: string;
   unlockedDistricts: string[];
+  unlockedRooms: string[];
   weapon: Weapon;
   equipmentIds: string[];
   inventory: InventorySlot[];
   craftingRecipes: string[];
   clan: ClanState | null;
+  clanDirectory: ClanState[];
+  pendingClanId: string | null;
+  playerId: string;
+  playerName: string;
   clanRating: number;
   clanWar: ClanWarState | null;
   clanWarHistory: ClanWarHistoryEntry[];
   daily: DailyState;
   gast: GastState;
   battle: BattleState | null;
+  // Остаточное HP боссов после отступления/поражения: id -> HP.
+  // Позволяет добить босса в следующем заходе, а не начинать с нуля.
+  woundedBosses: Record<string, number>;
   raid: RaidState | null;
   radioRequests: string[];
   lastMessage: string;
@@ -381,8 +420,13 @@ export type GameAction =
   | { type: 'LOTTERY' }
   | { type: 'SEARCH_FRIEND' }
   | { type: 'RADIO_HELP' }
-  | { type: 'JOIN_CLAN' }
-  | { type: 'CREATE_CLAN'; name: string }
+  | { type: 'SET_PLAYER'; id: string; name: string }
+  | { type: 'SYNC_CLANS'; clans: ClanState[] }
+  | { type: 'APPLY_TO_CLAN'; clanId: string }
+  | { type: 'CANCEL_CLAN_APPLICATION' }
+  | { type: 'RESOLVE_CLAN_APPLICATION'; clanId: string; userId: string; accept: boolean }
+  | { type: 'CREATE_CLAN'; name: string; emblem: ClanEmblem }
+  | { type: 'CLAN_TASK_EVENT'; event: ClanTaskEvent; amount: number }
   | { type: 'CLAN_WAR_CONTRIBUTE' }
   | { type: 'CLAN_WAR_CLAIM' }
   | { type: 'FORGE_ITEM' }

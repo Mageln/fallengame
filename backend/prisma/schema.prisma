@@ -30,11 +30,13 @@ model User {
   
   // Кланы
   clanId        String?   // ID клана (если состоит)
+  clan          Clan?     @relation("UserClan", fields: [clanId], references: [id])
   clanRole      String?   // Роль в клане: 'owner', 'admin', 'member'
-  
-  // Связи
-  friends       Friend[]  @relation("UserFriends")
-  friendRequests FriendSent[] @relation("UserFriendRequests")
+  clanMembership ClanMember?
+  clanApplication ClanApplication?
+
+  // Бои
+  battles       Battle[]
   
   // Инвентарь
   inventory     InventoryItem[]
@@ -111,12 +113,21 @@ model ClothingItem {
 // Кланы
 model Clan {
   id          String    @id @default(cuid())
-  name        String    @unique // Название клана
+  name        String    @unique // Название убежища
+  nameKey     String    @unique // Нормализованное имя для проверки без учёта регистра
   description String?   // Описание
-  iconUrl     String?   // Иконка клана
-  
+  emblem      String    @default("skull")
+  iconUrl     String?   // Иконка старых кланов
+  leaderId    String
+  rating      Int       @default(25)
+  taskPoints  Int       @default(0)
+
   members     ClanMember[]
-  
+  users       User[]    @relation("UserClan")
+  tasks       ClanTaskProgress[]
+  events      ClanTaskEvent[]
+  applications ClanApplication[]
+
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 }
@@ -127,14 +138,45 @@ model ClanMember {
   clanId    String
   clan      Clan      @relation(fields: [clanId], references: [id], onDelete: Cascade)
   
-  userId    String
+  userId    String    @unique
   user      User      @relation(fields: [userId], references: [id])
   
   role      String    // 'owner', 'admin', 'member'
   
   joinedAt  DateTime  @default(now())
   
-  @unique([clanId, userId])
+  @@unique([clanId, userId])
+}
+
+model ClanTaskProgress {
+  id          String    @id @default(cuid())
+  clanId      String
+  clan        Clan      @relation(fields: [clanId], references: [id], onDelete: Cascade)
+  taskId      String
+  periodKey   String
+  progress    Int       @default(0)
+  completedAt DateTime?
+  pointsAwarded Int     @default(0)
+
+  @@unique([clanId, taskId, periodKey])
+}
+
+model ClanTaskEvent {
+  id        String   @id // Уникальный id события для защиты от повторной доставки
+  clanId    String
+  clan      Clan     @relation(fields: [clanId], references: [id], onDelete: Cascade)
+  userId    String
+  taskId    String
+  createdAt DateTime @default(now())
+}
+
+model ClanApplication {
+  id          String   @id @default(cuid())
+  clanId      String
+  clan        Clan     @relation(fields: [clanId], references: [id], onDelete: Cascade)
+  requesterId String   @unique
+  requester   User     @relation(fields: [requesterId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
 }
 
 // Заявки в друзья
@@ -147,7 +189,7 @@ model FriendRequest {
   
   createdAt DateTime  @default(now())
   
-  @unique([fromUserId, toUserId])
+  @@unique([fromUserId, toUserId])
 }
 
 // Отправленные заявки (для отслеживания исходящих)
@@ -160,12 +202,13 @@ model FriendSent {
   
   createdAt DateTime  @default(now())
   
-  @unique([fromUserId, toUserId])
+  @@unique([fromUserId, toUserId])
 }
 
 // Квесты
 model Quest {
   id          String    @id @default(cuid())
+  progress    QuestProgress[]
   name        String    // Название квеста
   description String?   // Описание
   type        String    // 'daily', 'weekly', 'story', 'survival'
@@ -195,7 +238,7 @@ model QuestProgress {
   target      Int       // Целевое значение
   completedAt DateTime?
   
-  @unique([userId, questId])
+  @@unique([userId, questId])
 }
 
 // Игра в казино
@@ -215,6 +258,7 @@ model CasinoGame {
 // Зомби (для боевой системы)
 model Zombie {
   id          String    @id @default(cuid())
+  battles     Battle[]
   name        String    // Название/тип зомби
   health      Int       // Здоровье
   damage      Int       // Урон

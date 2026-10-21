@@ -1,4 +1,4 @@
-import { Panel, PanelHeader, Group, Button, Text, Header, Cell, Avatar, Box, Card } from '@vkontakte/vkui';
+import { Panel, PanelHeader, Group, Button, Text, Header, Cell, Box, Card } from '@vkontakte/vkui';
 import { Icon28ArrowLeftOutline } from '@vkontakte/icons';
 import { useRouteNavigator } from '@vkontakte/vk-mini-apps-router';
 import { useGame } from '../game/GameContext';
@@ -151,11 +151,6 @@ export const Profile = ({ id }: Props) => {
         })}
       </Group>
 
-      <Group>
-        <Button mode="secondary" onClick={() => navigator.push('/inventory')}>
-          📦 Открыть инвентарь ({state.inventory.length}/20)
-        </Button>
-      </Group>
     </Panel>
   );
 };

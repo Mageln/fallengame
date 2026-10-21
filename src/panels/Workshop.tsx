@@ -11,7 +11,7 @@ interface Props {
 
 export const Workshop = ({ id }: Props) => {
   const navigator = useRouteNavigator();
-  const { state, dispatch, derived } = useGame();
+  const { state, dispatch } = useGame();
   const upCost = weaponUpgradeCost(state.weapon.level);
   const repairCost = weaponRepairCost();
   const upgradeUpgradeCost = weaponUpgradeUpgradeCost();

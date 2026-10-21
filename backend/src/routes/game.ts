@@ -1,7 +1,9 @@
 import { Router } from 'express';
-import { prisma } from '../prisma';
+import { prisma } from '../prisma.js';
+import { requireVkUser } from '../vkAuth.js';
 
 export const gameRouter = Router();
+gameRouter.use((req, res, next) => req.method === 'POST' ? requireVkUser(req, res, next) : next());
 
 // Получение доступных зомби для боя
 gameRouter.get('/zombies/available', async (req, res) => {
@@ -19,10 +21,10 @@ gameRouter.get('/zombies/available', async (req, res) => {
 // Начало боя
 gameRouter.post('/battle/start', async (req, res) => {
   try {
-    const { vkId, zombieId } = req.body;
-    
+    const { zombieId } = req.body ?? {};
+    if (typeof zombieId !== 'string') return res.status(400).json({ error: 'Зомби не найден' });
     const user = await prisma.user.findUnique({
-      where: { vkId: parseInt(vkId) }
+      where: { vkId: res.locals.vkId }
     });
     
     if (!user || user.energy < 10) {
@@ -63,20 +65,18 @@ gameRouter.post('/battle/start', async (req, res) => {
 gameRouter.post('/battle/:battleId/attack', async (req, res) => {
   try {
     const { battleId } = req.params;
-    const { playerId } = req.body;
-    
     const battle = await prisma.battle.findUnique({
       where: { id: battleId },
       include: { user: true, zombie: true }
     });
     
-    if (!battle || battle.result) {
+    if (!battle || battle.result || battle.user.vkId !== res.locals.vkId) {
       return res.status(400).json({ error: 'Бой не активен' });
     }
     
     // Расчёт урона игрока
     const weapon = await prisma.weapon.findFirst({
-      where: { userId: playerId, equipped: true }
+      where: { userId: battle.user.id, equipped: true }
     });
     
     const playerDamage = weapon ? weapon.damage + Math.floor(Math.random() * 5) : 10;

@@ -5,7 +5,7 @@ export const WEAPON_DAMAGE_PER_LEVEL = 3;
 export const WEAPON_BREAK_CHANCE = 0.18;
 export const CLAN_JOIN_LEVEL = 20;
 export const CLAN_CREATE_LEVEL = 25;
-export const CLAN_CREATE_GOLD = 100;
+export const CLAN_CREATE_GOLD = 2500;
 export const CLAN_MAX_MEMBERS = 300;
 
 // Кланы: войны (Блок 6)
@@ -91,11 +91,22 @@ const RAW_MATERIALS: InventoryItem[] = [
   { id: 'explosives', name: 'Взрывчатка', rarity: 'uncommon', staminaBonus: 0, damageBonus: 0, luckBonus: 0, costBullets: 20, icon: '💥' },
   { id: 'med_components', name: 'Мед. компоненты', rarity: 'uncommon', staminaBonus: 0, damageBonus: 0, luckBonus: 0, costBullets: 18, icon: '💉' },
   { id: 'rare_crystal', name: 'Редкий кристалл', rarity: 'epic', staminaBonus: 0, damageBonus: 0, luckBonus: 0, costBullets: 80, icon: '💎' },
+  { id: 'barricade', name: 'Баррикада', rarity: 'common', staminaBonus: 0, damageBonus: 0, luckBonus: 0, costBullets: 0, icon: '🧱' },
 ];
 
 export const INVENTORY_ITEMS: InventoryItem[] = [...SHOP, ...RAW_MATERIALS];
 
 export const CRAFTING_RECIPES = [
+  {
+    id: 'barricade',
+    name: 'Баррикада убежища',
+    resultItemId: 'barricade',
+    resultCount: 1,
+    cost: [
+      { itemId: 'scrap_metal', count: 12 },
+      { itemId: 'matches', count: 20 },
+    ],
+  },
   {
     id: 'repair_kit',
     name: 'Набор для ремонта',

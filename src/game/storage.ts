@@ -1,6 +1,7 @@
-import { GameState } from './types';
+import { ClanState, GameState } from './types';
 
 const KEY_PREFIX = 'ergate-save-';
+const CLANS_KEY = 'ergate-clans-v1';
 
 // Текущий идентификатор пользователя (VK ID или 'local' в режиме разработки)
 // Устанавливается через setCurrentUserId() после получения данных из VK
@@ -45,3 +46,24 @@ export const saveState = (state: GameState) => {
     /* ignore quota */
   }
 };
+
+// Общая доска на этом устройстве; для межустройственного рейтинга нужен сервер.
+export const loadClanDirectory = (): ClanState[] => {
+  try {
+    const saved = JSON.parse(localStorage.getItem(CLANS_KEY) ?? '[]');
+    return Array.isArray(saved) ? saved : [];
+  } catch {
+    return [];
+  }
+};
+
+export const saveClanDirectory = (clans: ClanState[]): void => {
+  try {
+    const serialized = JSON.stringify(clans);
+    if (localStorage.getItem(CLANS_KEY) !== serialized) localStorage.setItem(CLANS_KEY, serialized);
+  } catch {
+    /* ignore quota */
+  }
+};
+
+export const clanDirectoryKey = CLANS_KEY;

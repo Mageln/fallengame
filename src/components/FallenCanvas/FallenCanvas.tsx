@@ -11,7 +11,7 @@ import { RaidModal } from "../../panels/RaidModal";
 import { ClanModal } from "../../panels/Clan";
 import { NotificationsPanel } from "../NotificationsPanel";
 import { useGame } from "../../game/GameContext";
-import { MapRaid as MapRaidType, GameNotification } from "../../game/types";
+import { GameNotification } from "../../game/types";
 
 export const FallenCanvas: React.FC<PrisonCanvasProps & {
   carLevel?: number;
@@ -67,9 +67,6 @@ export const FallenCanvas: React.FC<PrisonCanvasProps & {
   onNotificationRemove?: (id: string) => void;
   onNotificationsClear?: () => void;
 }> = ({
-  onTaskComplete,
-  onResourceClick,
-  onZombieClick,
   energy,
   maxEnergy,
   authority,
@@ -77,26 +74,17 @@ export const FallenCanvas: React.FC<PrisonCanvasProps & {
   bullets = 0,
   gold = 0,
   zhetons = 0,
-  zombieHealth = 100,
-  maxZombieHealth = 100,
-  isZombieAlive = true,
   appearance = 0,
   tasks,
   currentLocation,
   carLevel = 1,
   level = 1,
-  currentDistrict,
   districtName = '',
-  onBattle,
   onGoProfile,
-  onGoWorkshop,
-  onGoRaid,
   onGoClan,
   onGoInventory,
   onGoQuests,
   onGoCrafting,
-  onLottery,
-  onClaimDaily,
   onOpenBossModal,
   // Профиль
   showBossModal = false,
@@ -104,10 +92,8 @@ export const FallenCanvas: React.FC<PrisonCanvasProps & {
   showMap = false,
   profileData,
   onProfileClose,
-  onCloseProfile,
   onBattleClick,
   onFriendsClick,
-  onArenaClick,
   onRaidClick,
   onGoDistrict,
   onCloseMap,
@@ -130,6 +116,7 @@ export const FallenCanvas: React.FC<PrisonCanvasProps & {
   const [topBarImage, setTopBarImage] = useState<HTMLImageElement | null>(null);
   // Спрайт босса для окна боя
   const [bossImage, setBossImage] = useState<HTMLImageElement | null>(null);
+  const [showRoomModal, setShowRoomModal] = useState(false);
 
   // "Атаковать"/"В бой" — запускает бой через reducer (state.battle)
   const handleBossAttack = useCallback(
@@ -139,9 +126,38 @@ export const FallenCanvas: React.FC<PrisonCanvasProps & {
     [dispatch]
   );
 
-  // Кнопки окна боя — dispatch в reducer
+  // Кнопки окна боя — dispatch в reducer.
+  // Удар и Приём — это BATTLE_ATTACK с technique=false/true.
   const handleFightAttack = useCallback(() => {
     dispatch({ type: 'BATTLE_ATTACK', technique: false });
+  }, [dispatch]);
+
+  const handleFightTechnique = useCallback(() => {
+    dispatch({ type: 'BATTLE_ATTACK', technique: true });
+  }, [dispatch]);
+
+  const handleFightPower = useCallback(() => {
+    dispatch({ type: 'BATTLE_POWER' });
+  }, [dispatch]);
+
+  const handleFightCombo = useCallback(() => {
+    dispatch({ type: 'BATTLE_COMBO' });
+  }, [dispatch]);
+
+  const handleFightBlock = useCallback(() => {
+    dispatch({ type: 'BATTLE_BLOCK' });
+  }, [dispatch]);
+
+  const handleFightEvade = useCallback(() => {
+    dispatch({ type: 'BATTLE_EVADE' });
+  }, [dispatch]);
+
+  const handleFightHeal = useCallback(() => {
+    dispatch({ type: 'BATTLE_HEAL' });
+  }, [dispatch]);
+
+  const handleFightGrenade = useCallback(() => {
+    dispatch({ type: 'BATTLE_GRENADES', count: 1 });
   }, [dispatch]);
 
   const handleFightLeave = useCallback(() => {
@@ -204,13 +220,15 @@ export const FallenCanvas: React.FC<PrisonCanvasProps & {
     img.src = avatarUrl;
   }, [avatarUrl]);
 
-  const handleZombieClick = useCallback(() => {
-    if (onZombieClick) onZombieClick();
-  }, [onZombieClick]);
+  const handleSelectRoom = useCallback((roomId: string) => {
+    dispatch({ type: 'CHANGE_LOCATION', locationId: roomId });
+    if (state.unlockedRooms.includes(roomId)) setShowRoomModal(false);
+  }, [dispatch, state.unlockedRooms]);
 
   // Все кнопки "Назад" закрывают все оверлеи и возвращают на главную
   const handleBackToMain = useCallback(() => {
     onProfileClose?.();
+    setShowRoomModal(false);
     if (state.showBossModal) dispatch({ type: 'TOGGLE_BOSS_MODAL' });
     if (state.showMap) dispatch({ type: 'TOGGLE_MAP' });
   }, [onProfileClose, state.showBossModal, state.showMap, dispatch]);
@@ -266,6 +284,13 @@ export const FallenCanvas: React.FC<PrisonCanvasProps & {
     handleBossAttack,  // "Атаковать"/"В бой" в окне боссов
     handleFightAttack, // "Удар" в окне боя
     handleFightLeave,  // "Отступить"/"Закрыть" в окне боя
+    handleFightTechnique,
+    handleFightPower,
+    handleFightCombo,
+    handleFightBlock,
+    handleFightEvade,
+    handleFightHeal,
+    handleFightGrenade,
     // Нижняя панель (клан, инвентарь, квесты, крафт)
     undefined, // onClanClick (не используется, вместо него onGoClan)
     undefined, // onInventoryClick
@@ -283,6 +308,8 @@ export const FallenCanvas: React.FC<PrisonCanvasProps & {
     profileData,
     FAKE_BOSSES,
     state.battle,
+    state.medkits,
+    state.grenades,
     mapRaids,
     mapImage,
     topBarImage,
@@ -290,7 +317,11 @@ export const FallenCanvas: React.FC<PrisonCanvasProps & {
     false, // fullscreen
     lastMessage, // сообщение о последнем действии (показывается на карте районов)
     unreadNotifications, // бейдж непрочитанных уведомлений в верхней панели
-    onNotificationsClick // клик по колокольчику
+    onNotificationsClick, // клик по колокольчику
+    showRoomModal,
+    state.unlockedRooms,
+    () => setShowRoomModal(true),
+    handleSelectRoom
   );
 
   // Связываем ref с реальной функцией fullscreen из useCanvas

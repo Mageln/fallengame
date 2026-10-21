@@ -4,7 +4,7 @@ import { useState, useCallback } from 'react';
 
 export const useRaid = () => {
     const [bossHealth, setBossHealth] = useState(1000);
-    const [friends, setFriends] = useState<string[]>(['friend1', 'friend2']); // Заглушка
+    const [friends] = useState<string[]>(['friend1', 'friend2']); // Заглушка
 
     const attackBoss = useCallback(() => {
         // Отправляем запрос на бэкенд: игрок X нанес урон боссу

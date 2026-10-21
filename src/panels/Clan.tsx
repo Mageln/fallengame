@@ -1,257 +1,219 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useGame } from '../game/GameContext';
-import {
-  CLAN_CREATE_GOLD,
-  CLAN_CREATE_LEVEL,
-  CLAN_JOIN_LEVEL,
-  CLAN_MAX_MEMBERS,
-  CLAN_WAR_CONTRIB_COST,
-  CLAN_WAR_CONTRIB_SCORE,
-  CLAN_WAR_MIN_CONTRIB,
-  CLAN_WAR_FULL_CONTRIB,
-} from '../game/constants';
+import { CLAN_CREATE_GOLD, CLAN_MAX_MEMBERS, CLAN_WAR_CONTRIB_COST, CLAN_WAR_FULL_CONTRIB, CLAN_WAR_MIN_CONTRIB } from '../game/constants';
+import { CLAN_CONTRACTS, CLAN_EMBLEMS, CLAN_MEMBER_BONUS, getContractProgress, validateClanName } from '../game/clans';
+import type { ClanEmblem, ClanState } from '../game/types';
+import styles from '../style/Clan.module.scss';
 
-const fmtDate = (key: string): string => {
-  const [y, m, d] = key.split('-');
-  return m && d ? `${d}.${m}.${y}` : key;
-};
+const PAGE_SIZE = 7;
+const number = (value: number) => new Intl.NumberFormat('ru-RU').format(value);
+const emblemIcon = (id: ClanEmblem) => CLAN_EMBLEMS.find((emblem) => emblem.id === id)?.icon ?? '☠';
+const formatDate = (timestamp: number) => new Date(timestamp).toLocaleDateString('ru-RU');
 
-const bar = (pct: number, color: string) => (
-  <div style={{ background: 'rgba(128,128,128,0.25)', borderRadius: 4, height: 8, marginTop: 6, overflow: 'hidden' }}>
-    <div
-      style={{
-        background: color,
-        height: '100%',
-        width: `${Math.max(0, Math.min(100, pct))}%`,
-        borderRadius: 4,
-        transition: 'width .3s',
-      }}
-    />
+type Tab = 'mine' | 'all' | 'tasks';
+
+const PipeMeter = ({ value, max, label }: { value: number; max: number; label: string }) => (
+  <div className={styles.meter}>
+    <div className={styles.meterLabel}><span>{label}</span><strong>{number(Math.min(value, max))} / {number(max)}</strong></div>
+    <progress value={Math.min(value, max)} max={max} aria-label={label} />
   </div>
 );
-
-const labelStyle: React.CSSProperties = { fontSize: 12, color: '#888', marginBottom: 2 };
-const valueStyle: React.CSSProperties = { fontSize: 14, color: '#fff', fontWeight: 600 };
-const sectionStyle: React.CSSProperties = {
-  background: 'rgba(0,0,0,0.3)',
-  borderRadius: 10,
-  padding: '10px 14px',
-  marginBottom: 10,
-};
-const sectionTitle: React.CSSProperties = {
-  fontSize: 13,
-  color: '#ffd700',
-  fontWeight: 700,
-  marginBottom: 8,
-  textTransform: 'uppercase',
-  letterSpacing: '0.5px',
-};
 
 interface Props {
   onClose: () => void;
 }
 
 export const ClanModal = ({ onClose }: Props) => {
-  const { state, dispatch } = useGame();
-  const [name, setName] = useState('Стена');
+  const { state, dispatch, isLoading } = useGame();
+  const [tab, setTab] = useState<Tab>('mine');
+  const [query, setQuery] = useState('');
+  const [page, setPage] = useState(0);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [showCreate, setShowCreate] = useState(false);
+  const [name, setName] = useState('');
+  const [emblem, setEmblem] = useState<ClanEmblem>('skull');
+  const [formError, setFormError] = useState('');
+  const [stamp, setStamp] = useState('');
 
   const clan = state.clan;
+  const selected = state.clanDirectory.find((entry) => entry.id === selectedId) ?? null;
   const war = state.clanWar;
-  const history = state.clanWarHistory ?? [];
+  const sorted = useMemo(() => [...state.clanDirectory].sort((a, b) =>
+    b.rating - a.rating || a.name.localeCompare(b.name, 'ru')), [state.clanDirectory]);
+  const filtered = useMemo(() => sorted.filter((entry) => entry.name.toLocaleLowerCase('ru-RU').includes(query.trim().toLocaleLowerCase('ru-RU'))), [sorted, query]);
+  const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const visible = filtered.slice(Math.min(page, pageCount - 1) * PAGE_SIZE, (Math.min(page, pageCount - 1) + 1) * PAGE_SIZE);
 
-  const contribPct = war ? (war.contributions / CLAN_WAR_FULL_CONTRIB) * 100 : 0;
-  const scorePct = war && war.enemyScore > 0 ? (war.clanScore / war.enemyScore) * 100 : 0;
-  const leading = !!war && war.clanScore >= war.enemyScore;
+  useEffect(() => {
+    if (state.lastMessage !== 'Убежище основано!' && !state.lastMessage.startsWith('Контракт выполнен!')) return;
+    setStamp(state.lastMessage === 'Убежище основано!' ? 'УБЕЖИЩЕ ОСНОВАНО!' : 'ВЫПОЛНЕНО');
+    const timer = window.setTimeout(() => setStamp(''), 2200);
+    return () => window.clearTimeout(timer);
+  }, [state.lastMessage]);
+
+  const create = () => {
+    const error = validateClanName(name, state.clanDirectory);
+    if (error || state.gold < CLAN_CREATE_GOLD || clan) {
+      setFormError(error ?? (clan ? 'Вы уже в убежище.' : `Нужно 🪙 ${number(CLAN_CREATE_GOLD)} припасов.`));
+      return;
+    }
+    dispatch({ type: 'CREATE_CLAN', name, emblem });
+    setFormError('');
+    setShowCreate(false);
+    setTab('mine');
+  };
+
+  const handleEscape = (event: React.KeyboardEvent) => {
+    if (event.key !== 'Escape') return;
+    event.stopPropagation();
+    if (showCreate) setShowCreate(false);
+    else if (selectedId) setSelectedId(null);
+    else onClose();
+  };
+
+  const renderCard = (entry: ClanState, inDialog = false) => (
+    <>
+      <div className={styles.cardTitle}>
+        <span className={styles.cardEmblem} aria-hidden="true">{emblemIcon(entry.emblem)}</span>
+        <div>
+          <h3>{entry.name}</h3>
+          <span className={styles.muted}>Основано {formatDate(entry.createdAt)}</span>
+        </div>
+      </div>
+      {entry.id === clan?.id && <span className={styles.ownTag}>ВАШ КЛАН</span>}
+      <p className={styles.description}>{entry.description}</p>
+      <div className={styles.stats}>
+        <div><span>Выживаемость</span><strong>⭐ {number(entry.rating)}</strong></div>
+        <div><span>Контракты</span><strong>+{number(entry.taskPoints)}</strong></div>
+        <div><span>Участники</span><strong>👥 {entry.members.length}/{CLAN_MAX_MEMBERS}</strong></div>
+      </div>
+      <p className={styles.formula}>Рейтинг = очки контрактов + {entry.members.length} × {CLAN_MEMBER_BONUS} за выживших</p>
+      <h4>Состав убежища</h4>
+      <ul className={styles.roster}>
+        {entry.members.map((member) => <li key={member.id}><span>{member.name}</span><span>{member.role === 'leader' ? '★ Лидер' : 'Выживший'}</span></li>)}
+      </ul>
+      {entry.leaderId === state.playerId && (
+        <section className={styles.applications}>
+          <h4>Заявки по рации · {entry.applications.length}</h4>
+          {entry.applications.length === 0 ? <p className={styles.muted}>Эфир тих. Новых заявок нет.</p> : entry.applications.map((request) => (
+            <div className={styles.request} key={request.userId}>
+              <span>{request.userName}</span>
+              <div>
+                <button type="button" className={styles.accept} onClick={() => dispatch({ type: 'RESOLVE_CLAN_APPLICATION', clanId: entry.id, userId: request.userId, accept: true })}>Принять</button>
+                <button type="button" className={styles.plainButton} onClick={() => dispatch({ type: 'RESOLVE_CLAN_APPLICATION', clanId: entry.id, userId: request.userId, accept: false })}>Отклонить</button>
+              </div>
+            </div>
+          ))}
+        </section>
+      )}
+      {inDialog && !clan && (
+        <div className={styles.cardActions}>
+          {state.pendingClanId === entry.id ? (
+            <button type="button" className={styles.plainButton} onClick={() => dispatch({ type: 'CANCEL_CLAN_APPLICATION' })}>Отозвать заявку</button>
+          ) : (
+            <button type="button" className={styles.redButton} disabled={!!state.pendingClanId || entry.members.length >= CLAN_MAX_MEMBERS} onClick={() => dispatch({ type: 'APPLY_TO_CLAN', clanId: entry.id })}>📻 Подать заявку</button>
+          )}
+          {!!state.pendingClanId && state.pendingClanId !== entry.id && <span className={styles.muted}>У вас уже есть заявка в другом убежище.</span>}
+        </div>
+      )}
+    </>
+  );
 
   return (
-    <div
-      style={{
-        position: 'fixed',
-        top: 0, left: 0, right: 0, bottom: 0,
-        background: 'rgba(0,0,0,0.85)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        zIndex: 10000,
-      }}
-      onClick={onClose}
-    >
-      <div
-        style={{
-          background: 'linear-gradient(180deg,#1a1a2e 0%,#16213e 100%)',
-          borderRadius: 16,
-          padding: 20,
-          maxWidth: 420,
-          width: '94%',
-          maxHeight: '88vh',
-          overflowY: 'auto',
-          border: '2px solid #7c3aed',
-          boxShadow: '0 0 30px #7c3aed40',
-          position: 'relative',
-          color: '#fff',
-        }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Кнопка закрыть */}
-        <button
-          onClick={onClose}
-          style={{
-            position: 'absolute', top: 12, right: 12,
-            width: 30, height: 30, borderRadius: 8,
-            background: 'rgba(255,255,255,0.1)', border: '1px solid #555',
-            color: '#fff', fontSize: 18, lineHeight: '30px',
-            cursor: 'pointer', textAlign: 'center', padding: 0,
-          }}
-        >
-          ×
-        </button>
+    <div className={styles.backdrop} onClick={onClose} onKeyDown={handleEscape}>
+      <section className={styles.board} role="dialog" aria-modal="true" aria-label="Убежища выживших" onClick={(event) => event.stopPropagation()}>
+        <header className={styles.header}>
+          <span className={styles.lamp} aria-hidden="true" />
+          <div><p className={styles.eyebrow}>ЭРГЕЙТ · ЧАСТОТА 13.7</p><h2>УБЕЖИЩА ВЫЖИВШИХ</h2><p>Найди своих. Переживи ночь.</p></div>
+          <button className={styles.close} type="button" aria-label="Закрыть кланы" onClick={onClose}>✕</button>
+        </header>
 
-        {/* Заголовок */}
-        <div style={{ textAlign: 'center', marginBottom: 16 }}>
-          <div style={{
-            display: 'inline-block', padding: '4px 14px', borderRadius: 20,
-            background: 'rgba(124,58,237,0.15)', border: '1px solid #7c3aed',
-            color: '#a78bfa', fontSize: 12, fontWeight: 700, marginBottom: 6,
-          }}>
-            КЛАН
-          </div>
-          <h2 style={{ margin: 0, fontSize: 20 }}>{clan ? clan.name : 'Вступление в клан'}</h2>
-        </div>
+        <nav className={styles.tabs} role="tablist" aria-label="Разделы убежищ">
+          {([['mine', 'МОЙ КЛАН'], ['all', 'ВСЕ КЛАНЫ'], ['tasks', 'ЗАДАНИЯ']] as const).map(([id, label]) => (
+            <button key={id} type="button" role="tab" aria-selected={tab === id} className={tab === id ? styles.tabActive : styles.tab} onClick={() => { setTab(id); setSelectedId(null); }}>{label}</button>
+          ))}
+        </nav>
 
-        {/* Информация о клане / вступление */}
-        <div style={sectionStyle}>
-          <div style={sectionTitle}>Клан</div>
-          {clan ? (
-            <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
-              <div><div style={labelStyle}>Участников</div><div style={valueStyle}>{clan.members}/{CLAN_MAX_MEMBERS}</div></div>
-              <div><div style={labelStyle}>Очки</div><div style={valueStyle}>{clan.score}</div></div>
-              <div><div style={labelStyle}>Рейтинг</div><div style={valueStyle}>{state.clanRating}</div></div>
-            </div>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              <div style={{ fontSize: 12, color: '#888' }}>
-                Вход с {CLAN_JOIN_LEVEL} ур., создание с {CLAN_CREATE_LEVEL} за {CLAN_CREATE_GOLD} золота.
-              </div>
-              <button
-                onClick={() => dispatch({ type: 'JOIN_CLAN' })}
-                style={{
-                  width: '100%', padding: '10px 0', borderRadius: 8,
-                  background: 'linear-gradient(180deg,#7c3aed,#5b21b6)',
-                  color: '#fff', fontWeight: 700, fontSize: 14,
-                  border: 'none', cursor: 'pointer',
-                }}
-              >
-                Вступить
-              </button>
-              <input
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="Название клана"
-                style={{
-                  width: '100%', padding: '8px 10px', borderRadius: 8, boxSizing: 'border-box',
-                  background: 'rgba(255,255,255,0.06)', border: '1px solid #444',
-                  color: '#fff', fontSize: 14, outline: 'none',
-                }}
-              />
-              <button
-                onClick={() => dispatch({ type: 'CREATE_CLAN', name })}
-                style={{
-                  width: '100%', padding: '10px 0', borderRadius: 8,
-                  background: 'rgba(255,255,255,0.08)', border: '1px solid #555',
-                  color: '#fff', fontSize: 13, cursor: 'pointer',
-                }}
-              >
-                Создать за {CLAN_CREATE_GOLD} золота
-              </button>
-            </div>
+        <div className={styles.content} role="tabpanel">
+          {isLoading ? <p className={styles.empty}>Ищем сигнал выживших…</p> : (
+            <>
+              {tab === 'mine' && (clan ? (
+                <>
+                  <article className={styles.metalCard}>{renderCard(clan)}</article>
+                  <section className={styles.metalCard}>
+                    <h3 className={styles.sectionTitle}>⚔ Клановая война</h3>
+                    <div className={styles.warStats}><span>Побед: {clan.warWins}</span><span>Поражений: {clan.warLosses}</span><span>Серия: {clan.warStreak}</span></div>
+                    {war ? <>
+                      <p>Противник: <strong>{war.enemyName}</strong> · рейтинг {war.enemyRating}</p>
+                      <PipeMeter label="Очки противника" value={war.clanScore} max={Math.max(1, war.enemyScore)} />
+                      <PipeMeter label="Ваш вклад" value={war.contributions} max={CLAN_WAR_FULL_CONTRIB} />
+                      <div className={styles.actions}>
+                        <button type="button" className={styles.redButton} disabled={war.claimed || state.zhetons < CLAN_WAR_CONTRIB_COST || war.contributions >= CLAN_WAR_FULL_CONTRIB} onClick={() => dispatch({ type: 'CLAN_WAR_CONTRIBUTE' })}>Взнос · {CLAN_WAR_CONTRIB_COST} жетон</button>
+                        <button type="button" className={styles.accept} disabled={war.claimed || war.contributions < CLAN_WAR_MIN_CONTRIB} onClick={() => dispatch({ type: 'CLAN_WAR_CLAIM' })}>{war.claimed ? 'Награда получена' : 'Забрать награду'}</button>
+                      </div>
+                    </> : <p className={styles.muted}>Рация молчит. Противник пока не найден.</p>}
+                    {state.clanWarHistory.length > 0 && <div className={styles.history}><h4>Журнал вылазок</h4>{state.clanWarHistory.slice(0, 5).map((entry) => <p key={`${entry.dateKey}-${entry.enemyName}`}>{entry.win ? '✓' : '✕'} {entry.dateKey} · {entry.enemyName} · {entry.clanScore}:{entry.enemyScore}</p>)}</div>}
+                  </section>
+                </>
+              ) : (
+                <div className={styles.emptyState}>
+                  <span className={styles.silhouette} aria-hidden="true">🧟</span>
+                  <h3>В одиночку долго не выжить</h3>
+                  <p>Соберите своё убежище или найдите группировку на доске выживших.</p>
+                  <button type="button" className={styles.redButton} onClick={() => setShowCreate(true)}>☠ СОЗДАТЬ УБЕЖИЩЕ</button>
+                  <span className={styles.price}>🪙 {number(CLAN_CREATE_GOLD)} припасов · у вас {number(state.gold)}</span>
+                  {state.pendingClanId && <p>📻 Заявка отправлена. <button type="button" className={styles.linkButton} onClick={() => dispatch({ type: 'CANCEL_CLAN_APPLICATION' })}>Отозвать</button></p>}
+                </div>
+              ))}
+
+              {tab === 'all' && <section className={styles.leaderboard}>
+                <div className={styles.boardHeading}><div><p className={styles.eyebrow}>ОБЪЯВЛЕНИЯ · ЛОКАЛЬНЫЙ РЕЖИМ</p><h3>Доска выживших</h3></div>{!clan && <button type="button" className={styles.redButton} onClick={() => setShowCreate(true)}>☠ СОЗДАТЬ УБЕЖИЩЕ <span>🪙 {number(CLAN_CREATE_GOLD)}</span></button>}</div>
+                <label className={styles.searchLabel} htmlFor="clan-search">Найти убежище…</label>
+                <input id="clan-search" type="search" value={query} onChange={(event) => { setQuery(event.target.value); setPage(0); }} placeholder="Название группировки" className={styles.search} />
+                {filtered.length === 0 ? <div className={styles.emptyState}><span className={styles.silhouette} aria-hidden="true">🧟</span><h3>Пока никого… город мёртв</h3><p>{query ? 'По вашему запросу нет сигналов.' : 'Станьте первым, кто соберёт убежище.'}</p></div> : <>
+                  <div className={styles.tableWrap}><table><caption className={styles.srOnly}>Рейтинг убежищ по выживаемости</caption><thead><tr><th scope="col">#</th><th scope="col">Эмблема</th><th scope="col">Имя клана</th><th scope="col">👥 Участники</th><th scope="col">⭐ Рейтинг выживаемости</th></tr></thead><tbody>
+                    {visible.map((entry) => {
+                      const rank = sorted.findIndex((candidate) => candidate.id === entry.id) + 1;
+                      return <tr key={entry.id} className={entry.id === clan?.id ? styles.ownRow : ''} onClick={() => setSelectedId(entry.id)} onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); setSelectedId(entry.id); } }} tabIndex={0} aria-label={`Открыть карточку ${entry.name}`}>
+                        <td>{rank <= 3 ? ['🥇', '🥈', '🥉'][rank - 1] : `#${rank}`}</td><td className={styles.emblemCell}>{emblemIcon(entry.emblem)}</td><td><strong>{entry.name}</strong>{entry.id === clan?.id && <small className={styles.ownTag}>ВАШ КЛАН</small>}</td><td>{entry.members.length}</td><td className={styles.ratingCell}>{number(entry.rating)}</td>
+                      </tr>;
+                    })}
+                  </tbody></table></div>
+                  <div className={styles.pagination}><button type="button" disabled={page === 0} onClick={() => setPage(page - 1)}>← Назад</button><span>Страница {Math.min(page, pageCount - 1) + 1} / {pageCount}</span><button type="button" disabled={page >= pageCount - 1} onClick={() => setPage(page + 1)}>Дальше →</button></div>
+                </>}
+              </section>}
+
+              {tab === 'tasks' && (clan ? <section className={styles.contracts}>
+                <div className={styles.boardHeading}><div><p className={styles.eyebrow}>ПРИКОЛОТО К ДОСКЕ</p><h3>Контракты на выживание</h3></div><span className={styles.price}>⭐ {number(clan.rating)} рейтинга</span></div>
+                <p className={styles.muted}>Прогресс пополняется за победы над заражёнными, рейды, аптечки и крафт баррикад. Завершённый контракт даёт очки один раз за период.</p>
+                {CLAN_CONTRACTS.map((contract) => {
+                  const progress = getContractProgress(clan, contract);
+                  return <article className={styles.contract} key={contract.id}>
+                    <div className={styles.contractHeader}><span className={styles.contractIcon} aria-hidden="true">{contract.icon}</span><div><h4>{contract.title}</h4><p>{contract.description}</p></div><strong>+{number(contract.points)} ⭐</strong></div>
+                    <PipeMeter label={contract.title} value={progress.value} max={contract.target} />
+                    <div className={styles.contractFooter}><span>{contract.period === 'daily' ? 'ЕЖЕДНЕВНО' : 'ЕЖЕНЕДЕЛЬНО'}</span>{progress.completed && <span className={styles.done}>✓ ВЫПОЛНЕНО</span>}</div>
+                  </article>;
+                })}
+              </section> : <div className={styles.emptyState}><span className={styles.silhouette} aria-hidden="true">📜</span><h3>Контракты ждут группировку</h3><p>Сначала создайте убежище или вступите в существующее.</p><button className={styles.plainButton} type="button" onClick={() => setTab('all')}>К доске выживших →</button></div>)}
+            </>
           )}
+          {state.lastMessage && <p className={styles.status} role="status">{state.lastMessage}</p>}
         </div>
+      </section>
 
-        {/* Война кланов */}
-        {clan && (
-          <div style={sectionStyle}>
-            <div style={sectionTitle}>Война кланов</div>
-            <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', marginBottom: 8 }}>
-              <div><div style={labelStyle}>Побед</div><div style={valueStyle}>{clan.warWins}</div></div>
-              <div><div style={labelStyle}>Поражений</div><div style={valueStyle}>{clan.warLosses}</div></div>
-              {clan.warStreak > 1 && (
-                <div><div style={labelStyle}>Серия</div><div style={valueStyle}>{clan.warStreak}</div></div>
-              )}
-            </div>
+      {selected && <div className={styles.overlay} onClick={() => setSelectedId(null)}><section className={styles.detail} role="dialog" aria-modal="true" aria-label={`Убежище ${selected.name}`} onClick={(event) => event.stopPropagation()}><button type="button" className={styles.backButton} onClick={() => setSelectedId(null)}>← К доске выживших</button>{renderCard(selected, true)}</section></div>}
 
-            {!war ? (
-              <div style={{ fontSize: 13, color: '#888' }}>Противник ещё не назначен — загляните позже.</div>
-            ) : (
-              <>
-                <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>
-                  {leading ? '🏆' : '⚔️'} {war.enemyName}
-                </div>
-                <div style={{ fontSize: 12, color: '#888', marginBottom: 8 }}>
-                  Рейтинг: {war.enemyRating} · Очки врага: {war.enemyScore}
-                </div>
-
-                <div style={{ fontSize: 12, color: '#888' }}>Очки клана: {war.clanScore}</div>
-                {bar(scorePct, leading ? '#22c55e' : '#ef4444')}
-
-                <div style={{ fontSize: 12, color: '#888', marginTop: 8 }}>
-                  Ваш вклад: {war.contributions}/{CLAN_WAR_FULL_CONTRIB} (+{CLAN_WAR_CONTRIB_SCORE} очка)
-                </div>
-                {bar(contribPct, '#3b82f6')}
-
-                {!war.claimed ? (
-                  <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
-                    <button
-                      disabled={state.zhetons < CLAN_WAR_CONTRIB_COST || war.contributions >= CLAN_WAR_FULL_CONTRIB}
-                      onClick={() => dispatch({ type: 'CLAN_WAR_CONTRIBUTE' })}
-                      style={{
-                        flex: 1, padding: '10px 0', borderRadius: 8,
-                        background: 'linear-gradient(180deg,#3b82f6,#2563eb)',
-                        color: '#fff', fontWeight: 700, fontSize: 13,
-                        border: 'none', cursor: 'pointer',
-                        opacity: state.zhetons < CLAN_WAR_CONTRIB_COST || war.contributions >= CLAN_WAR_FULL_CONTRIB ? 0.5 : 1,
-                      }}
-                    >
-                      {war.contributions >= CLAN_WAR_FULL_CONTRIB ? 'Вклад полон' : `Взнос (${CLAN_WAR_CONTRIB_COST} жетон)`}
-                    </button>
-                    <button
-                      disabled={war.contributions < CLAN_WAR_MIN_CONTRIB}
-                      onClick={() => dispatch({ type: 'CLAN_WAR_CLAIM' })}
-                      style={{
-                        flex: 1, padding: '10px 0', borderRadius: 8,
-                        background: 'linear-gradient(180deg,#f59e0b,#d97706)',
-                        color: '#000', fontWeight: 700, fontSize: 13,
-                        border: 'none', cursor: 'pointer',
-                        opacity: war.contributions < CLAN_WAR_MIN_CONTRIB ? 0.5 : 1,
-                      }}
-                    >
-                      {war.contributions < CLAN_WAR_MIN_CONTRIB ? `С ${CLAN_WAR_MIN_CONTRIB} взн.` : '🏆 Награда'}
-                    </button>
-                  </div>
-                ) : (
-                  <div style={{ marginTop: 12, color: '#22c55e', fontSize: 13, fontWeight: 600, textAlign: 'center' }}>
-                    ✅ Награда получена
-                  </div>
-                )}
-              </>
-            )}
-          </div>
-        )}
-
-        {/* История войн */}
-        {history.length > 0 && (
-          <div style={sectionStyle}>
-            <div style={sectionTitle}>История</div>
-            {history.map((h) => (
-              <div key={`${h.dateKey}-${h.enemyName}`} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 4 }}>
-                <span>{h.win ? '🏆' : '💀'} {fmtDate(h.dateKey)} · {h.enemyName}</span>
-                <span style={{ color: h.win ? '#22c55e' : '#ef4444' }}>
-                  {h.clanScore}:{h.enemyScore} +{h.gold}з
-                </span>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
+      {showCreate && <div className={styles.overlay} onClick={() => setShowCreate(false)}><section className={styles.paper} role="dialog" aria-modal="true" aria-label="Создать убежище" onClick={(event) => event.stopPropagation()}><span className={styles.tape} aria-hidden="true" /><p className={styles.paperEyebrow}>ЗАПИСКА № 001 · ТОЛЬКО ДЛЯ СВОИХ</p><h3>Новое убежище</h3><p>Запишите название. Оставьте метку. Другие выжившие найдут вас.</p>
+        <form onSubmit={(event) => { event.preventDefault(); create(); }}>
+          <label htmlFor="clan-name">Название убежища / группировки</label>
+          <input id="clan-name" autoFocus value={name} onChange={(event) => { setName(event.target.value); setFormError(''); }} minLength={3} maxLength={20} placeholder="Например, Последний рубеж" required />
+          <fieldset><legend>Эмблема убежища</legend><div className={styles.emblemOptions}>{CLAN_EMBLEMS.map((option) => <label key={option.id} className={emblem === option.id ? styles.emblemSelected : styles.emblemOption}><input type="radio" name="emblem" value={option.id} checked={emblem === option.id} onChange={() => setEmblem(option.id)} /><span aria-hidden="true">{option.icon}</span><small>{option.label}</small></label>)}</div></fieldset>
+          <p className={styles.paperPrice}>Стоимость: 🪙 {number(CLAN_CREATE_GOLD)} припасов · осталось после: {number(Math.max(0, state.gold - CLAN_CREATE_GOLD))}</p>
+          {formError && <p className={styles.error} role="alert">{formError}</p>}
+          <div className={styles.actions}><button type="submit" className={styles.redButton}>ОСНОВАТЬ</button><button type="button" className={styles.plainButton} onClick={() => setShowCreate(false)}>ОТМЕНА</button></div>
+        </form>
+      </section></div>}
+      {stamp && <div className={styles.stamp} role="status">{stamp}</div>}
     </div>
   );
 };
