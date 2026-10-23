@@ -1,14 +1,17 @@
-﻿import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import styles from "../../style/PrisonCanvas/PrisonCanvas.module.scss";
 import { PrisonCanvasProps } from "./types";
 import { useCanvas } from "./useCanvas";
 import { useIcon } from "../../hooks/useIcon";
-import { APPEARANCES } from "../../game/constants";
+import { APPEARANCES, getNextLockedRoom, resolveBackground } from "../../game/constants";
 import { TASKS } from "./tasks";
 import { MapRaid } from "./drawUI";
 import { FAKE_BOSSES } from "./bosses";
 import { RaidModal } from "../../panels/RaidModal";
 import { ClanModal } from "../../panels/Clan";
+import { RoomModal } from "../../panels/Room";
+import { BossFightPanel, BossHub, PremiumShop } from "../../panels/Boss";
+import { FriendsPanel } from "../../panels/Friends";
 import { NotificationsPanel } from "../NotificationsPanel";
 import { useGame } from "../../game/GameContext";
 import { GameNotification } from "../../game/types";
@@ -87,13 +90,11 @@ export const FallenCanvas: React.FC<PrisonCanvasProps & {
   onGoCrafting,
   onOpenBossModal,
   // Профиль
-  showBossModal = false,
   showProfile = false,
   showMap = false,
   profileData,
   onProfileClose,
   onBattleClick,
-  onFriendsClick,
   onRaidClick,
   onGoDistrict,
   onCloseMap,
@@ -117,6 +118,8 @@ export const FallenCanvas: React.FC<PrisonCanvasProps & {
   // Спрайт босса для окна боя
   const [bossImage, setBossImage] = useState<HTMLImageElement | null>(null);
   const [showRoomModal, setShowRoomModal] = useState(false);
+  const [showPremiumShop, setShowPremiumShop] = useState(false);
+  const [showFriends, setShowFriends] = useState(false);
 
   // "Атаковать"/"В бой" — запускает бой через reducer (state.battle)
   const handleBossAttack = useCallback(
@@ -168,19 +171,20 @@ export const FallenCanvas: React.FC<PrisonCanvasProps & {
   const appearanceColor = APPEARANCES.find((item) => item.id === appearance)?.color ?? '#d4a574';
   const canvasTasks = tasks ?? TASKS;
 
-  // Загружаем фон и персонажа
+  // Загружаем фон (комната/скин) и персонажа.
   useEffect(() => {
+    const bgFile = resolveBackground(state.currentLocation, state.selectedSkins, state.unlockedRooms);
     const bgImg = new Image();
     const charImg = new Image();
-    
+
     bgImg.onload = () => setBackgroundImage(bgImg);
     bgImg.onerror = () => setBackgroundImage(null);
-    bgImg.src = `/room${(currentLocation || 'location1').replace('location', '')}.jpg`;
+    bgImg.src = `/${bgFile}`;
 
     charImg.onload = () => setCharacterImage(charImg);
     charImg.onerror = () => setCharacterImage(null);
     charImg.src = '/pers1.png';
-  }, [currentLocation]);
+  }, [state.currentLocation, state.selectedSkins, state.unlockedRooms]);
 
   // Загружаем карту
   useEffect(() => {
@@ -220,11 +224,6 @@ export const FallenCanvas: React.FC<PrisonCanvasProps & {
     img.src = avatarUrl;
   }, [avatarUrl]);
 
-  const handleSelectRoom = useCallback((roomId: string) => {
-    dispatch({ type: 'CHANGE_LOCATION', locationId: roomId });
-    if (state.unlockedRooms.includes(roomId)) setShowRoomModal(false);
-  }, [dispatch, state.unlockedRooms]);
-
   // Все кнопки "Назад" закрывают все оверлеи и возвращают на главную
   const handleBackToMain = useCallback(() => {
     onProfileClose?.();
@@ -245,6 +244,8 @@ export const FallenCanvas: React.FC<PrisonCanvasProps & {
   const handleToggleFullscreen = useCallback(() => {
     toggleFullscreenRef.current?.();
   }, []);
+
+  const lockedRoomsRemain = getNextLockedRoom(state.unlockedRooms) !== null;
 
   const { canvasRef, handleCanvasClick, handleMouseMove, handleMouseLeave, handleWheel, toggleFullscreen } = useCanvas(
     backgroundImage,
@@ -300,14 +301,14 @@ export const FallenCanvas: React.FC<PrisonCanvasProps & {
     onGoInventory,
     onGoQuests,
     onGoCrafting,
-    onFriendsClick,
+    () => setShowFriends(true),
     // State
     showProfile,
-    showBossModal,
+    false, // Боссы теперь в доступном React-окне
     showMap,
     profileData,
     FAKE_BOSSES,
-    state.battle,
+    state.battle?.source === 'boss' ? null : state.battle,
     state.medkits,
     state.grenades,
     mapRaids,
@@ -321,7 +322,10 @@ export const FallenCanvas: React.FC<PrisonCanvasProps & {
     showRoomModal,
     state.unlockedRooms,
     () => setShowRoomModal(true),
-    handleSelectRoom
+    undefined, // onSelectRoom — выбор комнаты теперь в React-модалке
+    lockedRoomsRemain,
+    state.premiumGold,
+    () => setShowPremiumShop(true)
   );
 
   // Связываем ref с реальной функцией fullscreen из useCanvas
@@ -368,6 +372,18 @@ export const FallenCanvas: React.FC<PrisonCanvasProps & {
       {/* Модальное окно клана */}
       {state.showClanModal && (
         <ClanModal onClose={() => dispatch({ type: 'TOGGLE_CLAN_MODAL' })} />
+      )}
+
+      {state.showBossModal && !state.battleVisible && (
+        <BossHub onClose={() => dispatch({ type: 'TOGGLE_BOSS_MODAL' })} />
+      )}
+      <BossFightPanel />
+      {showPremiumShop && <PremiumShop onClose={() => setShowPremiumShop(false)} />}
+      {showFriends && <FriendsPanel onClose={() => setShowFriends(false)} />}
+
+      {/* Модальное окно комнаты-убежища (в стиле клана) */}
+      {showRoomModal && (
+        <RoomModal onClose={() => setShowRoomModal(false)} />
       )}
     </div>
   );

@@ -1,5 +1,7 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useEffect, useState } from 'react';
 import { useGame } from '../game/GameContext';
+import { RAID_DANGER_TASKS, RAID_TASK_GOLD_PRICE } from '../game/survival';
+import styles from '../style/RaidModal.module.scss';
 
 interface RaidModalProps {
   raidId: string;
@@ -8,230 +10,68 @@ interface RaidModalProps {
   onMinimize: () => void;
 }
 
+const formatTime = (ms: number): string => {
+  const seconds = Math.max(0, Math.ceil(ms / 1000));
+  return `${String(Math.floor(seconds / 60)).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}`;
+};
+
 export const RaidModal = ({ raidId, onClaim, onCancel, onMinimize }: RaidModalProps) => {
-  const { state } = useGame();
-  const [timeLeft, setTimeLeft] = useState(0);
-  const [isCompleted, setIsCompleted] = useState(false);
-
-  // Берём рейд из списка — он живёт в состоянии и продолжает идти, даже если окно свёрнуто
-  const raidData = state.mapRaids.find((r) => r.id === raidId);
-
-  const formatTime = (ms: number): string => {
-    const totalSeconds = Math.floor(ms / 1000);
-    const minutes = Math.floor(totalSeconds / 60);
-    const seconds = totalSeconds % 60;
-    return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-  };
-
-  const updateTimer = useCallback(() => {
-    if (!raidData?.endTime) return;
-
-    const now = Date.now();
-    const remaining = raidData.endTime - now;
-
-    if (remaining <= 0) {
-      setTimeLeft(0);
-      setIsCompleted(true);
-    } else {
-      setTimeLeft(remaining);
-      setIsCompleted(false);
-    }
-  }, [raidData?.endTime]);
+  const { state, dispatch } = useGame();
+  const [now, setNow] = useState(Date.now());
+  const raid = state.mapRaids.find((entry) => entry.id === raidId);
+  const tasks = state.raidTasks?.raidId === raidId ? state.raidTasks : null;
 
   useEffect(() => {
-    updateTimer();
-    const interval = setInterval(updateTimer, 1000);
-    return () => clearInterval(interval);
-  }, [updateTimer]);
+    const timer = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(timer);
+  }, []);
 
-  if (!raidData) return null;
+  if (!raid) return null;
+  const completed = !!raid.endTime && now >= raid.endTime;
+  const duration = raid.endTime && raid.startTime ? raid.endTime - raid.startTime : 1;
+  const progress = Math.min(100, Math.max(0, ((now - (raid.startTime ?? now)) / duration) * 100));
+  const done = tasks?.completedIds.length ?? 0;
+  const remaining = RAID_DANGER_TASKS.filter((task) => !tasks?.completedIds.includes(task.id));
+  const affordableEnergy = remaining.some((task) => state.energy >= task.energy);
+  const close = () => {
+    if (tasks?.open) dispatch({ type: 'CLOSE_RAID_TASKS' });
+    else onMinimize();
+  };
 
-  const isRed = raidData.type === 'red';
-  const borderColor = isRed ? '#ff4444' : '#ffaa00';
-  const bgColor = isRed ? 'rgba(255, 68, 68, 0.1)' : 'rgba(255, 170, 0, 0.1)';
-  const zoneLabel = isRed ? 'ОПАСНАЯ ЗОНА' : 'СРЕДНЯЯ ЗОНА';
-
-  return (
-    <div
-      style={{
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        background: 'rgba(0, 0, 0, 0.85)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        zIndex: 10000,
-      }}
-      onClick={onMinimize}
-    >
-      <div
-        style={{
-          background: 'linear-gradient(180deg, #1a1a2e 0%, #16213e 100%)',
-          borderRadius: 16,
-          padding: 24,
-          maxWidth: 400,
-          width: '90%',
-          border: `2px solid ${borderColor}`,
-          boxShadow: `0 0 30px ${borderColor}40`,
-          position: 'relative',
-        }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Кнопка сворачивания */}
-        <button
-          onClick={onMinimize}
-          title="Свернуть (рейд продолжится)"
-          style={{
-            position: 'absolute',
-            top: 10,
-            right: 10,
-            width: 30,
-            height: 30,
-            borderRadius: 8,
-            background: 'rgba(255, 255, 255, 0.1)',
-            border: '1px solid #555',
-            color: '#fff',
-            fontSize: 16,
-            lineHeight: 1,
-            cursor: 'pointer',
-          }}
-        >
-          ─
-        </button>        {/* Заголовок */}
-        <div style={{ textAlign: 'center', marginBottom: 20 }}>
-          <div
-            style={{
-              display: 'inline-block',
-              padding: '4px 12px',
-              borderRadius: 20,
-              background: bgColor,
-              border: `1px solid ${borderColor}`,
-              color: borderColor,
-              fontSize: 12,
-              fontWeight: 'bold',
-              marginBottom: 8,
-            }}
-          >
-            {zoneLabel}
-          </div>
-          <h2 style={{ margin: 0, color: '#fff', fontSize: 20 }}>{raidData.name}</h2>
-          <p style={{ margin: '8px 0 0', color: '#888', fontSize: 13 }}>{raidData.description}</p>
-        </div>
-        
-        {/* Таймер */}
-        <div style={{ textAlign: 'center', marginBottom: 20 }}>
-          <div
-            style={{
-              fontSize: 48,
-              fontWeight: 'bold',
-              color: isCompleted ? '#00ff88' : borderColor,
-              fontFamily: 'monospace',
-              textShadow: `0 0 20px ${borderColor}80`,
-            }}
-          >
-            {isCompleted ? '✅ ГОТОВО' : formatTime(timeLeft)}
-          </div>
-          <p style={{ margin: '8px 0 0', color: '#666', fontSize: 12 }}>
-            {isCompleted ? 'Ресурсы готовы к получению' : 'Рейд в процессе... Можно свернуть — время продолжится.'}
-          </p>
-        </div>
-        
-        {/* Прогресс-бар */}
-        {!isCompleted && raidData.startTime && raidData.endTime && (
-          <div style={{ marginBottom: 20 }}>
-            <div
-              style={{
-                height: 8,
-                background: 'rgba(0, 0, 0, 0.4)',
-                borderRadius: 4,
-                overflow: 'hidden',
-              }}
-            >
-              <div
-                style={{
-                  height: '100%',
-                  width: `${((raidData.endTime - raidData.startTime - timeLeft) / (raidData.endTime - raidData.startTime)) * 100}%`,
-                  background: `linear-gradient(90deg, ${borderColor}, ${borderColor}aa)`,
-                  borderRadius: 4,
-                  transition: 'width 1s linear',
-                }}
-              />
-            </div>
-          </div>
-        )}
-        
-        {/* Награды */}
-        <div
-          style={{
-            background: 'rgba(0, 0, 0, 0.3)',
-            borderRadius: 12,
-            padding: 16,
-            marginBottom: 20,
-          }}
-        >
-          <h3 style={{ margin: '0 0 12px', color: '#ffd700', fontSize: 14, textAlign: 'center' }}>
-            💰 Награды
-          </h3>
-          <div style={{ display: 'flex', justifyContent: 'space-around' }}>
-            <div style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: 24 }}>🔫</div>
-              <div style={{ color: '#ccc', fontSize: 16, fontWeight: 'bold' }}>{raidData.rewards.bullets}</div>
-              <div style={{ color: '#888', fontSize: 11 }}>Пули</div>
-            </div>
-            <div style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: 24 }}>🔥</div>
-              <div style={{ color: '#ff8800', fontSize: 16, fontWeight: 'bold' }}>{raidData.rewards.matches}</div>
-              <div style={{ color: '#888', fontSize: 11 }}>Спички</div>
-            </div>
-            <div style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: 24 }}>⚙️</div>
-              <div style={{ color: '#00aaff', fontSize: 16, fontWeight: 'bold' }}>{raidData.rewards.materials}</div>
-              <div style={{ color: '#888', fontSize: 11 }}>Материалы</div>
-            </div>
-          </div>
-        </div>
-        
-        {/* Кнопки */}
-        <div style={{ display: 'flex', gap: 10 }}>
-          {isCompleted ? (
-            <button
-              onClick={onClaim}
-              style={{
-                flex: 1,
-                padding: '12px 20px',
-                background: 'linear-gradient(180deg, #00ff88 0%, #00cc66 100%)',
-                color: '#000',
-                border: 'none',
-                borderRadius: 10,
-                fontSize: 16,
-                fontWeight: 'bold',
-                cursor: 'pointer',
-              }}
-            >
-              ✅ Получить награду
-            </button>
-          ) : (
-            <button
-              onClick={onCancel}
-              style={{
-                flex: 1,
-                padding: '12px 20px',
-                background: 'rgba(255, 68, 68, 0.2)',
-                color: '#ff6666',
-                border: '1px solid #ff4444',
-                borderRadius: 10,
-                fontSize: 14,
-                cursor: 'pointer',
-              }}
-            >
-              ❌ Отменить
-            </button>
-          )}
-        </div>
+  return <div className={styles.backdrop} onClick={close}>
+    <section className={styles.panel} role="dialog" aria-modal="true" aria-label={`Рейд: ${raid.name}`} onClick={(event) => event.stopPropagation()}>
+      <header><span className={styles.lamp} aria-hidden="true"/><div><small>{raid.type === 'red' ? 'КРАСНАЯ ЗОНА · УГРОЗА' : 'ЖЁЛТАЯ ЗОНА · ВЫЛАЗКА'}</small><h2>{raid.name}</h2></div><button type="button" onClick={close} aria-label="Свернуть рейд">─</button></header>
+      <p>{raid.description} · Рейд продолжается после сворачивания.</p>
+      <strong className={styles.timer}>{completed ? '✅ ГОТОВО' : `⏱ ${formatTime((raid.endTime ?? now) - now)}`}</strong>
+      <div className={styles.progressLabel}><span>Время рейда</span><strong>{Math.round(progress)}%</strong></div>
+      <progress value={progress} max={100} aria-label="Ход рейда" />
+      <div className={styles.rewards}><span>🪵 +{raid.rewards.matches} спичек</span><span>⚙ +{raid.rewards.materials} материалов</span><span>🎟️ Опасные задания: {done}/{RAID_DANGER_TASKS.length}</span></div>
+      <button type="button" className={styles.taskButton} onClick={() => dispatch({ type: 'OPEN_RAID_TASKS', raidId })}>☢ ЗАДАНИЯ В РЕЙДЕ · {done}/{RAID_DANGER_TASKS.length}</button>
+      <div className={styles.actions}>
+        {completed ? <button type="button" className={styles.primary} onClick={onClaim}>ЗАБРАТЬ НАГРАДУ</button>
+          : <button type="button" onClick={onCancel}>ОТМЕНИТЬ РЕЙД (ВОЗВРАТ 50% ЭНЕРГИИ)</button>}
+        <button type="button" onClick={onMinimize}>СВЕРНУТЬ</button>
       </div>
-    </div>
-  );
+      {state.lastMessage && <p role="status" className={styles.notice}>{state.lastMessage}</p>}
+    </section>
+    {tasks?.open && <div className={styles.taskBackdrop} onClick={(event) => { event.stopPropagation(); dispatch({ type: 'CLOSE_RAID_TASKS' }); }}>
+      <section className={styles.taskPanel} role="dialog" aria-modal="true" aria-label="Опасные задания рейда" onClick={(event) => event.stopPropagation()}>
+        <span className={styles.tape} aria-hidden="true"/><small>ЗАПИСКА · ОПАСНОСТЬ РЕЙДА</small><h2>☢ ЗАДАНИЯ В РЕЙДЕ</h2>
+        <p>Выполняйте оставшиеся задания за энергию по порядку или сразу все за премиум-золото. Повторные награды запрещены.</p>
+        <div className={styles.progressLabel}><span>Выполнено</span><strong>{done}/{RAID_DANGER_TASKS.length}</strong></div>
+        <progress value={done} max={RAID_DANGER_TASKS.length} aria-label="Выполненные задания" />
+        <ul>{RAID_DANGER_TASKS.map((task) => <li key={task.id}>
+          <span>{tasks.completedIds.includes(task.id) ? '✓' : '☠'}</span><div><strong>{task.title}</strong><small>⚡ {task.energy} · 🎟️ +{task.tokens} · ❤️ +{task.hp} HP</small></div>
+          <span>{tasks.completedIds.includes(task.id) ? 'ВЫПОЛНЕНО' : 'НЕ ПРОЙДЕНО'}</span>
+        </li>)}</ul>
+        <div className={styles.rewards}><span>⚡ Энергия: {state.energy}</span><span>🪙 Золото: {state.premiumGold}</span><span>❤️ HP: {state.health}/{state.maxHealth}</span></div>
+        <div className={styles.actions}>
+          <button type="button" disabled={!remaining.length || !affordableEnergy} onClick={() => dispatch({ type: 'COMPLETE_RAID_TASKS', raidId, mode: 'energy' })}>⚡ ВЫПОЛНИТЬ ЗА ЭНЕРГИЮ</button>
+          <button type="button" className={styles.primary} disabled={!remaining.length || state.premiumGold < RAID_TASK_GOLD_PRICE} onClick={() => dispatch({ type: 'COMPLETE_RAID_TASKS', raidId, mode: 'gold' })}>🪙 ВСЁ ЗА {RAID_TASK_GOLD_PRICE} ЗОЛОТА</button>
+          <button type="button" onClick={() => dispatch({ type: 'CLOSE_RAID_TASKS' })}>ЗАКРЫТЬ</button>
+        </div>
+        {state.lastMessage && <p role="status" className={styles.notice}>{state.lastMessage}</p>}
+      </section>
+    </div>}
+  </div>;
 };

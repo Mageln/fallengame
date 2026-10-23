@@ -1,3 +1,5 @@
+import type { ResourceEvent } from './survival';
+
 export type AppearanceId = 0 | 1 | 2 | 3 | 4 | 5;
 
 export type Rarity = 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary';
@@ -216,7 +218,12 @@ export interface BattleState {
   outcome: 'fighting' | 'won' | 'lost';
   startedAt: number; // Date.now() на старте — ключ владения наградой
   endedAt: number | null; // Date.now() на финале
-  reward: { gold: number; bullets: number; keys: number; zhetons: number; room?: string | null } | null; // показывается на экране победы
+  reward: { gold: number; bullets: number; keys: number; zhetons: number; room?: string | null; roomChance?: number; dropped?: boolean } | null;
+  damageDealt: number;
+  endsAt: number;
+  lastCounterAt: number;
+  skillReadyAt: Record<string, number>;
+  lastSkillId: string | null;
 }
 
 export interface RaidState {
@@ -330,15 +337,65 @@ export interface GastState {
   districtId: string | null;
 }
 
+export interface RoomDropResult {
+  roomId: string | null;
+  chance: number;
+  damage: number;
+  dropped: boolean;
+  at: number;
+}
+
+export interface BossAttacks {
+  date: string;
+  used: number;
+  purchased: number;
+}
+
+export interface RaidTaskState {
+  raidId: string;
+  completedIds: string[];
+  open: boolean;
+}
+
+// ===== УБЕЖИЩЕ / КОМНАТА (зомби-апокалипсис) =====
+export type ShelterItemId =
+  | 'open_room'
+  | 'bed'
+  | 'weapon_crate'
+  | 'survivor_kit'
+  | 'generator';
+
+export interface ShelterItem {
+  id: ShelterItemId;
+  icon: string;
+  name: string;
+  description: string;
+  price: number;
+  repeatable: boolean;
+}
+
+// Скин/оформление комнаты: задаёт фон главного экрана.
+export interface RoomSkin {
+  id: string;
+  roomId: string;
+  name: string;
+  description: string;
+  bg: string; // имя файла в /public (напр. 'room2.jpg')
+  price: number; // 0 — базовое оформление комнаты (выдаётся вместе с ней)
+}
+
 export interface GameState {
   appearance: AppearanceId;
   tutorialStep: number;
   energy: number;
   maxEnergy: number;
   bullets: number;
-  gold: number;
+  gold: number; // игровые припасы (старое название для сохранений)
+  premiumGold: number; // только подтверждённое сервером пополнение
   zhetons: number;
   matches: number;
+  health: number;
+  maxHealth: number;
   grenades: number;
   medkits: number;
   keys: number;
@@ -367,6 +424,13 @@ export interface GameState {
   daily: DailyState;
   gast: GastState;
   battle: BattleState | null;
+  battleVisible: boolean;
+  bossAttacks: BossAttacks;
+  lastRoomRoll: RoomDropResult | null;
+  pendingRoomDrop: RoomDropResult | null;
+  raidTasks: RaidTaskState | null;
+  raidTaskProgress: Record<string, string[]>;
+  resourceEvents: ResourceEvent[];
   // Остаточное HP боссов после отступления/поражения: id -> HP.
   // Позволяет добить босса в следующем заходе, а не начинать с нуля.
   woundedBosses: Record<string, number>;
@@ -383,6 +447,13 @@ export interface GameState {
   mapRaids: MapRaid[];
   notifications: GameNotification[];
   showNotifications: boolean;
+  // ── Убежище (комната) ──
+  caps: number; // донатная валюта «Крышки»
+  shelterBed: boolean; // Кровать выжившего (+50% энергии)
+  shelterGenerator: boolean; // Генератор (ускоренное производство/реген)
+  shelterKit: boolean; // Набор выжившего (куплен хотя бы раз)
+  ownedSkins: string[]; // купленные скины комнат
+  selectedSkins: Record<string, string>; // roomId -> skinId
 }
 
 export type GameAction =
@@ -403,6 +474,11 @@ export type GameAction =
   | { type: 'START_BOSS'; districtId: string }
   | { type: 'START_BOSS_FIGHT'; bossId: string }
   | { type: 'START_GAST' }
+  | { type: 'OPEN_BATTLE' }
+  | { type: 'BOSS_TICK'; now: number }
+  | { type: 'BOSS_SKILL'; skillId: string; now: number }
+  | { type: 'BUY_BOSS_ATTACK' }
+  | { type: 'CLAIM_ROOM' }
   | { type: 'BATTLE_ATTACK'; technique: boolean }
   | { type: 'BATTLE_POWER' }
   | { type: 'BATTLE_COMBO' }
@@ -417,6 +493,9 @@ export type GameAction =
   | { type: 'RAID_BYPASS' }
   | { type: 'RAID_LOOT' }
   | { type: 'LEAVE_RAID' }
+  | { type: 'OPEN_RAID_TASKS'; raidId: string }
+  | { type: 'CLOSE_RAID_TASKS' }
+  | { type: 'COMPLETE_RAID_TASKS'; raidId: string; mode: 'gold' | 'energy' }
   | { type: 'LOTTERY' }
   | { type: 'SEARCH_FRIEND' }
   | { type: 'RADIO_HELP' }
@@ -448,6 +527,9 @@ export type GameAction =
   | { type: 'CLEAR_NOTIFICATIONS' }
   | { type: 'CLAIM_RAID_REWARD'; raidId: string }
   | { type: 'CHANGE_LOCATION'; locationId: string }
+  | { type: 'BUY_SHELTER_ITEM'; itemId: ShelterItemId }
+  | { type: 'BUY_SKIN'; skinId: string }
+  | { type: 'APPLY_SKIN'; skinId: string }
   | { type: 'HYDRATE_STATE'; state: GameState }
   | { type: 'ADD_RESOURCE'; resource: 'energy' | 'bullets' | 'gold' | 'matches' | 'zhetons'; amount: number }
   | { type: 'CLEAR_MESSAGE' };

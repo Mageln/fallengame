@@ -105,8 +105,16 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   useEffect(() => {
-    const id = window.setInterval(() => dispatch({ type: 'RESTORE_ENERGY_TICK' }), ENERGY_TICK_MS);
+    // Генератор убежища ускоряет восстановление энергии вдвое.
+    const interval = state.shelterGenerator ? ENERGY_TICK_MS / 2 : ENERGY_TICK_MS;
+    const id = window.setInterval(() => dispatch({ type: 'RESTORE_ENERGY_TICK' }), interval);
     return () => window.clearInterval(id);
+  }, [state.shelterGenerator]);
+
+  // Бой живёт в состоянии игры и обновляется даже когда экран скрыт.
+  useEffect(() => {
+    const timer = window.setInterval(() => dispatch({ type: 'BOSS_TICK', now: Date.now() }), 1000);
+    return () => window.clearInterval(timer);
   }, []);
 
   const value = useMemo<GameContextValue>(

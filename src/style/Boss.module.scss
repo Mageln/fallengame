@@ -1,0 +1,62 @@
+.backdrop { position: fixed; inset: 0; z-index: 10020; display: grid; place-items: center; padding: 12px; background: radial-gradient(circle at 50% 10%, #442118, #100f0d 70%); color: #d8d0c0; font-family: 'Courier Prime', 'Courier New', monospace; box-sizing: border-box; }
+.backdrop * { box-sizing: border-box; }
+.backdrop button { cursor: pointer; font: inherit; }
+.backdrop button:disabled { opacity: .48; cursor: not-allowed; }
+.backdrop :focus-visible { outline: 2px solid #c9a227; outline-offset: 2px; }
+.panel { position: relative; width: min(850px, 100%); max-height: 94dvh; overflow: auto; padding: 20px; border: 3px ridge #6b4a2f; box-shadow: inset 0 0 35px #100f0c, 0 15px 60px #000; background: radial-gradient(circle at 80% 15%, rgba(139,26,26,.22), transparent 36%), repeating-linear-gradient(104deg, transparent 0 70px, rgba(216,208,192,.025) 71px 73px), #1a1a1a; }
+.panel::before { content: ''; position: absolute; inset: 5px; border: 1px solid #5b4330; pointer-events: none; }
+.header { display: flex; gap: 14px; align-items: center; border-bottom: 2px dashed #6b4a2f; padding-bottom: 13px; }
+.header div { flex: 1; }
+.header h2, .results strong { margin: 2px 0; font: bold clamp(17px, 3vw, 28px) Stencil, Impact, sans-serif; letter-spacing: .08em; }
+.header small { color: #c9a227; letter-spacing: .17em; }
+.header button, .warning button, .primary, .bossCard button, .actions button, .results button, .exit { border: 1px solid #aa593b; background: linear-gradient(135deg, #8b1a1a, #4d1c18); color: #e8d8c8; padding: 9px 13px; }
+.header button:active, .warning button:active, .bossCard button:active, .skillGrid button:active { animation: rattle .15s linear; }
+.lamp { width: 13px; height: 13px; border-radius: 50%; background: #d6402c; box-shadow: 0 0 14px #8b1a1a; animation: blink 3.2s steps(1) infinite; }
+.wallet { display: flex; flex-wrap: wrap; gap: 7px; margin: 14px 0; }
+.wallet span { display: inline-block; background: #2f2920; border: 1px solid #59452c; padding: 6px 8px; font-size: 12px; }
+.primary { width: 100%; margin: 8px 0 14px; }
+.warning { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 10px; margin: 9px 0; border: 1px solid #8b1a1a; }
+.warning strong { color: #ecaaa0; }
+.roster { display: grid; gap: 12px; }
+.bossCard { display: flex; align-items: center; gap: 12px; padding: 12px; background: linear-gradient(115deg, #38281e, #201e1a); border: 1px solid #665037; }
+.bossPortrait { flex: 0 0 82px; height: 82px; overflow: hidden; border: 3px solid #6b4a2f; }
+.bossPortrait img { width: 100%; height: 100%; object-fit: cover; }
+.bossInfo { flex: 1; min-width: 0; }
+.bossInfo h3 { margin: 0; color: #c9a227; font-family: Stencil, Impact, sans-serif; }
+.bossInfo p { font-size: 12px; line-height: 1.4; margin: 6px 0; }
+.bossInfo span { color: #bfb5a3; font-size: 11px; }
+.notice { padding: 8px 10px; border-left: 3px solid #c9a227; background: #35291e; font-size: 12px; }
+.overlay { position: fixed; inset: 0; z-index: 10021; display: grid; place-items: center; padding: 12px; background: rgba(0,0,0,.8); }
+.paper { position: relative; width: min(440px, 100%); padding: 29px; background: repeating-linear-gradient(176deg, #c7bb98 0 3px, #bcae8c 4px 5px); box-shadow: 5px 6px 0 #3d3224; color: #342418; transform: rotate(-1deg); }
+.paper h3 { font: 22px Stencil, Impact, sans-serif; }
+.paper small { color: #8b1a1a; }
+.tape { position: absolute; top: -4px; left: 45%; width: 50px; height: 15px; background: rgba(230,215,170,.65); }
+.actions { display: flex; gap: 9px; }
+.actions button:last-child { background: #3d4a2f; border-color: #5a7a3a; }
+.fight { width: min(980px, 100%); }
+.arena { display: grid; grid-template-columns: 1fr minmax(155px, 1.2fr) 1fr; gap: 10px; align-items: center; background: linear-gradient(180deg, rgba(26,26,26,.3), rgba(74,34,25,.56)), url('/background.jpg') center/cover; padding: 15px; border: 1px solid #6b4a2f; }
+.arena > div { min-width: 0; display: grid; justify-items: center; gap: 6px; text-align: center; }
+.arena img { width: clamp(75px, 16vw, 130px); height: clamp(78px, 16vw, 135px); object-fit: cover; border: 3px solid #6b4a2f; box-shadow: 0 0 20px #000; }
+.arena strong { font-size: 11px; }
+.arena progress, .arenaStatus progress { width: 100%; height: 13px; accent-color: #78a447; }
+.arenaStatus { font-size: 12px; background: rgba(25,22,18,.85); padding: 10px; border: 1px dashed #886648; }
+.timer { color: #c9a227; font-size: 22px; font-weight: bold; text-shadow: 0 0 9px #8b1a1a; }
+.damage { font-size: 27px !important; color: #e54234; animation: impact .7s ease-out both; }
+.skillGrid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 7px; margin: 13px 0; }
+.skillGrid button { display: grid; justify-items: center; align-content: center; gap: 3px; min-height: 66px; color: #d8d0c0; border: 1px solid #7d4935; background: linear-gradient(150deg, #6b4a2f, #32271e); font-weight: bold; font-size: 12px; }
+.skillGrid button span { font-size: 20px; }
+.skillGrid button small { color: #c9a227; }
+.exit { width: 100%; }
+.results { text-align: center; padding: 18px 7px; border: 1px solid #6b4a2f; margin: 13px 0; background: rgba(21,20,17,.85); }
+.results .success { color: #78a447; }
+.results .failure { color: #e66051; }
+.results p { font-size: 12px; }
+.results button { padding: 12px 20px; }
+.battleLog { max-height: 125px; overflow-y: auto; padding: 6px 13px; background: #25221c; font-size: 12px; }
+.battleLog h3 { margin: 5px 0; font: 15px Stencil, Impact, sans-serif; }
+.battleLog p { margin: 3px 0; }
+@keyframes blink { 0%, 92%, 100% { opacity: 1; } 93%, 97% { opacity: .2; } }
+@keyframes rattle { 50% { transform: translateX(2px) rotate(.3deg); } }
+@keyframes impact { from { transform: scale(1.5) translateY(9px); opacity: 0; } to { transform: scale(1) translateY(0); opacity: 1; } }
+@media (max-width: 600px) { .panel { padding: 12px; } .header h2 { font-size: 18px; } .bossCard { flex-wrap: wrap; } .bossCard button { width: 100%; } .arena { grid-template-columns: 1fr 1.3fr 1fr; padding: 6px; gap: 4px; } .arena img { width: 65px; height: 72px; } .timer { font-size: 16px; } .skillGrid { grid-template-columns: repeat(2, 1fr); } }
+@media (prefers-reduced-motion: reduce) { .backdrop *, .backdrop *::before { animation: none !important; transition: none !important; } }

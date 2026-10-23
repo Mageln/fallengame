@@ -265,7 +265,7 @@ export const Home = ({ id }: HomeProps) => {
         onGoCrafting={() => navigator.push(DEFAULT_VIEW_PANELS.CRAFTING)}
         onLottery={() => dispatch({ type: 'LOTTERY' })}
         onClaimDaily={() => dispatch({ type: 'CLAIM_DAILY' })}
-        onOpenBossModal={() => dispatch({ type: 'TOGGLE_BOSS_MODAL' })}
+        onOpenBossModal={() => dispatch({ type: state.battle?.source === 'boss' ? 'OPEN_BATTLE' : 'TOGGLE_BOSS_MODAL' })}
         onCloseMap={closeMapOnly}
         showProfile={showProfile}
         profileData={profileData}

@@ -1,5 +1,6 @@
 import { TUTORIAL, DAILY_QUESTS, STARTER_WEAPON, DEFAULT_STATS } from './constants';
 import { dateKey, weekKey } from './formulas';
+import { todayUtc } from './survival';
 import { GameState } from './types';
 
 export const createInitialState = (): GameState => ({
@@ -10,8 +11,11 @@ export const createInitialState = (): GameState => ({
   // Начальные ресурсы у всех пользователей равны 0
   bullets: 0,
   gold: 0,
+  premiumGold: 0,
   zhetons: 0,
   matches: 0,
+  health: 100,
+  maxHealth: 100,
   grenades: 0,
   medkits: 0,
   keys: 0,
@@ -54,6 +58,13 @@ export const createInitialState = (): GameState => ({
     districtId: null,
   },
   battle: null,
+  battleVisible: false,
+  bossAttacks: { date: todayUtc(), used: 0, purchased: 0 },
+  lastRoomRoll: null,
+  pendingRoomDrop: null,
+  raidTasks: null,
+  raidTaskProgress: {},
+  resourceEvents: [],
   woundedBosses: {},
   raid: null,
   radioRequests: ['Сосед просит аптечку у стены', 'Клан ищет помощь на рынке'],
@@ -182,4 +193,11 @@ export const createInitialState = (): GameState => ({
   ],
   currentLocation: 'location1',
   unlockedRooms: ['location1'],
+  // Убежище (комната)
+  caps: 0,
+  shelterBed: false,
+  shelterGenerator: false,
+  shelterKit: false,
+  ownedSkins: [],
+  selectedSkins: {},
 });

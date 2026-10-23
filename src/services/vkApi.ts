@@ -5,6 +5,8 @@ export interface VkUser {
   first_name: string;
   last_name: string;
   photo_200: string;
+  online?: number;
+  level?: number | null;
   // Дополнительные поля для тестирования
   friends?: VkUser[];
   clan?: {
@@ -209,6 +211,25 @@ export async function getVkUser(): Promise<VkUser | null> {
 /**
  * Получает список друзей пользователя
  */
+// Только пользователи, для которых VK подтвердил установку приложения.
+// Обычный friends.get и моковые друзья не считаются игроками.
+export async function getPlayingFriends(): Promise<VkUser[]> {
+  const token = getSavedToken();
+  if (!token) return [];
+  const response = await vkApiJsonp('friends.getAppUsers', { access_token: token, v: '5.131' });
+  if (response.error) throw new Error(response.error.error_msg || 'Нет доступа к списку друзей VK.');
+  const ids = Array.isArray(response.response) ? response.response.filter((id: unknown): id is number => Number.isInteger(id)) : [];
+  if (!ids.length) return [];
+  const info = await vkApiJsonp('users.get', { user_ids: ids.slice(0, 100).join(','), fields: 'photo_200,online', access_token: token, v: '5.131' });
+  if (info.error) throw new Error(info.error.error_msg || 'Не удалось загрузить друзей.');
+  return (info.response ?? []).map((friend: VkUser) => ({ ...friend, level: null }));
+}
+
+export async function inviteVkFriends(): Promise<void> {
+  if (!bridge.supports('VKWebAppShowInviteBox')) throw new Error('Приглашения недоступны вне приложения VK.');
+  await bridge.send('VKWebAppShowInviteBox');
+}
+
 export async function getVkFriends(): Promise<VkUser[]> {
   try {
     const customToken = getSavedToken();

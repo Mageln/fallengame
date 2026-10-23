@@ -1,10 +1,10 @@
-﻿// Отрисовка UI внутри Canvas
+// Отрисовка UI внутри Canvas
 
 import type { BattleState } from '../../game/types';
 import { LOCATIONS } from '../../game/constants';
-import { BOSSES } from '../../game/bosses';
 import { drawProfile } from './drawProfile';
 import { getVisibleBounds } from './iconBounds';
+import { drawShelterDoor } from './shelter';
 
 // === Анимации боя: вычисляются из изменений HP (модульное состояние) ===
 const _fightAnim = {
@@ -98,6 +98,7 @@ export interface GameData {
   spicki: number;
   bullets: number;
   gold: number;
+  premiumGold: number;
   zhetons: number;
   level: number;
   carLevel: number;
@@ -285,7 +286,8 @@ const drawRightPanel = (
   hoveredY: number,
   buttons: ButtonPosition[],
   carouselOffset: number = 0,
-  hoverAnim: HoverAnim = EMPTY_HOVER_ANIM
+  hoverAnim: HoverAnim = EMPTY_HOVER_ANIM,
+  lockedRoomsRemain: boolean = false
 ) => {
   const buttonSize = 88;
   const gap = 22;
@@ -366,6 +368,13 @@ const drawRightPanel = (
       ctx.beginPath();
       ctx.arc(0, 0, slotSize / 2 - 4, 0, Math.PI * 2);
       ctx.fill();
+    }
+
+    // Кнопка «Комната» — ржавая дверь убежища вместо иконки.
+    if (item.action === 'go_komnata') {
+      drawShelterDoor(ctx, iconSize, active, lockedRoomsRemain);
+      ctx.restore();
+      return;
     }
 
     // Иконка из картинки
@@ -523,6 +532,7 @@ const drawTopBar = (
   spicki: number,
   bullets: number,
   gold: number,
+  premiumGold: number,
   zhetons: number,
   level: number,
   playerName: string,
@@ -781,12 +791,13 @@ const drawTopBar = (
     currentX = capX - 6; // следующий ресурс левее с зазором
   };
 
-  // Порядок справа налево: жетоны, спички, патроны, золото, энергия
-  drawResource(zhetons, icons.zhetons, '🎰', '#fff', 'restore_zhetons');
-  drawResource(spicki, icons.spicki, '🔥', '#ff8844', 'restore_spicki');
-  drawResource(bullets, icons.bullets, '🔫', '#ccc', 'restore_bullets');
-  drawResource(gold, icons.gold, '💰', '#ffd700', 'restore_gold');
-  drawResource(`${energy}/${maxEnergy}`, icons.energy, '⚡', '#ffaa00', 'restore_energy');
+  // Премиум-золото не смешиваем с игровыми припасами. Плюсы не выдают ресурсы бесплатно.
+  drawResource(zhetons, null, '🎟️', '#d8d0c0');
+  drawResource(spicki, null, '🪵', '#d8d0c0');
+  drawResource(bullets, null, '🔫', '#d8d0c0');
+  drawResource(gold, null, '💰', '#c9a227');
+  drawResource(premiumGold, null, '🪙', '#c9a227', 'open_donation_shop');
+  drawResource(`${energy}/${maxEnergy}`, icons.energy, '⚡', '#d8d0c0');
 
   // ===== КНОПКА FULLSCREEN (правее ресурсов, на одном уровне) =====
   // currentX указывает на левый край последней капсулы — рисуем кнопку левее
@@ -888,78 +899,6 @@ const drawTopBar = (
   buttons.push({ x: notifX, y: notifY, width: notifSize, height: notifSize, id: 'notifications' });
 };
 
-const drawRoomModal = (
-  ctx: CanvasRenderingContext2D,
-  width: number,
-  height: number,
-  unlockedRooms: string[],
-  currentLocation: string,
-  hoveredX: number,
-  hoveredY: number,
-  buttons: ButtonPosition[]
-) => {
-  ctx.fillStyle = 'rgba(10, 15, 20, 0.96)';
-  ctx.fillRect(0, 0, width, height);
-
-  const panelW = Math.min(width - 24, 480);
-  const x = (width - panelW) / 2;
-  const listTop = height < 450 ? 107 : 125;
-  const gap = 6;
-  const cardH = Math.max(26, Math.min(66, (height - listTop - 48 - gap * 4) / LOCATIONS.length));
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.fillStyle = '#ffd700';
-  ctx.font = 'bold 22px Arial';
-  ctx.fillText('КОМНАТЫ', width / 2, 76);
-  ctx.fillStyle = '#cccccc';
-  ctx.font = '12px Arial';
-  ctx.fillText('Побеждайте боссов, чтобы открывать комнаты', width / 2, height < 450 ? 96 : 103, panelW);
-
-  LOCATIONS.forEach((room, index) => {
-    const y = listTop + index * (cardH + gap);
-    const unlocked = unlockedRooms.includes(room.id);
-    const selected = room.id === currentLocation;
-    const hovered = unlocked && hoveredX >= x && hoveredX <= x + panelW && hoveredY >= y && hoveredY <= y + cardH;
-    ctx.fillStyle = selected ? '#39432a' : hovered ? '#303d48' : unlocked ? '#222c35' : '#1b1d22';
-    ctx.beginPath();
-    ctx.roundRect(x, y, panelW, cardH, 6);
-    ctx.fill();
-    ctx.strokeStyle = selected ? '#ffd700' : unlocked ? '#708493' : '#444850';
-    ctx.lineWidth = 1;
-    ctx.stroke();
-
-    ctx.textAlign = 'left';
-    ctx.font = 'bold 15px Arial';
-    ctx.fillStyle = unlocked ? '#fff' : '#888';
-    ctx.fillText(`${unlocked ? '🚪' : '🔒'} ${room.name}`, x + 12, y + (cardH < 40 ? cardH / 2 : cardH * 0.35));
-    ctx.font = '11px Arial';
-    ctx.fillStyle = selected ? '#ffd700' : unlocked ? '#9dccb3' : '#aaa';
-    const boss = BOSSES.find((entry) => entry.reward.room === room.id);
-    const status = selected ? 'Вы здесь' : unlocked ? 'Войти' : `Победите босса «${boss?.name ?? 'Неизвестный'}»`;
-    if (cardH < 40) {
-      ctx.textAlign = 'right';
-      ctx.fillText(status, x + panelW - 12, y + cardH / 2, panelW * 0.53);
-    } else {
-      ctx.fillText(status, x + 40, y + cardH * 0.72, panelW - 50);
-    }
-    if (unlocked) buttons.push({ x, y, width: panelW, height: cardH, id: `room_select_${room.id}` });
-  });
-
-  const backY = height - 42;
-  ctx.fillStyle = hoveredX >= x && hoveredX <= x + panelW && hoveredY >= backY && hoveredY <= backY + 32
-    ? '#725521' : '#453618';
-  ctx.beginPath();
-  ctx.roundRect(x, backY, panelW, 32, 6);
-  ctx.fill();
-  ctx.strokeStyle = '#a77b30';
-  ctx.stroke();
-  ctx.fillStyle = '#fff';
-  ctx.textAlign = 'center';
-  ctx.font = 'bold 14px Arial';
-  ctx.fillText('Назад', width / 2, backY + 16);
-  buttons.push({ x, y: backY, width: panelW, height: 32, id: 'back_to_main' });
-};
-
 export const drawUI = (
   ctx: CanvasRenderingContext2D,
   width: number,
@@ -980,7 +919,8 @@ export const drawUI = (
   hoverAnim: HoverAnim = EMPTY_HOVER_ANIM,
   bossScroll: number = 0,
   bossImage: HTMLImageElement | null = null,
-  mapMessage: string = ''
+  mapMessage: string = '',
+  lockedRoomsRemain: boolean = false
 ): ButtonPosition[] => {
   const buttons: ButtonPosition[] = [];
   
@@ -1007,9 +947,6 @@ export const drawUI = (
   } else if (flags.showMap) {
     overlayButtons = [];
     drawMapRaids(ctx, width, height, mapRaids, hoveredX, hoveredY, overlayButtons, mapImage, mapMessage);
-  } else if (flags.showRoomModal) {
-    overlayButtons = [];
-    drawRoomModal(ctx, width, height, flags.unlockedRooms ?? [], flags.currentLocation ?? 'location1', hoveredX, hoveredY, overlayButtons);
   }
 
   // ===== Верхняя панель (рисуется ПОСЛЕДНЕЙ — видна везде, поверх оверлеев) =====
@@ -1021,6 +958,7 @@ export const drawUI = (
     data.spicki,
     data.bullets,
     data.gold,
+    data.premiumGold,
     data.zhetons,
     data.level,
     data.playerName || 'Игрок',
@@ -1051,7 +989,7 @@ export const drawUI = (
   
   // ===== Боковые панели =====
 
-  drawRightPanel(ctx, width, height, icons, hoveredX, hoveredY, buttons, carouselOffset, hoverAnim);
+  drawRightPanel(ctx, width, height, icons, hoveredX, hoveredY, buttons, carouselOffset, hoverAnim, lockedRoomsRemain);
   
   // ===== Нижние кнопки =====
   drawBottomButtons(ctx, width, height, icons, hoveredX, hoveredY, buttons, hoverAnim);

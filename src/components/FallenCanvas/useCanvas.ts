@@ -85,7 +85,10 @@ export const useCanvas = (
   showRoomModal: boolean = false,
   unlockedRooms: string[] = [],
   onOpenRoomModal?: () => void,
-  onSelectRoom?: (roomId: string) => void
+  onSelectRoom?: (roomId: string) => void,
+  lockedRoomsRemain: boolean = false,
+  premiumGold: number = 0,
+  onDonationClick?: () => void
 ) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const hoveredRef = useRef({ x: 0, y: 0 });
@@ -101,6 +104,12 @@ export const useCanvas = (
   const stillSinceRef = useRef(0);
   const shakeLevelRef = useRef(0);
   const rafRef = useRef<number | null>(null);
+  // Кроссфейд фона: предыдущее/текущее изображение и момент начала перехода.
+  const bgRef = useRef<{ current: HTMLImageElement | null; prev: HTMLImageElement | null; start: number }>({
+    current: backgroundImage,
+    prev: null,
+    start: 0,
+  });
 
   // Refs для callback'ов чтобы не менять зависимости
   const callbacksRef = useRef<Record<string, ((...args: any[]) => any) | undefined>>({
@@ -141,6 +150,7 @@ export const useCanvas = (
     onGoCrafting,
     onFriendsClick,
     onNotificationsClick,
+    onDonationClick,
   });
 
   // Обновляем ref callback'ов при каждом изменении
@@ -183,6 +193,7 @@ export const useCanvas = (
       onGoCrafting,
       onFriendsClick,
       onNotificationsClick,
+      onDonationClick,
     };
   }, [
     onProfileClick, onBattleClick, onBossModalClose, onCloseMap,
@@ -193,7 +204,7 @@ export const useCanvas = (
     onFightHeal, onFightGrenade, onOpenRoomModal, onSelectRoom,
     onClanClick, onInventoryClick, onQuestsClick, onCraftingClick,
     onGoClan, onGoInventory, onGoQuests, onGoCrafting, onFriendsClick,
-    onNotificationsClick
+    onNotificationsClick, onDonationClick
   ]);
 
   const render = useCallback(() => {
@@ -220,8 +231,10 @@ export const useCanvas = (
     const h = displayHeight;
 
     ctx.clearRect(0, 0, w, h);
-    
-    drawBackground(ctx, w, h, backgroundImage);
+
+    const bgState = bgRef.current;
+    const bgTransition = bgState.start > 0 ? Math.min(1, (performance.now() - bgState.start) / 400) : 1;
+    drawBackground(ctx, w, h, backgroundImage, bgState.prev, bgTransition);
     drawCharacter(ctx, CHARACTER_POSITION, characterImage, appearanceColor);
     
     updateParticles();
@@ -234,7 +247,7 @@ export const useCanvas = (
 
     const buttons = drawUI(
       ctx, w, h,
-      { energy, maxEnergy, spicki, bullets, gold, zhetons, level, carLevel, districtName, authority, playerName, avatarImage, unreadNotifications },
+      { energy, maxEnergy, spicki, bullets, gold, premiumGold, zhetons, level, carLevel, districtName, authority, playerName, avatarImage, unreadNotifications },
       profileData,
       flags,
       {
@@ -270,15 +283,33 @@ export const useCanvas = (
       hoverAnimRef.current,
       bossScrollRef.current,
       bossImage,
-      mapMessage
+      mapMessage,
+      lockedRoomsRemain
     );
 
     buttonPositionsRef.current = buttons;
     needsRenderRef.current = false;
-  }, [backgroundImage, characterImage, icons, energy, maxEnergy, authority, spicki, bullets, gold, zhetons, tasks, appearanceColor, currentLocation, carLevel, level, districtName, playerName, avatarImage, showProfile, showBossModal, showMap, showRoomModal, unlockedRooms, battle, profileData, bosses, medkits, grenades, mapRaids, mapImage, topBarImage, bossImage, fullscreen, mapMessage, unreadNotifications]);
+  }, [backgroundImage, characterImage, icons, energy, maxEnergy, authority, spicki, bullets, gold, premiumGold, zhetons, tasks, appearanceColor, currentLocation, carLevel, level, districtName, playerName, avatarImage, showProfile, showBossModal, showMap, showRoomModal, unlockedRooms, battle, profileData, bosses, medkits, grenades, mapRaids, mapImage, topBarImage, bossImage, fullscreen, mapMessage, unreadNotifications, lockedRoomsRemain]);
 
   // Всегда актуальная версия render для обработчика кликов
   renderRef.current = render;
+
+  // Кроссфейд фона при смене комнаты/скина (0.4 с).
+  useEffect(() => {
+    const bg = bgRef.current;
+    if (bg.current === backgroundImage) return;
+    bg.prev = bg.current;
+    bg.current = backgroundImage;
+    bg.start = performance.now();
+
+    let raf = 0;
+    const tick = () => {
+      renderRef.current();
+      if (performance.now() - bg.start < 400) raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [backgroundImage]);
 
   // === Цикл анимации наведения (плавное увеличение + тряска при удержании) ===
   const HOVER_SCALE = 1.14;
@@ -452,6 +483,7 @@ export const useCanvas = (
         if (btn.id === 'restore_energy') { cb.onRestoreEnergy?.(); return; }
         if (btn.id === 'toggle_fullscreen') { cb.onToggleFullscreen?.(); return; }
         if (btn.id === 'notifications') { cb.onNotificationsClick?.(); return; }
+        if (btn.id === 'open_donation_shop') { cb.onDonationClick?.(); return; }
         if (btn.id === 'carousel_up' || btn.id === 'carousel_down') {
           carouselOffsetRef.current = btn.id === 'carousel_up'
             ? Math.max(0, carouselOffsetRef.current - 1)
@@ -472,7 +504,20 @@ export const useCanvas = (
         if (btn.id === 'go_district') { cb.onGoDistrict?.(); return; }
         if (btn.id === 'go_cloth') { cb.onGoCloth?.(); return; }
         if (btn.id === 'go_komnata') { cb.onOpenRoomModal?.(); return; }
-        if (btn.id.startsWith('room_select_')) { cb.onSelectRoom?.(btn.id.slice('room_select_'.length)); return; }
+        // Экран убежища: все действия маршрутизируем в один обработчик.
+        if (
+          btn.id.startsWith('shelter_') ||
+          btn.id.startsWith('room_select_') ||
+          btn.id.startsWith('room_locked_') ||
+          btn.id.startsWith('shop_buy_') ||
+          btn.id.startsWith('skins_') ||
+          btn.id.startsWith('hint_') ||
+          btn.id.startsWith('topup_') ||
+          btn.id.startsWith('confirm_')
+        ) {
+          cb.onShelterAction?.(btn.id);
+          return;
+        }
         if (btn.id === 'go_kazino') { cb.onGoKazino?.(); return; }
         if (btn.id === 'lottery') { cb.onLotteryClick?.(); return; }
         if (btn.id === 'claim_daily') { cb.onDailyGoldClick?.(); return; }

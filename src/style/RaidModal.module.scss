@@ -1,0 +1,32 @@
+.backdrop { position: fixed; inset: 0; z-index: 10018; display: grid; place-items: center; padding: 12px; background: rgba(12, 11, 9, .9); color: #d8d0c0; font-family: 'Courier Prime', 'Courier New', monospace; }
+.panel, .taskPanel { box-sizing: border-box; width: min(600px, 100%); max-height: 90dvh; overflow: auto; padding: 22px; border: 3px ridge #6b4a2f; background: radial-gradient(circle at 90% 10%, rgba(139, 26, 26, .2), transparent 40%), repeating-linear-gradient(105deg, transparent 0 83px, rgba(220, 210, 185, .025) 84px), #24251e; box-shadow: 0 14px 44px #000; }
+.panel header { display: flex; align-items: center; gap: 12px; border-bottom: 1px dashed #9c653a; }
+.panel header div { flex: 1; }
+.panel h2, .taskPanel h2 { margin: 8px 0 14px; font: 24px Stencil, Impact, sans-serif; }
+.panel small, .taskPanel small { color: #c9a227; font-size: 11px; }
+.panel button, .taskPanel button { color: #d8d0c0; background: #34271f; border: 1px solid #6b4a2f; padding: 9px 12px; cursor: pointer; font: inherit; }
+.panel button:disabled, .taskPanel button:disabled { opacity: .42; cursor: not-allowed; }
+.panel button:focus-visible, .taskPanel button:focus-visible { outline: 2px solid #d6bd70; outline-offset: 2px; }
+.timer { display: block; margin: 12px 0; font: 36px Stencil, Impact, sans-serif; color: #c9a227; }
+.progressLabel { display: flex; justify-content: space-between; gap: 10px; margin: 10px 0 6px; font-size: 12px; }
+.panel progress, .taskPanel progress { width: 100%; height: 12px; accent-color: #78a447; }
+.panel progress::-webkit-progress-bar, .taskPanel progress::-webkit-progress-bar { background: #161714; }
+.panel progress::-webkit-progress-value, .taskPanel progress::-webkit-progress-value { background: #78a447; }
+.rewards { display: flex; flex-wrap: wrap; gap: 9px; margin: 16px 0; font-size: 13px; }
+.rewards span { padding: 6px 8px; border: 1px dashed #6b4a2f; }
+.taskButton { width: 100%; background: #682321 !important; }
+.actions { display: flex; flex-wrap: wrap; gap: 9px; margin-top: 16px; }
+.actions button { flex: 1; min-width: 120px; }
+.primary { background: #683123 !important; border-color: #c9a227 !important; }
+.notice { color: #c9a227; font-size: 12px; }
+.taskBackdrop { position: fixed; inset: 0; z-index: 1; display: grid; place-items: center; padding: 12px; background: rgba(9, 9, 7, .92); }
+.taskPanel { position: relative; background: #302b21; border-color: #8b1a1a; }
+.tape { display: block; width: 90px; height: 15px; margin: -26px auto 9px; transform: rotate(-4deg); background: #a5996e; opacity: .65; }
+.taskPanel ul { padding: 0; list-style: none; }
+.taskPanel li { display: flex; align-items: center; gap: 10px; padding: 12px 4px; border-bottom: 1px dashed #70583b; font-size: 12px; }
+.taskPanel li div { flex: 1; }
+.taskPanel li strong, .taskPanel li small { display: block; }
+.lamp { width: 13px; height: 13px; border-radius: 50%; background: #ca3a28; box-shadow: 0 0 12px #8b1a1a; animation: flicker 4s steps(1) infinite; }
+@keyframes flicker { 0%, 91%, 100% { opacity: 1; } 92%, 96% { opacity: .35; } }
+@media (max-width: 450px) { .panel, .taskPanel { padding: 14px; } .timer { font-size: 30px; } }
+@media (prefers-reduced-motion: reduce) { .lamp { animation: none; } }
