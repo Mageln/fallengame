@@ -105,6 +105,14 @@ export const getRoomSkin = (id: string): RoomSkin | undefined =>
 export const getDefaultSkin = (roomId: string): RoomSkin | undefined =>
   ROOM_SKINS.find((skin) => skin.roomId === roomId && skin.price === 0);
 
+// Пакеты крышек (донатная валюта для комнаты)
+export const CAPS_PACKS = [
+  { id: 'small', caps: 100, price: 99, bonus: 0 },
+  { id: 'medium', caps: 500, price: 449, bonus: 50 },
+  { id: 'large', caps: 1200, price: 999, bonus: 200 },
+  { id: 'mega', caps: 2500, price: 1999, bonus: 500 },
+] as const;
+
 // Следующая закрытая комната по порядку — кандидат на выпадение после победы.
 export const getNextLockedRoom = (unlockedRooms: string[]) =>
   LOCATIONS.find((room) => !unlockedRooms.includes(room.id)) ?? null;

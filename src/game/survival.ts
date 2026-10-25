@@ -1,6 +1,11 @@
 // Правила применяются и к локальному сохранению, и к серверным операциям.
 export const DAILY_BOSS_ATTACKS = 3;
 export const EXTRA_ATTACK_PRICE = 20;
+
+// Цена докупки атаки на конкретного босса (тестовый режим — за крышки).
+// Чем сильнее босс (меньше бесплатных попыток), тем дороже докупка.
+export const bossAttackPrice = (dailyLimit: number): number =>
+  EXTRA_ATTACK_PRICE + Math.max(0, DAILY_BOSS_ATTACKS - dailyLimit) * 10;
 export const RAID_TASK_GOLD_PRICE = 30;
 export const BOSS_DURATION_MS = 3 * 60_000;
 export const BOSS_COUNTER_MS = 8_000;

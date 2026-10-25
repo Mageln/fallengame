@@ -74,7 +74,7 @@ import {
   resolveIncoming,
 } from './formulas';
 import { BOSSES } from './bosses';
-import { BOSS_COUNTER_MS, BOSS_DURATION_MS, BOSS_SKILLS, DAILY_BOSS_ATTACKS, EXTRA_ATTACK_PRICE, RAID_DANGER_TASKS, RAID_TASK_GOLD_PRICE, roomDropChance, todayUtc } from './survival';
+import { BOSS_COUNTER_MS, BOSS_DURATION_MS, BOSS_SKILLS, DAILY_BOSS_ATTACKS, EXTRA_ATTACK_PRICE, RAID_DANGER_TASKS, RAID_TASK_GOLD_PRICE, bossAttackPrice, roomDropChance, todayUtc } from './survival';
 import type { ResourceEvent, ResourceSource } from './survival';
 import { advanceClanContracts, clanRating, normalizeClanName, validateClanName, CLAN_EMBLEMS, CLAN_MEMBER_BONUS } from './clans';
 import { BattleState, ClanState, ClanTaskEvent, ClanWarHistoryEntry, ClanWarState, GameAction, GameNotification, GameState } from './types';
@@ -91,8 +91,61 @@ const recordResources = (state: GameState, source: ResourceSource, changes: Part
   ].slice(0, 80),
 });
 
-const resetBossAttacks = (state: GameState, now = Date.now()): GameState =>
-  state.bossAttacks.date === todayUtc(now) ? state : { ...state, bossAttacks: { date: todayUtc(now), used: 0, purchased: 0 } };
+const resetBossAttacks = (state: GameState, now = Date.now()): GameState => {
+  const today = todayUtc(now);
+  if (state.bossAttacks.date === today) return state;
+  return { ...state, bossAttacks: { date: today, entries: {} } };
+};
+
+// Лимиты нападений — свои у каждого босса (см. BossDef.dailyLimit).
+// Старые сохранения с общим счётчиком (used/purchased без entries) мигрируют в 'shared',
+// чтобы не сбросить купленные атаки молча.
+const normalizeBossAttacks = (attacks: GameState['bossAttacks']): GameState['bossAttacks'] => {
+  const raw = attacks as unknown as { date: string; entries?: Record<string, { used?: number; purchased?: number }>; used?: number; purchased?: number };
+  const today = todayUtc();
+  const date = typeof raw?.date === 'string' ? raw.date : today;
+  if (raw && typeof raw.entries === 'object' && raw.entries !== null) {
+    const entries: Record<string, { used: number; purchased: number }> = {};
+    for (const [bossId, entry] of Object.entries(raw.entries)) {
+      entries[bossId] = {
+        used: Math.max(0, Math.floor(entry?.used ?? 0)),
+        purchased: Math.max(0, Math.floor(entry?.purchased ?? 0)),
+      };
+    }
+    return date === today ? { date, entries } : { date: today, entries: {} };
+  }
+  const used = Math.max(0, Math.floor(raw?.used ?? 0));
+  const purchased = Math.max(0, Math.floor(raw?.purchased ?? 0));
+  if (used === 0 && purchased === 0) return { date: today, entries: {} };
+  // Общий лимит раньше равнялся DAILY_BOSS_ATTACKS на всех боссов —
+  // при миграции отдаём остаток каждому известному боссу, но не больше его лимита.
+  const entries: Record<string, { used: number; purchased: number }> = {};
+  if (date === today) {
+    for (const boss of BOSSES) {
+      const free = Math.max(0, Math.min(boss.dailyLimit, DAILY_BOSS_ATTACKS) - used);
+      if (free < boss.dailyLimit || purchased > 0) {
+        entries[boss.id] = { used: boss.dailyLimit - free, purchased };
+      }
+    }
+    if (purchased > 0 || used > 0) entries.shared = { used, purchased };
+  }
+  return { date: today, entries };
+};
+
+const getBossAttackEntry = (state: GameState, bossId: string): { used: number; purchased: number } =>
+  state.bossAttacks.entries[bossId] ?? { used: 0, purchased: 0 };
+
+const setBossAttackEntry = (
+  state: GameState,
+  bossId: string,
+  entry: { used: number; purchased: number }
+): GameState => ({
+  ...state,
+  bossAttacks: {
+    ...state.bossAttacks,
+    entries: { ...state.bossAttacks.entries, [bossId]: entry },
+  },
+});
 
 const replaceClan = (state: GameState, clan: ClanState): GameState => ({
   ...state,
@@ -270,9 +323,15 @@ const startBattle = (
   bossMaxHp = bossHp
 ): GameState => {
   if (state.battle) return { ...state, battleVisible: true, lastMessage: 'Продолжается текущий бой.' };
-  const current = resetBossAttacks(state);
-  if (source === 'boss' && current.bossAttacks.used >= DAILY_BOSS_ATTACKS + current.bossAttacks.purchased) {
-    return msg(current, 'ЛИМИТ ИСЧЕРПАН. Следующие бесплатные атаки — завтра (UTC).');
+  let current = resetBossAttacks(state);
+  if (source === 'boss') {
+    const def = BOSSES.find((b) => b.id === bossId);
+    const dailyLimit = def?.dailyLimit ?? DAILY_BOSS_ATTACKS;
+    const entry = getBossAttackEntry(current, bossId);
+    if (entry.used >= dailyLimit + entry.purchased) {
+      return msg(current, `ЛИМИТ ИСЧЕРПАН: ${bossName}. Докупите атаку за донат или ждите завтра (UTC).`);
+    }
+    current = setBossAttackEntry(current, bossId, { ...entry, used: entry.used + 1 });
   }
   if (state.weapon.broken) return msg(current, 'Оружие сломано. Почините его в Мастерской.');
   if (current.health <= 0) return msg(current, 'Сначала восстановите HP в рейдовых заданиях.');
@@ -281,7 +340,6 @@ const startBattle = (
   const now = Date.now();
   return {
     ...current,
-    bossAttacks: source === 'boss' ? { ...current.bossAttacks, used: current.bossAttacks.used + 1 } : current.bossAttacks,
     battleVisible: true,
     showBossModal: false,
     battle: {
@@ -736,7 +794,9 @@ export const hydrateState = (state: GameState): GameState => {
     health: Number.isFinite(normalized.health) ? Math.max(0, normalized.health) : 100,
     battleVisible: normalized.battle ? (normalized.battleVisible ?? true) : false,
     battle: normalized.battle ? normalizeBattle(normalized.battle) : null,
-    bossAttacks: normalized.bossAttacks ?? { date: todayUtc(), used: normalized.battle ? 1 : 0, purchased: 0 },
+    bossAttacks: normalizeBossAttacks(
+      normalized.bossAttacks ?? { date: todayUtc(), entries: {} },
+    ),
     lastRoomRoll: normalized.lastRoomRoll ?? null,
     pendingRoomDrop: normalized.pendingRoomDrop ?? null,
     raidTasks: normalized.raidTasks ?? null,
@@ -776,6 +836,8 @@ export const gameReducer = (state: GameState, action: GameAction): GameState => 
           return { ...state, matches: state.matches + amount, lastMessage: `+${amount} спичек` };
         case 'zhetons':
           return { ...state, zhetons: state.zhetons + amount, lastMessage: `+${amount} жетонов` };
+        case 'caps':
+          return { ...state, caps: state.caps + amount, lastMessage: `+${amount} крышек` };
         default:
           return state;
       }
@@ -998,15 +1060,26 @@ export const gameReducer = (state: GameState, action: GameAction): GameState => 
     case 'BOSS_TICK':
       return advanceBossClock(resetBossAttacks(state, action.now), action.now);
     case 'BUY_BOSS_ATTACK': {
+      const boss = BOSSES.find((b) => b.id === action.bossId);
+      if (!boss) return state;
       const current = resetBossAttacks(state);
-      if (current.bossAttacks.used < DAILY_BOSS_ATTACKS + current.bossAttacks.purchased) return msg(current, 'Сначала используйте доступные атаки.');
-      if (current.premiumGold < EXTRA_ATTACK_PRICE) return msg(current, 'Недостаточно премиум-золота 🪙.');
-      return recordResources({
-        ...current,
-        premiumGold: current.premiumGold - EXTRA_ATTACK_PRICE,
-        bossAttacks: { ...current.bossAttacks, purchased: current.bossAttacks.purchased + 1 },
-        lastMessage: 'Дополнительная атака доступна сегодня.',
-      }, 'shop', { premiumGold: -EXTRA_ATTACK_PRICE });
+      // Тестовый режим: покупаем за крышки. Позже здесь будет платёж через донат.
+      // Цена растёт с силой босса: чем меньше у него бесплатных попыток, тем дороже докупка.
+      const price = bossAttackPrice(boss.dailyLimit);
+      const entry = getBossAttackEntry(current, boss.id);
+      if (entry.used < boss.dailyLimit + entry.purchased) {
+        return msg(current, `Сначала используйте доступные атаки на «${boss.name}».`);
+      }
+      if (current.caps < price) return msg(current, `Не хватает крышек 🥤: нужно ${price}.`);
+      return setBossAttackEntry(
+        {
+          ...current,
+          caps: current.caps - price,
+          lastMessage: `Куплена атака на «${boss.name}» за ${price} 🥤.`,
+        },
+        boss.id,
+        { ...entry, purchased: entry.purchased + 1 },
+      );
     }
     case 'CLAIM_ROOM': {
       const drop = state.pendingRoomDrop;
@@ -1838,8 +1911,8 @@ export const gameReducer = (state: GameState, action: GameAction): GameState => 
       if (!item) return state;
       if (item.id === 'bed' && state.shelterBed) return msg(state, 'Кровать выжившего уже установлена.');
       if (item.id === 'generator' && state.shelterGenerator) return msg(state, 'Генератор уже запущен.');
-      if (state.gold < item.price) return msg(state, `Не хватает припасов: нужно ${item.price} 💰.`);
-      const gold = state.gold - item.price;
+      if (state.caps < item.price) return msg(state, `Не хватает крышек: нужно ${item.price} 🥤.`);
+      const caps = state.caps - item.price;
 
       switch (item.id) {
         case 'bed': {

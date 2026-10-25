@@ -37,23 +37,36 @@
 ## 📱 Как работает клиентская часть (уже настроено)
 
 ```typescript
-// В App.tsx и GameContext.tsx уже настроено:
-import bridge from '@vkontakte/vk-bridge';
-
-// Получение данных пользователя
-const user = await bridge.send('VKWebAppGetUserInfo', {});
-// VK Bridge автоматически получает временный токен пользователя
-
-// Сохранение данных с привязкой к VK ID
-const key = `ergate-save-${user.id}`;
-localStorage.setItem(key, JSON.stringify(gameState));
+// src/game/GameContext.tsx — идентификация и своё сохранение на игрока:
+const userId = await getVkUserId();   // Bridge VKWebAppGetUserInfo (в dev — мок)
+setCurrentUserId(userId);             // ключ сохранения: ergate-save-{vkId}
+// src/game/storage.ts — saveState()/loadStateSync() работают с этим ключом
 ```
 
-**Преимущества:**
-- ✅ Токен получают автоматически
-- ✅ Не нужно хранить токен в коде
-- ✅ Безопасно для клиентской части
+```typescript
+// src/services/vkApi.ts — запросы к VK API:
+import bridge from '@vkontakte/vk-bridge';
+
+// Пользовательский токен — ТОЛЬКО в памяти (переменная cachedToken),
+// получается через Bridge и живёт ~1 час:
+const { access_token } = await bridge.send('VKWebAppGetAuthToken', {
+  app_id: Number(VK_APP_ID), // из VITE_VK_APP_ID, см. src/config/vkConfig.ts
+  scope: 'friends',
+});
+
+// Вызовы API — через Bridge, подпись подставляет платформа:
+await bridge.send('VKWebAppCallAPIMethod', {
+  method: 'friends.getAppUsers',
+  params: { v: '5.131', access_token },
+});
+```
+
+**Правила (соблюдаются в коде):**
+- ✅ Никаких токенов в исходниках — утёкший хардкод удалён, ключ отозвать в dev.vk.com
+- ✅ Никаких токенов в localStorage — в localStorage только сейвы `ergate-save-{vkId}` и общий справочник кланов
+- ✅ Сервисный ключ никогда не вводится в UI и не используется на клиенте
 - ✅ Работает даже без бэкенда
+- ⚠️ Старый `vk_token` из localStorage однократно удаляется при старте (миграция в `vkApi.ts`)
 
 ---
 
@@ -73,7 +86,7 @@ import { VK_SERVICE_TOKEN } from './config';
 
 const app = express();
 
-// Пример запроса к VK API
+
 async function getVkUserInfo(vkUserId: number) {
   const response = await fetch(
     `https://api.vk.com/method/users.get?user_ids=${vkUserId}&access_token=${VK_SERVICE_TOKEN}&v=5.131`

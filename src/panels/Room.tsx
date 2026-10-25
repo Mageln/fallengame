@@ -153,6 +153,14 @@ export const RoomModal = ({ onClose }: Props) => {
 
         <div className={styles.balanceRow}>
           <span className={styles.capsPill}>🥤 {number(state.caps)} крышек</span>
+          <button
+            type="button"
+            className={styles.plainButton}
+            title="Тест: +100 крышек"
+            onClick={() => dispatch({ type: 'ADD_RESOURCE', resource: 'caps', amount: 100 })}
+          >
+            +
+          </button>
           <button type="button" className={styles.plainButton} onClick={() => setShowTopUp(true)}>🥤 Пополнить</button>
           <button type="button" className={styles.plainButton} onClick={() => { setHintRoomId(null); setShowHint(true); }}>? Как получить?</button>
         </div>
@@ -288,14 +296,24 @@ export const RoomModal = ({ onClose }: Props) => {
             <p>Крышки добываются за реальные деньги / редкие награды.</p>
             <div className={styles.packList}>
               {CAPS_PACKS.map((pack) => (
-                <div key={pack.id} className={styles.packCard} aria-disabled="true">
-                  <span>{pack.name}</span>
-                  <strong>🥤 {number(pack.amount)}</strong>
-                  <span className={styles.packPrice}>{pack.priceLabel}</span>
-                </div>
+                <button
+                  key={pack.id}
+                  type="button"
+                  className={styles.packCard}
+                  title="Тест: начислить пакет бесплатно"
+                  onClick={() => {
+                    dispatch({ type: 'ADD_RESOURCE', resource: 'caps', amount: pack.caps + pack.bonus });
+                    setShowTopUp(false);
+                    setStamp(`+${number(pack.caps + pack.bonus)} 🥤`);
+                  }}
+                >
+                  <span>Пакет «{pack.id}»</span>
+                  <strong>🥤 {number(pack.caps + pack.bonus)}</strong>
+                  <span className={styles.packPrice}>₽ {pack.price} · тест</span>
+                </button>
               ))}
             </div>
-            <p className={styles.muted}>Оплата недоступна: сначала требуется платёжный провайдер и подтверждение транзакции сервером. Бесплатного начисления нет.</p>
+            <p className={styles.muted}>Тестовый режим: пакеты начисляются бесплатно. Оплата через провайдера и подтверждение сервером — позже.</p>
             <div className={styles.actions}><button type="button" className={styles.plainButton} onClick={() => setShowTopUp(false)}>ЗАКРЫТЬ</button></div>
           </section>
         </div>

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useGame } from '../game/GameContext';
 import { BOSSES } from '../game/bosses';
-import { BOSS_SKILLS, DAILY_BOSS_ATTACKS, EXTRA_ATTACK_PRICE, nextResetUtc, roomDropChance } from '../game/survival';
+import { BOSS_SKILLS, bossAttackPrice, nextResetUtc, roomDropChance, todayUtc } from '../game/survival';
 import styles from '../style/Boss.module.scss';
 
 const remaining = (end: number, now: number): string => {
@@ -21,33 +21,43 @@ export const PremiumShop = ({ onClose }: { onClose: () => void }) => {
 
 export const BossHub = ({ onClose }: { onClose: () => void }) => {
   const { state, dispatch } = useGame();
-  const [buy, setBuy] = useState(false);
+  const [buyBossId, setBuyBossId] = useState<string | null>(null);
   const [now, setNow] = useState(Date.now());
   useEffect(() => {
     const timer = window.setInterval(() => setNow(Date.now()), 1000);
     return () => window.clearInterval(timer);
   }, []);
-  const attacks = state.bossAttacks.date === new Date(now).toISOString().slice(0, 10) ? state.bossAttacks : { used: 0, purchased: 0 };
-  const total = DAILY_BOSS_ATTACKS + attacks.purchased;
-  const exhausted = attacks.used >= total;
+  // У каждого босса свой дневной лимит (см. BossDef.dailyLimit).
+  const entries = state.bossAttacks.date === todayUtc(now) ? state.bossAttacks.entries : {};
+  const entryFor = (bossId: string) => entries[bossId] ?? { used: 0, purchased: 0 };
+  const buyBoss = buyBossId ? BOSSES.find((b) => b.id === buyBossId) ?? null : null;
+  const buyPrice = buyBoss ? bossAttackPrice(buyBoss.dailyLimit) : 0;
   const ongoing = state.battle?.outcome === 'fighting';
 
   return <div className={styles.backdrop} onClick={onClose}>
     <section className={styles.panel} role="dialog" aria-modal="true" aria-label="Список боссов" onClick={(event) => event.stopPropagation()}>
       <header className={styles.header}><span className={styles.lamp} aria-hidden="true" /><div><small>ЗАПРЕТНАЯ ЗОНА · СИГНАЛ 03</small><h2>БОССЫ РАЗРУШЕННОГО ГОРОДА</h2></div><button type="button" onClick={onClose} aria-label="Закрыть">✕</button></header>
-      <div className={styles.wallet}><span>⚔ Атаки: {Math.max(0, total - attacks.used)}/{total}</span><span>🪙 Премиум-золото: {state.premiumGold}</span><span>💰 Припасы: {state.gold}</span><span>Обновление: {remaining(nextResetUtc(now), now)} до полуночи UTC</span></div>
+      <div className={styles.wallet}><span>🥤 Крышки: {state.caps}</span><span>💰 Припасы: {state.gold}</span><span>Обновление: {remaining(nextResetUtc(now), now)} до полуночи UTC</span></div>
       {ongoing && <button type="button" className={styles.primary} onClick={() => dispatch({ type: 'OPEN_BATTLE' })}>↩ ВЕРНУТЬСЯ В ТЕКУЩИЙ БОЙ</button>}
-      {exhausted && <div className={styles.warning}><strong>ЛИМИТ ИСЧЕРПАН</strong><button type="button" onClick={() => setBuy(true)}>🪙 КУПИТЬ АТАКУ · {EXTRA_ATTACK_PRICE}</button></div>}
       <div className={styles.roster}>
-        {BOSSES.filter((boss) => ['1', '2', '3', '4'].includes(boss.id)).map((boss) => <article key={boss.id} className={styles.bossCard}>
-          <div className={styles.bossPortrait}><img src="/enemy/avatar-boss.jpg" alt="" /></div><div className={styles.bossInfo}><h3>{boss.name}</h3><p>{boss.description}</p><span>☠ {boss.hp} HP · 🔫 пули при победе · 🎁 комната по урону</span></div>
-          <button type="button" disabled={exhausted || !!state.battle || state.health <= 0} title={exhausted ? 'Дневной лимит исчерпан' : state.battle ? 'Сначала завершите текущий бой' : state.health <= 0 ? 'Восстановите HP' : undefined} onClick={() => dispatch({ type: 'START_BOSS_FIGHT', bossId: boss.id })}>{exhausted ? 'ЛИМИТ ИСЧЕРПАН' : 'НАПАСТЬ'}</button>
-        </article>)}
+        {BOSSES.filter((boss) => ['1', '2', '3', '4'].includes(boss.id)).map((boss) => {
+          const entry = entryFor(boss.id);
+          const total = boss.dailyLimit + entry.purchased;
+          const left = Math.max(0, total - entry.used);
+          const exhausted = left <= 0;
+          const price = bossAttackPrice(boss.dailyLimit);
+          return <article key={boss.id} className={styles.bossCard}>
+            <div className={styles.bossPortrait}><img src="/enemy/avatar-boss.jpg" alt="" /></div><div className={styles.bossInfo}><h3>{boss.name}</h3><p>{boss.description}</p><span>☠ {boss.hp} HP · 🔫 пули при победе · 🎁 комната </span><span>⚔ Нападения: {left}/{total} · докупка 🥤 {price}</span></div>
+            {exhausted
+              ? <button type="button" disabled={!!state.battle} title={state.battle ? 'Сначала завершите текущий бой' : undefined} onClick={() => setBuyBossId(boss.id)}>🥤 КУПИТЬ АТАКУ · {price}</button>
+              : <button type="button" disabled={!!state.battle || state.health <= 0} title={state.battle ? 'Сначала завершите текущий бой' : state.health <= 0 ? 'Восстановите HP' : undefined} onClick={() => dispatch({ type: 'START_BOSS_FIGHT', bossId: boss.id })}>НАПАСТЬ · {left}/{total}</button>}
+          </article>;
+        })}
       </div>
       {state.pendingRoomDrop && <p className={styles.notice}>🎁 Найдена комната! Откройте раздел «Комната», чтобы забрать её.</p>}
       {state.lastMessage && <p className={styles.notice} role="status">{state.lastMessage}</p>}
     </section>
-    {buy && <div className={styles.overlay} onClick={(event) => { event.stopPropagation(); setBuy(false); }}><section className={styles.paper} role="dialog" aria-modal="true" aria-label="Купить атаку" onClick={(event) => event.stopPropagation()}><span className={styles.tape} aria-hidden="true"/><small>ЗАПИСКА ТОРГОВЦА</small><h3>КУПИТЬ АТАКУ</h3><p>Дополнительная атака действует сегодня. Цена: 🪙 {EXTRA_ATTACK_PRICE} премиум-золота. У вас {state.premiumGold}.</p><div className={styles.actions}><button type="button" disabled={state.premiumGold < EXTRA_ATTACK_PRICE} onClick={() => { dispatch({ type: 'BUY_BOSS_ATTACK' }); setBuy(false); }}>ПОДТВЕРДИТЬ</button><button type="button" onClick={() => setBuy(false)}>ОТМЕНА</button></div>{state.premiumGold < EXTRA_ATTACK_PRICE && <p>Пополнение откроется после подключения платёжного провайдера и проверки оплаты на сервере.</p>}</section></div>}
+    {buyBoss && <div className={styles.overlay} onClick={(event) => { event.stopPropagation(); setBuyBossId(null); }}><section className={styles.paper} role="dialog" aria-modal="true" aria-label="Купить атаку" onClick={(event) => event.stopPropagation()}><span className={styles.tape} aria-hidden="true"/><small>ЗАПИСКА ТОРГОВЦА</small><h3>КУПИТЬ АТАКУ · {buyBoss.name}</h3><p>Дополнительное нападение на «{buyBoss.name}» действует сегодня. Цена: 🥤 {buyPrice} крышек. У вас {state.caps}.</p><div className={styles.actions}><button type="button" disabled={state.caps < buyPrice} onClick={() => { dispatch({ type: 'BUY_BOSS_ATTACK', bossId: buyBoss.id }); setBuyBossId(null); }}>ПОДТВЕРДИТЬ</button><button type="button" onClick={() => setBuyBossId(null)}>ОТМЕНА</button></div>{state.caps < buyPrice && <p>Тестовый режим: пополните крышки кнопкой «+» в убежище. Позже здесь будет оплата через донат.</p>}</section></div>}
   </div>;
 };
 

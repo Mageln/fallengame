@@ -65,6 +65,7 @@ export const useCanvas = (
   onGoQuests?: () => void,
   onGoCrafting?: () => void,
   onFriendsClick?: () => void,
+  onRoomsClick?: () => void,
   // State
   showProfile: boolean = false,
   showBossModal: boolean = false,
@@ -149,6 +150,7 @@ export const useCanvas = (
     onGoQuests,
     onGoCrafting,
     onFriendsClick,
+    onRoomsClick,
     onNotificationsClick,
     onDonationClick,
   });
@@ -192,6 +194,7 @@ export const useCanvas = (
       onGoQuests,
       onGoCrafting,
       onFriendsClick,
+      onRoomsClick,
       onNotificationsClick,
       onDonationClick,
     };
@@ -203,7 +206,7 @@ export const useCanvas = (
     onFightTechnique, onFightPower, onFightCombo, onFightBlock, onFightEvade,
     onFightHeal, onFightGrenade, onOpenRoomModal, onSelectRoom,
     onClanClick, onInventoryClick, onQuestsClick, onCraftingClick,
-    onGoClan, onGoInventory, onGoQuests, onGoCrafting, onFriendsClick,
+    onGoClan, onGoInventory, onGoQuests, onGoCrafting, onFriendsClick, onRoomsClick,
     onNotificationsClick, onDonationClick
   ]);
 
@@ -501,6 +504,7 @@ export const useCanvas = (
         if (btn.id === 'go_quests') { (cb.onQuestsClick ?? cb.onGoQuests)?.(); return; }
         if (btn.id === 'go_crafting') { (cb.onCraftingClick ?? cb.onGoCrafting)?.(); return; }
         if (btn.id === 'friends') { cb.onFriendsClick?.(); return; }
+        if (btn.id === 'rooms') { cb.onRoomsClick?.(); return; }
         if (btn.id === 'go_district') { cb.onGoDistrict?.(); return; }
         if (btn.id === 'go_cloth') { cb.onGoCloth?.(); return; }
         if (btn.id === 'go_komnata') { cb.onOpenRoomModal?.(); return; }

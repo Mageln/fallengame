@@ -14,6 +14,8 @@ export interface BossDef {
   reward: { gold: number; bullets: number; zhetons: number; spirt: number; room?: string };
   /** Минимальный уровень игрока для вызова */
   minLevel: number;
+  /** Бесплатных нападений в день именно на этого босса (сильные боссы — меньше попыток) */
+  dailyLimit: number;
 }
 
 export const BOSSES: BossDef[] = [
@@ -26,6 +28,7 @@ export const BOSSES: BossDef[] = [
     damage: 9,
     reward: { gold: 200, bullets: 15, zhetons: 0, spirt: 0, room: 'location2' },
     minLevel: 1,
+    dailyLimit: 5,
   },
   {
     id: '2',
@@ -35,6 +38,7 @@ export const BOSSES: BossDef[] = [
     damage: 11,
     reward: { gold: 500, bullets: 30, zhetons: 1, spirt: 0, room: 'location3' },
     minLevel: 1,
+    dailyLimit: 4,
   },
   {
     id: '3',
@@ -44,6 +48,7 @@ export const BOSSES: BossDef[] = [
     damage: 14,
     reward: { gold: 900, bullets: 60, zhetons: 2, spirt: 1, room: 'location4' },
     minLevel: 1,
+    dailyLimit: 3,
   },
   {
     id: '4',
@@ -53,6 +58,7 @@ export const BOSSES: BossDef[] = [
     damage: 18,
     reward: { gold: 1600, bullets: 120, zhetons: 3, spirt: 1, room: 'location5' },
     minLevel: 1,
+    dailyLimit: 2,
   },
   // Игровые боссы
   {
@@ -63,6 +69,7 @@ export const BOSSES: BossDef[] = [
     damage: 9,
     reward: { gold: 180, bullets: 8, zhetons: 0, spirt: 0 },
     minLevel: 1,
+    dailyLimit: 5,
   },
   {
     id: 'boss_cannibal',
@@ -72,6 +79,7 @@ export const BOSSES: BossDef[] = [
     damage: 11,
     reward: { gold: 200, bullets: 10, zhetons: 1, spirt: 0 },
     minLevel: 2,
+    dailyLimit: 4,
   },
   {
     id: 'boss_king',
@@ -81,6 +89,7 @@ export const BOSSES: BossDef[] = [
     damage: 12,
     reward: { gold: 220, bullets: 10, zhetons: 1, spirt: 1 },
     minLevel: 3,
+    dailyLimit: 4,
   },
   {
     id: 'boss_blood_baron',
@@ -90,6 +99,7 @@ export const BOSSES: BossDef[] = [
     damage: 14,
     reward: { gold: 260, bullets: 12, zhetons: 1, spirt: 1 },
     minLevel: 4,
+    dailyLimit: 3,
   },
   {
     id: 'boss_raider_king',
@@ -99,6 +109,7 @@ export const BOSSES: BossDef[] = [
     damage: 16,
     reward: { gold: 300, bullets: 14, zhetons: 2, spirt: 1 },
     minLevel: 5,
+    dailyLimit: 3,
   },
   {
     id: 'boss_forest_king',
@@ -108,6 +119,7 @@ export const BOSSES: BossDef[] = [
     damage: 18,
     reward: { gold: 350, bullets: 16, zhetons: 2, spirt: 2 },
     minLevel: 6,
+    dailyLimit: 2,
   },
 ];
 

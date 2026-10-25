@@ -59,7 +59,7 @@ export const createInitialState = (): GameState => ({
   },
   battle: null,
   battleVisible: false,
-  bossAttacks: { date: todayUtc(), used: 0, purchased: 0 },
+  bossAttacks: { date: todayUtc(), entries: {} },
   lastRoomRoll: null,
   pendingRoomDrop: null,
   raidTasks: null,

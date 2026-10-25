@@ -1,4 +1,5 @@
 import bridge from '@vkontakte/vk-bridge';
+import { VK_APP_ID } from '../config/vkConfig';
 
 export interface VkUser {
   id: number;
@@ -51,11 +52,12 @@ const MOCK_USER: VkUser = {
   },
 };
 
-/**
- * Получает сохранённый токен из localStorage
- */
-function getSavedToken(): string {
-  return localStorage.getItem('vk_token') || '';
+// Разово вычищаем остатки старого небезопасного хранения токена.
+// Токены нельзя держать в localStorage: их крадёт любой XSS.
+try {
+  localStorage.removeItem('vk_token');
+} catch {
+  /* ignore — приватный режим и т.п. */
 }
 
 /**
@@ -69,72 +71,80 @@ function isDevMode(): boolean {
   return true;
 }
 
-/**
- * Запрос к VK API через JSONP (обход CORS — VK API не отдаёт
- * заголовок Access-Control-Allow-Origin для прямых fetch-запросов)
- */
-export function vkApiJsonp(method: string, params: Record<string, string>): Promise<any> {
-  return new Promise((resolve, reject) => {
-    const callbackName = `vkJsonpCallback_${Date.now()}_${Math.random().toString(36).slice(2)}`;
-    const script = document.createElement('script');
-    const timeout = window.setTimeout(() => {
-      cleanup();
-      reject(new Error('VK API timeout'));
-    }, 10000);
+// Токен пользователя живёт только в памяти (не в localStorage)
+// и действует ~1 час — Bridge выдаст новый, когда срок выйдет.
+let cachedToken: string | null = null;
+let cachedTokenExpiresAt = 0;
 
-    const cleanup = () => {
-      window.clearTimeout(timeout);
-      delete (window as any)[callbackName];
-      script.remove();
-    };
-
-    (window as any)[callbackName] = (data: any) => {
-      cleanup();
-      resolve(data);
-    };
-
-    const query = new URLSearchParams({ ...params, callback: callbackName });
-    script.src = `https://api.vk.com/method/${method}?${query.toString()}`;
-    script.onerror = () => {
-      cleanup();
-      reject(new Error('VK API network error'));
-    };
-    document.body.appendChild(script);
-  });
+function getNumericAppId(): number | null {
+  const id = Number.parseInt(VK_APP_ID, 10);
+  return Number.isFinite(id) && id > 0 ? id : null;
 }
 
 /**
- * Запрашивает данные пользователя через VK API с использованием токена (JSONP)
+ * Получает пользовательский токен через VK Bridge (VKWebAppGetAuthToken).
+ * Возвращает null вне VK, без app_id или при отказе пользователя.
  */
-async function fetchVkUserWithToken(token: string): Promise<VkUser | null> {
+async function getUserAuthToken(scope = 'friends', forceRefresh = false): Promise<string | null> {
+  if (!forceRefresh && cachedToken && Date.now() < cachedTokenExpiresAt) return cachedToken;
+  if (isDevMode()) return null;
+  const appId = getNumericAppId();
+  if (appId === null) {
+    console.warn('⚠️ VITE_VK_APP_ID не задан — запросы к VK API недоступны');
+    return null;
+  }
+  if (!bridge.supports('VKWebAppGetAuthToken')) return null;
   try {
-    const data = await vkApiJsonp('users.get', {
-      user_ids: 'self',
-      access_token: token,
-      v: '5.131',
-      fields: 'photo_200',
+    const result = await bridge.send('VKWebAppGetAuthToken', { app_id: appId, scope });
+    cachedToken = result.access_token || null;
+    // Поле expires — либо секунды жизни токена (~3600), либо unix-timestamp.
+    // Без запаса не кэшируем дольше 55 минут, чтобы не упереться в протухший токен.
+    const expires = result.expires ?? 3300;
+    if (expires > 1e12) cachedTokenExpiresAt = expires;
+    else if (expires > 1e9) cachedTokenExpiresAt = expires * 1000;
+    else if (expires > 0) cachedTokenExpiresAt = Date.now() + expires * 1000;
+    else cachedTokenExpiresAt = Date.now() + 55 * 60 * 1000;
+    cachedTokenExpiresAt -= 5 * 60 * 1000; // запас 5 минут
+    return cachedToken;
+  } catch {
+    return null;
+  }
+}
+
+function isAuthFailure(error: any): boolean {
+  if (error?.error_type === 'auth_error') return true;
+  const data = error?.error_data ?? {};
+  // 5 — ошибка авторизации, 1116 — истёкший токен
+  return data?.error_code === 5 || data?.error_code === 1116;
+}
+
+/**
+ * Вызов VK API через Bridge (VKWebAppCallAPIMethod).
+ * Подпись и токен подставляет платформа — ключи в клиентском коде не нужны.
+ * При протухшем токене один раз обновляет его и повторяет запрос.
+ */
+async function callVkApi<T>(method: string, params: Record<string, string | number>): Promise<T> {
+  const token = await getUserAuthToken();
+  if (!token) {
+    throw new Error('Нет доступа к VK API: запустите приложение внутри VK и разрешите доступ к друзьям.');
+  }
+  try {
+    const response = await bridge.send('VKWebAppCallAPIMethod', {
+      method,
+      params: { ...params, v: '5.131', access_token: token },
     });
-
-    // Обработка ошибки API (например, невалидный токен)
-    if (data.error) {
-      console.error('VK API error:', data.error.error_code, data.error.error_msg);
-      return null;
-    }
-
-    if (data.response && data.response.length > 0) {
-      const user = data.response[0];
-      return {
-        id: user.id,
-        first_name: user.first_name,
-        last_name: user.last_name || '',
-        photo_200: user.photo_200 || '',
-      };
-    }
-
-    return null;
+    return (response as { response: T }).response;
   } catch (error) {
-    console.error('Ошибка запроса к VK API:', error);
-    return null;
+    if (!isAuthFailure(error)) throw error;
+    // Токен протух — берём свежий и пробуем ещё раз
+    cachedToken = null;
+    const freshToken = await getUserAuthToken('friends', true);
+    if (!freshToken) throw error;
+    const response = await bridge.send('VKWebAppCallAPIMethod', {
+      method,
+      params: { ...params, v: '5.131', access_token: freshToken },
+    });
+    return (response as { response: T }).response;
   }
 }
 
@@ -163,42 +173,31 @@ function describeBridgeError(error: any): string {
  */
 export async function getVkUser(): Promise<VkUser | null> {
   try {
-    // Сначала проверяем кастомный токен
-    const customToken = getSavedToken();
-    if (customToken) {
-      console.log('🔑 Используем кастомный токен VK');
-      const user = await fetchVkUserWithToken(customToken);
-      if (user) {
-        return user;
-      }
-      console.log('⚠️ Кастомный токен невалиден');
-    }
-    
     // Если не в VK — используем моковые данные для тестирования
     if (isDevMode()) {
       console.log('🔧 Режим разработки — используются моковые данные');
       return MOCK_USER;
     }
-    
+
     // В реальном VK получаем данные через Bridge
     // Проверяем, что платформа поддерживает метод
     if (!bridge.supports('VKWebAppGetUserInfo')) {
       console.warn('⚠️ VKWebAppGetUserInfo не поддерживается на этой платформе');
       return MOCK_USER;
     }
-    
+
     const result = await bridge.send('VKWebAppGetUserInfo', {});
-    
+
     if (result && typeof result === 'object') {
       const userData = result as any;
       return {
-        id: userData.user_id,
+        id: userData.id ?? userData.user_id,
         first_name: userData.first_name,
         last_name: userData.last_name || '',
         photo_200: userData.photo_200 || '',
       };
     }
-    
+
     return null;
   } catch (error) {
     console.error('Ошибка получения данных VK пользователя:', describeBridgeError(error));
@@ -214,15 +213,15 @@ export async function getVkUser(): Promise<VkUser | null> {
 // Только пользователи, для которых VK подтвердил установку приложения.
 // Обычный friends.get и моковые друзья не считаются игроками.
 export async function getPlayingFriends(): Promise<VkUser[]> {
-  const token = getSavedToken();
-  if (!token) return [];
-  const response = await vkApiJsonp('friends.getAppUsers', { access_token: token, v: '5.131' });
-  if (response.error) throw new Error(response.error.error_msg || 'Нет доступа к списку друзей VK.');
-  const ids = Array.isArray(response.response) ? response.response.filter((id: unknown): id is number => Number.isInteger(id)) : [];
-  if (!ids.length) return [];
-  const info = await vkApiJsonp('users.get', { user_ids: ids.slice(0, 100).join(','), fields: 'photo_200,online', access_token: token, v: '5.131' });
-  if (info.error) throw new Error(info.error.error_msg || 'Не удалось загрузить друзей.');
-  return (info.response ?? []).map((friend: VkUser) => ({ ...friend, level: null }));
+  if (isDevMode()) return [];
+  const ids = await callVkApi<number[]>('friends.getAppUsers', {});
+  const validIds = Array.isArray(ids) ? ids.filter((id): id is number => Number.isInteger(id)) : [];
+  if (!validIds.length) return [];
+  const users = await callVkApi<VkUser[]>('users.get', {
+    user_ids: validIds.slice(0, 100).join(','),
+    fields: 'photo_200,online',
+  });
+  return (users ?? []).map((friend) => ({ ...friend, level: null }));
 }
 
 export async function inviteVkFriends(): Promise<void> {
@@ -232,44 +231,25 @@ export async function inviteVkFriends(): Promise<void> {
 
 export async function getVkFriends(): Promise<VkUser[]> {
   try {
-    const customToken = getSavedToken();
-    
-    // Если есть кастомный токен, запрашиваем реальных друзей
-    if (customToken) {
-      try {
-        const data = await vkApiJsonp('friends.get', {
-          access_token: customToken,
-          v: '5.131',
-          fields: 'photo_200',
-          count: '20',
-        });
-
-        if (data.error) {
-          console.error('VK API error (friends):', data.error.error_code, data.error.error_msg);
-        } else if (data.response && data.response.items) {
-          return data.response.items.map((friend: any) => ({
-            id: friend.id,
-            first_name: friend.first_name,
-            last_name: friend.last_name || '',
-            photo_200: friend.photo_200 || '',
-          }));
-        }
-      } catch (error) {
-        console.log('Не удалось получить друзей через API');
-      }
-    }
-    
     // В режиме разработки возвращаем моковых друзей
     if (isDevMode()) {
       return MOCK_USER.friends || [];
     }
-    
-    // В реальном VK можно получить друзей через API
-    // Для тестирования возвращаем моковые данные
-    return MOCK_USER.friends || [];
+
+    const users = await callVkApi<any[]>('friends.get', {
+      fields: 'photo_200',
+      count: 20,
+    });
+    const items = Array.isArray(users) ? users : (users as any)?.items ?? [];
+    return items.map((friend: any) => ({
+      id: friend.id,
+      first_name: friend.first_name,
+      last_name: friend.last_name || '',
+      photo_200: friend.photo_200 || '',
+    }));
   } catch (error) {
     console.error('Ошибка получения друзей:', error);
-    return MOCK_USER.friends || [];
+    return [];
   }
 }
 
@@ -292,21 +272,14 @@ export async function isVkMiniApp(): Promise<boolean> {
  */
 export async function getVkUserId(): Promise<number | null> {
   try {
-    const customToken = getSavedToken();
-    
-    // Если есть кастомный токен
-    if (customToken) {
-      const user = await fetchVkUserWithToken(customToken);
-      return user?.id || null;
-    }
-    
     if (isDevMode()) {
       return MOCK_USER.id;
     }
-    
+
     const result = await bridge.send('VKWebAppGetUserInfo', {});
     if (result && typeof result === 'object') {
-      return (result as any).user_id || null;
+      const data = result as any;
+      return data.id ?? data.user_id ?? null;
     }
     return null;
   } catch {

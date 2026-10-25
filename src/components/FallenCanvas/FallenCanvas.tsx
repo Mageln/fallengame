@@ -53,6 +53,7 @@ export const FallenCanvas: React.FC<PrisonCanvasProps & {
   onCloseProfile?: () => void;
   onBattleClick?: () => void;
   onFriendsClick?: () => void;
+  onRoomsClick?: () => void;
   onArenaClick?: () => void;
   onRaidClick?: (raidId: string) => void;
   onGoDistrict?: () => void;
@@ -109,6 +110,8 @@ export const FallenCanvas: React.FC<PrisonCanvasProps & {
   onNotificationRaidClick,
   onNotificationRemove,
   onNotificationsClear,
+  onFriendsClick,
+  onRoomsClick,
 }) => {
   const { dispatch, state } = useGame();
   const [backgroundImage, setBackgroundImage] = useState<HTMLImageElement | null>(null);
@@ -302,6 +305,7 @@ export const FallenCanvas: React.FC<PrisonCanvasProps & {
     onGoQuests,
     onGoCrafting,
     () => setShowFriends(true),
+    onRoomsClick,
     // State
     showProfile,
     false, // Боссы теперь в доступном React-окне

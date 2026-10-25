@@ -12,11 +12,16 @@
     "deploy": "vite build && vk-miniapps-deploy"
   },
   "dependencies": {
+    "@parcel/watcher": "^2.6.0",
     "@vkontakte/icons": "^3.1.1",
     "@vkontakte/vk-bridge": "^3.0.2",
     "@vkontakte/vk-bridge-react": "^2.0.1",
     "@vkontakte/vk-mini-apps-router": "^1.8.6",
     "@vkontakte/vkui": "^8.3.2",
+    "approve": "^0.0.12",
+    "core-js": "^3.51.0",
+    "deny": "^1.0.2",
+    "esbuild": "^0.28.2",
     "phaser": "^3.90.0",
     "react": "^18.2.0",
     "react-canvas-paint": "^1.0.1",

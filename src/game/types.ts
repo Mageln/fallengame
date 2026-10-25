@@ -345,10 +345,16 @@ export interface RoomDropResult {
   at: number;
 }
 
-export interface BossAttacks {
-  date: string;
+export interface BossAttackEntry {
   used: number;
   purchased: number;
+}
+
+export interface BossAttacks {
+  date: string;
+  // Подушевой учёт: bossId -> потраченные/купленные атаки на сегодня.
+  // Старые сохранения с общими used/purchased мигрируют в 'shared'.
+  entries: Record<string, BossAttackEntry>;
 }
 
 export interface RaidTaskState {
@@ -477,7 +483,7 @@ export type GameAction =
   | { type: 'OPEN_BATTLE' }
   | { type: 'BOSS_TICK'; now: number }
   | { type: 'BOSS_SKILL'; skillId: string; now: number }
-  | { type: 'BUY_BOSS_ATTACK' }
+  | { type: 'BUY_BOSS_ATTACK'; bossId: string }
   | { type: 'CLAIM_ROOM' }
   | { type: 'BATTLE_ATTACK'; technique: boolean }
   | { type: 'BATTLE_POWER' }
@@ -531,5 +537,5 @@ export type GameAction =
   | { type: 'BUY_SKIN'; skinId: string }
   | { type: 'APPLY_SKIN'; skinId: string }
   | { type: 'HYDRATE_STATE'; state: GameState }
-  | { type: 'ADD_RESOURCE'; resource: 'energy' | 'bullets' | 'gold' | 'matches' | 'zhetons'; amount: number }
+  | { type: 'ADD_RESOURCE'; resource: 'energy' | 'bullets' | 'gold' | 'matches' | 'zhetons' | 'caps'; amount: number }
   | { type: 'CLEAR_MESSAGE' };
