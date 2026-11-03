@@ -1,14 +1,34 @@
 import { useEffect, useState } from 'react';
 import { useGame } from '../game/GameContext';
 import { BOSSES } from '../game/bosses';
-import { BOSS_SKILLS, bossAttackPrice, nextResetUtc, roomDropChance, todayUtc } from '../game/survival';
+import {
+  BOSS_ENERGY_MAX,
+  BOSS_ENERGY_PER_HIT,
+  BOSS_SKILLS,
+  bossAttackPrice,
+  nextResetLocal,
+  roomDropChance,
+  todayLocal,
+} from '../game/survival';
 import styles from '../style/Boss.module.scss';
 
 const remaining = (end: number, now: number): string => {
   const seconds = Math.max(0, Math.ceil((end - now) / 1000));
   return `${String(Math.floor(seconds / 60)).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}`;
 };
+const remainingUntilMidnight = (end: number, now: number): string => {
+  const seconds = Math.max(0, Math.ceil((end - now) / 1000));
 
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  const remainingSeconds = seconds % 60;
+
+  return [
+    String(hours).padStart(2, '0'),
+    String(minutes).padStart(2, '0'),
+    String(remainingSeconds).padStart(2, '0'),
+  ].join(':');
+};
 export const PremiumShop = ({ onClose }: { onClose: () => void }) => {
   const { state } = useGame();
   return <div className={styles.backdrop} onClick={onClose}><section className={styles.panel} role="dialog" aria-modal="true" aria-label="Магазин премиум-золота" onClick={(event) => event.stopPropagation()}>
@@ -28,7 +48,9 @@ export const BossHub = ({ onClose }: { onClose: () => void }) => {
     return () => window.clearInterval(timer);
   }, []);
   // У каждого босса свой дневной лимит (см. BossDef.dailyLimit).
-  const entries = state.bossAttacks.date === todayUtc(now) ? state.bossAttacks.entries : {};
+   const entries = state.bossAttacks.date === todayLocal(now)
+    ? state.bossAttacks.entries
+    : {};
   const entryFor = (bossId: string) => entries[bossId] ?? { used: 0, purchased: 0 };
   const buyBoss = buyBossId ? BOSSES.find((b) => b.id === buyBossId) ?? null : null;
   const buyPrice = buyBoss ? bossAttackPrice(buyBoss.dailyLimit) : 0;
@@ -37,7 +59,9 @@ export const BossHub = ({ onClose }: { onClose: () => void }) => {
   return <div className={styles.backdrop} onClick={onClose}>
     <section className={styles.panel} role="dialog" aria-modal="true" aria-label="Список боссов" onClick={(event) => event.stopPropagation()}>
       <header className={styles.header}><span className={styles.lamp} aria-hidden="true" /><div><small>ЗАПРЕТНАЯ ЗОНА · СИГНАЛ 03</small><h2>БОССЫ РАЗРУШЕННОГО ГОРОДА</h2></div><button type="button" onClick={onClose} aria-label="Закрыть">✕</button></header>
-      <div className={styles.wallet}><span>🥤 Крышки: {state.caps}</span><span>💰 Припасы: {state.gold}</span><span>Обновление: {remaining(nextResetUtc(now), now)} до полуночи UTC</span></div>
+      <div className={styles.wallet}><span>🥤 Крышки: {state.caps}</span><span>💰 Припасы: {state.gold}</span><span>
+  Обновление: {remainingUntilMidnight(nextResetLocal(now), now)} до местной полуночи
+</span></div>
       {ongoing && <button type="button" className={styles.primary} onClick={() => dispatch({ type: 'OPEN_BATTLE' })}>↩ ВЕРНУТЬСЯ В ТЕКУЩИЙ БОЙ</button>}
       <div className={styles.roster}>
         {BOSSES.filter((boss) => ['1', '2', '3', '4'].includes(boss.id)).map((boss) => {
@@ -77,13 +101,51 @@ export const BossFightPanel = () => {
   return <div className={styles.backdrop}>
     <section className={`${styles.panel} ${styles.fight}`} role="dialog" aria-modal="true" aria-label={`Бой с ${battle.bossName}`}>
       <header className={styles.header}><span className={styles.lamp} aria-hidden="true" /><div><small>АРЕНА · ЖЕРТВА МЕМОВ</small><h2>⚔ {battle.bossName}</h2></div><button type="button" onClick={close} aria-label={isActive ? 'Выйти, не останавливая бой' : 'Закрыть итоги'}>{isActive ? 'ВЫЙТИ' : '✕'}</button></header>
-      <div className={styles.wallet}><span>❤️ HP {battle.playerHp}/{battle.playerMaxHp}</span><span>⚡ Энергия {state.energy}</span><span>🔫 Пули {state.bullets}</span><span>🎟️ Жетоны {state.zhetons}</span><span>🪙 Премиум {state.premiumGold}</span></div>
+      <div className={styles.wallet}><span>❤️ HP {battle.playerHp}/{battle.playerMaxHp}</span><span>⚡ Энергия задания {state.energy}</span><span>🔫 Пули {state.bullets}</span><span>🎟️ Жетоны {state.zhetons}</span><span>🪙 Премиум {state.premiumGold}</span></div>
       <div className={styles.arena}>
-        <div><img src="/pers2.jpg" alt="Ваш персонаж" /><strong>ВЫЖИВШИЙ</strong><progress max={battle.playerMaxHp} value={battle.playerHp} aria-label="HP игрока" /></div>
+        <div>
+          <img src="/pers2.jpg" alt="Ваш персонаж" />
+
+          <span className={styles.energyLabel}>
+            ⚡ {battle.bossEnergy ?? 0}/{BOSS_ENERGY_MAX}
+          </span>
+
+          <progress
+            className={styles.bossEnergy}
+            max={BOSS_ENERGY_MAX}
+            value={battle.bossEnergy ?? 0}
+            aria-label="Боевая энергия"
+          />
+
+          <strong>{state.playerName || 'Выживший'}</strong>
+
+          <progress
+            max={battle.playerMaxHp}
+            value={battle.playerHp}
+            aria-label="HP игрока"
+          />
+        </div>
         <div className={styles.arenaStatus}><span className={styles.timer}>⏱ {remaining(battle.endsAt, now)}</span><span>УРОН: {battle.damageDealt}</span><span>СЕРИЯ ×{battle.comboStreak}</span><span>Комната: {Math.round(chance * 100)}% / 50%</span><progress max={50} value={chance * 100} aria-label="Шанс выпадения комнаты" />{battle.lastHit && <strong key={`${battle.turn}-${battle.lastSkillId}`} className={styles.damage}>−{battle.lastHit.damage}</strong>}</div>
         <div><img src="/enemy/avatar-boss.jpg" alt={battle.bossName} /><strong>{battle.bossName}</strong><progress max={battle.bossMaxHp} value={battle.bossHp} aria-label="HP босса" /></div>
       </div>
-      {isActive ? <>
+      {isActive ? <>        <button
+          type="button"
+          className={styles.powerAttack}
+          disabled={(battle.bossEnergy ?? 0) < BOSS_ENERGY_MAX}
+          onClick={() =>
+            dispatch({
+              type: 'BOSS_POWER_ATTACK',
+              now: Date.now(),
+            })
+          }
+        >
+          💥 СИЛЬНЫЙ УДАР · {battle.bossEnergy ?? 0}/{BOSS_ENERGY_MAX}
+        </button>
+
+        <p className={styles.energyHint}>
+          Каждый удар: +{BOSS_ENERGY_PER_HIT} боевой энергии.
+          Сильный удар расходует весь заряд.
+        </p>
         <div className={styles.skillGrid}>{BOSS_SKILLS.map((skill) => {
           const wait = Math.max(0, Math.ceil(((battle.skillReadyAt[skill.id] ?? 0) - now) / 1000));
           return <button type="button" key={skill.id} disabled={wait > 0 || state.bullets < skill.ammo} title={wait ? `Откат ${wait} с` : skill.ammo ? `Требуется пуль: ${skill.ammo}` : skill.name} onClick={() => dispatch({ type: 'BOSS_SKILL', skillId: skill.id, now: Date.now() })}><span>{skill.icon}</span>{skill.name}<small>{wait ? `${wait} с` : skill.ammo ? `🔫 ${skill.ammo}` : 'Кулак'}</small></button>;

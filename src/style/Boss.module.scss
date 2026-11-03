@@ -53,8 +53,38 @@
 .results p { font-size: 12px; }
 .results button { padding: 12px 20px; }
 .battleLog { max-height: 125px; overflow-y: auto; padding: 6px 13px; background: #25221c; font-size: 12px; }
-.battleLog h3 { margin: 5px 0; font: 15px Stencil, Impact, sans-serif; }
-.battleLog p { margin: 3px 0; }
+.battleLog h3 {
+   margin: 5px 0; 
+   font: 15px Stencil, Impact, sans-serif; 
+  }
+.battleLog p {
+   margin: 3px 0; }
+.energyLabel {
+  color: #ffda68;
+  font-size: 11px;
+  font-weight: bold;
+}
+
+.arena progress.bossEnergy {
+  accent-color: #f1b83c;
+}
+
+.powerAttack {
+  width: 100%;
+  margin-top: 12px;
+  padding: 11px;
+  color: #fff4cc;
+  border: 1px solid #dcae3f;
+  background: linear-gradient(135deg, #93611a, #66301c);
+  font-weight: bold !important;
+}
+
+.energyHint {
+  text-align: center;
+  color: #bfb5a3;
+  font-size: 11px;
+  margin: 6px 0;
+}
 @keyframes blink { 0%, 92%, 100% { opacity: 1; } 93%, 97% { opacity: .2; } }
 @keyframes rattle { 50% { transform: translateX(2px) rotate(.3deg); } }
 @keyframes impact { from { transform: scale(1.5) translateY(9px); opacity: 0; } to { transform: scale(1) translateY(0); opacity: 1; } }
