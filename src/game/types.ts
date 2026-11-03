@@ -392,6 +392,9 @@ export interface RoomSkin {
   price: number; // 0 — базовое оформление комнаты (выдаётся вместе с ней)
 }
 
+export type ProfileSkillId = 'health' | 'fist' | 'luck' | 'block';
+export type ProfileSkills = Record<ProfileSkillId, number>;
+
 export interface GameState {
   appearance: AppearanceId;
   tutorialStep: number;
@@ -409,6 +412,7 @@ export interface GameState {
   keys: number;
   level: number;
   experience: number; // накопленный опыт за боссов и рейды
+  profileSkills: ProfileSkills;
   baseStamina: number;
   luck: number;
   // Базовые атрибуты персонажа (сила, ловкость, выносливость, интеллект, удача)
@@ -470,6 +474,7 @@ export type GameAction =
   | { type: 'NEXT_TUTORIAL' }
   | { type: 'SKIP_TUTORIAL' }
   | { type: 'RESTORE_ENERGY_TICK' }
+  | { type: 'UPGRADE_PROFILE_SKILL'; skillId: ProfileSkillId }
   | { type: 'UPGRADE_LEVEL' }
   | { type: 'UPGRADE_STAMINA' }
   | { type: 'UPGRADE_LUCK' }

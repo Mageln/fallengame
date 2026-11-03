@@ -43,3 +43,14 @@
 .footer { border-top: 1px dashed #544432; display: flex; justify-content: space-between; gap: 8px; padding: 13px 24px; color: #817b69; font-size: 9px; letter-spacing: .06em; }
 @media (max-width: 600px) { .header, .content { padding: 15px; } .tabs { padding: 10px 15px 0; }.hero { grid-template-columns: 125px 1fr; gap: 12px; }.portrait { min-height: 195px; }.portrait img { height: 180px; }.stats { grid-template-columns: repeat(2,1fr); }.gear { align-items: stretch; flex-direction: column; }.links { grid-template-columns: 1fr; }.upgrade { align-items: stretch; flex-direction: column; }.upgrade button { white-space: normal; }.footer { padding: 12px 15px; } }
 @media (max-width: 360px) { .hero { grid-template-columns: 1fr; }.portrait { min-height: 170px; }.portrait img { height: 170px; } }
+
+.skills { display: grid; gap: 10px; }
+.skill { display: flex; align-items: center; gap: 14px; padding: 13px; border: 1px solid #655039; background: linear-gradient(110deg, #352b20, #22221c); }
+.skill img { width: 64px; height: 64px; flex: none; }
+.skillInfo { flex: 1; min-width: 0; }
+.skillInfo small { color: #c7a354; font-size: 10px; font-weight: bold; }
+.skillInfo h3 { margin: 4px 0; font-size: 16px; }
+.skillInfo p { color: #bdb39f; font-size: 11px; line-height: 1.4; margin: 0 0 8px; }
+.skillInfo progress { width: 100%; max-width: 200px; height: 6px; accent-color: #c9a227; }
+.skill button { border: 1px solid #8b6441; padding: 10px 13px; background: #69402a; color: #f0dec0; font-size: 11px; font-weight: bold; }
+@media (max-width: 600px) { .tabs button { flex: 1; padding: 10px 4px; font-size: 10px; } .skill { flex-wrap: wrap; } .skill button { width: 100%; } }

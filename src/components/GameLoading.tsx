@@ -8,6 +8,7 @@ const GAME_IMAGES = [
   '/icon/arena.jpg', '/icon/boss.jpg', '/icon/clans.jpg', '/icon/clans.png',
   '/icon/cloth.jpg', '/icon/friends.png', '/icon/kazino.jpg', '/icon/shelter.png',
   '/icon/personaz.jpg', '/icon/plus.png', '/icon/quest.png', '/icon/raion.jpg',
+  '/icon/skills/health.svg', '/icon/skills/fist.svg', '/icon/skills/luck.svg', '/icon/skills/block.svg',
   '/icon/resource/bullets.png', '/icon/resource/energy.png', '/icon/resource/gold.png',
   '/icon/resource/spicki.png', '/icon/resource/zheton.png', '/map/iconboss.jpg',
   '/map/map.jpg', '/room1.jpg', '/room2.jpg', '/room3.jpg', '/room4.jpg',

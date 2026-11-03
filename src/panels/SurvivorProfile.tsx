@@ -3,8 +3,9 @@ import { useGame } from '../game/GameContext';
 import { getDistrict, levelUpCost, luckUpgradeCost, staminaUpgradeCost } from '../game/formulas';
 import { LOCATIONS } from '../game/constants';
 import styles from '../style/SurvivorProfile.module.scss';
+import { SKILL_DEFS, SKILL_MAX_LEVEL, skillCost } from '../game/profileSkills';
 
-type Tab = 'file' | 'training';
+type Tab = 'file' | 'training' | 'skills';
 interface Props {
   onClose: () => void;
   onWorkshop: () => void;
@@ -43,6 +44,7 @@ export const SurvivorProfile = ({ onClose, onWorkshop, onBosses, onInventory, on
       </header>
       <div className={styles.tabs} role="tablist" aria-label="Разделы профиля">
         <button type="button" role="tab" aria-selected={tab === 'file'} className={tab === 'file' ? styles.activeTab : ''} onClick={() => setTab('file')}>ЛИЧНОЕ ДЕЛО</button>
+        <button type="button" role="tab" aria-selected={tab === 'skills'} className={tab === 'skills' ? styles.activeTab : ''} onClick={() => { setFeedback(''); setTab('skills'); }}>НАВЫКИ</button>
         <button type="button" role="tab" aria-selected={tab === 'training'} className={tab === 'training' ? styles.activeTab : ''} onClick={() => setTab('training')}>ПРОКАЧКА</button>
       </div>
       {tab === 'file' ? <div className={styles.content} role="tabpanel">
@@ -66,6 +68,20 @@ export const SurvivorProfile = ({ onClose, onWorkshop, onBosses, onInventory, on
           <button type="button" onClick={() => go(onWorkshop)}>МАСТЕРСКАЯ ↗</button>
         </div>
         <div className={styles.links}><button type="button" onClick={() => go(onInventory)}>▣ ИНВЕНТАРЬ</button><button type="button" onClick={() => go(onBosses)}>⚔ БОССЫ</button><button type="button" onClick={() => go(onClan)}>☠ КЛАН</button></div>
+      </div> : tab === 'skills' ? <div className={styles.content} role="tabpanel">
+        <div className={styles.sectionHeading}><div><small>ЛИЧНЫЕ УМЕНИЯ</small><h3>НАВЫКИ ВЫЖИВШЕГО</h3></div><span>ПАТРОНЫ: {format(state.bullets)}</span></div>
+        <p className={styles.caption}>Постоянные улучшения за патроны. Каждый навык можно улучшить до {SKILL_MAX_LEVEL} уровня; цена следующего уровня растёт.</p>
+        {state.battle && <p className={styles.feedback}>Завершите текущий бой, чтобы улучшать навыки.</p>}
+        <div className={styles.skills}>{SKILL_DEFS.map((skill) => {
+          const level = state.profileSkills[skill.id];
+          const cost = skillCost(level);
+          const maxed = level >= SKILL_MAX_LEVEL;
+          return <article className={styles.skill} key={skill.id}>
+            <img src={skill.icon} alt="" /><div className={styles.skillInfo}><small>УРОВЕНЬ {level} / {SKILL_MAX_LEVEL}</small><h3>{skill.name}</h3><p>{skill.description}</p><progress value={level} max={SKILL_MAX_LEVEL} aria-label={`Уровень навыка ${skill.name}`} /></div>
+            <button type="button" disabled={maxed || !!state.battle || state.bullets < cost} onClick={() => { dispatch({ type: 'UPGRADE_PROFILE_SKILL', skillId: skill.id }); setFeedback('Навык улучшен.'); }}>{maxed ? 'МАКСИМУМ' : `УЛУЧШИТЬ · ${format(cost)} 🔫`}</button>
+          </article>;
+        })}</div>
+        {feedback && <p className={styles.feedback} role="status">{state.lastMessage}</p>}
       </div> : <div className={styles.content} role="tabpanel">
         <div className={styles.sectionHeading}><div><small>ПОДГОТОВКА К ВЫХОДУ</small><h3>ПРОКАЧКА ПЕРСОНАЖА</h3></div><span>ПАТРОНЫ: {format(state.bullets)}</span></div>
         <p className={styles.caption}>Улучшения приобретаются за патроны. Накопленный опыт при этом не расходуется.</p>

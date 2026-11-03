@@ -261,3 +261,55 @@ test('raid loot awards experience once and older saves start with zero', () => {
   assert.equal(state.experience, 20);
   assert.equal(act(state, 'RAID_LOOT').experience, 20);
 });
+
+test('profile skills migrate, charge bullets and respect limits and active battles', () => {
+  const old = createInitialState();
+  delete old.profileSkills;
+  assert.deepEqual(hydrateState(old).profileSkills, { health: 0, fist: 0, luck: 0, block: 0 });
+  let state = { ...createInitialState(), bullets: 500 };
+  state = act(state, 'UPGRADE_PROFILE_SKILL', { skillId: 'health' });
+  assert.equal(state.bullets, 450);
+  assert.equal(state.health, 110);
+  assert.equal(state.maxHealth, 110);
+  assert.equal(state.profileSkills.health, 1);
+  assert.equal(hydrateState(state).maxHealth, 110);
+  const started = act(state, 'START_BOSS_FIGHT', { bossId: '1' });
+  assert.equal(started.battle.playerHp, 110);
+  assert.equal(act(started, 'UPGRADE_PROFILE_SKILL', { skillId: 'health' }).bullets, 450);
+  const poor = act({ ...state, bullets: 0 }, 'UPGRADE_PROFILE_SKILL', { skillId: 'health' });
+  assert.equal(poor.profileSkills.health, 1);
+  const maxed = act({ ...state, profileSkills: { ...state.profileSkills, health: 10 } }, 'UPGRADE_PROFILE_SKILL', { skillId: 'health' });
+  assert.equal(maxed.bullets, 450);
+  assert.equal(act(state, 'UPGRADE_PROFILE_SKILL', { skillId: 'invalid' }), state);
+});
+
+test('fist skill increases unarmed boss damage and luck can cause critical hits', () => {
+  const initial = createInitialState();
+  const started = act(initial, 'START_BOSS_FIGHT', { bossId: '2' });
+  const now = started.battle.startedAt + 1;
+  const base = act(started, 'BOSS_SKILL', { skillId: 'jab', now });
+  const strong = act({ ...started, profileSkills: { ...started.profileSkills, fist: 10 } }, 'BOSS_SKILL', { skillId: 'jab', now });
+  assert.ok(strong.battle.lastHit.damage > base.battle.lastHit.damage);
+  const random = Math.random;
+  try {
+    Math.random = () => 0;
+    const lucky = act({ ...started, profileSkills: { ...started.profileSkills, luck: 1 } }, 'BOSS_SKILL', { skillId: 'jab', now });
+    assert.equal(lucky.battle.lastHit.crit, true);
+    assert.ok(lucky.battle.lastHit.damage > base.battle.lastHit.damage);
+  } finally { Math.random = random; }
+});
+
+test('block skill improves active block only in both combat systems', async () => {
+  const { resolveIncoming, totalLuck } = await vite.ssrLoadModule('/src/game/formulas.ts');
+  const initial = createInitialState();
+  const trained = { ...initial, profileSkills: { ...initial.profileSkills, block: 10, luck: 1 } };
+  assert.equal(totalLuck(trained), totalLuck(initial) + 20);
+  assert.ok(resolveIncoming(trained, 100, { blocking: true }).damage < resolveIncoming(initial, 100, { blocking: true }).damage);
+  assert.equal(resolveIncoming(trained, 100).damage, resolveIncoming(initial, 100).damage);
+  const started = act(initial, 'START_BOSS_FIGHT', { bossId: '2' });
+  const blocking = { ...started, battle: { ...started.battle, blocking: true } };
+  const now = started.battle.startedAt + BOSS_COUNTER_MS;
+  const base = act(blocking, 'BOSS_TICK', { now });
+  const better = act({ ...blocking, profileSkills: trained.profileSkills }, 'BOSS_TICK', { now });
+  assert.ok(better.battle.playerHp > base.battle.playerHp);
+});

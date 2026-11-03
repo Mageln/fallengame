@@ -21,6 +21,7 @@ export const createInitialState = (): GameState => ({
   keys: 0,
   level: 30,
   experience: 0,
+  profileSkills: { health: 0, fist: 0, luck: 0, block: 0 },
   baseStamina: 40,
   luck: 20,
   // Базовые атрибуты героя (Блок 5). Стартовые значения из DEFAULT_STATS.

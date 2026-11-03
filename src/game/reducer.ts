@@ -1,3 +1,4 @@
+import { normalizeProfileSkills, SKILL_BLOCK_PERCENT, SKILL_DEFS, SKILL_FIST_PERCENT, SKILL_HP_PER_LEVEL, SKILL_MAX_LEVEL, skillCost } from './profileSkills';
 import { bossExperience, mapRaidExperience, RAID_LOOT_EXPERIENCE } from './experience';
 import { CLAN_CREATE_GOLD,
   CLAN_MAX_MEMBERS,
@@ -282,7 +283,7 @@ const startBattle = (
     }
     current = setBossAttackEntry(current, bossId, { ...entry, used: entry.used + 1 });
   }
-  const hp = totalStamina(current);
+  const hp = totalStamina(current) + (current.profileSkills?.health ?? 0) * SKILL_HP_PER_LEVEL;
   const limit = TURN_LIMIT[source];
   const now = Date.now();
   return {
@@ -426,7 +427,8 @@ const advanceBossClock = (state: GameState, now: number): GameState => {
   let playerHp = battle.playerHp;
   if (strikes > 0) {
     const perStrike = Math.max(2, Math.floor(bossBaseDamage(battle.bossMaxHp) / 2));
-    playerHp = Math.max(0, playerHp - strikes * perStrike + (battle.blocking ? Math.floor(perStrike * 0.6) : 0));
+    const reduction = Math.min(0.9, 0.6 + (state.profileSkills?.block ?? 0) * SKILL_BLOCK_PERCENT / 100);
+    playerHp = Math.max(0, playerHp - strikes * perStrike + (battle.blocking ? Math.floor(perStrike * reduction) : 0));
   }
   const next = {
     ...battle,
@@ -738,6 +740,7 @@ export const hydrateState = (state: GameState): GameState => {
   }
   normalized = {
     ...normalized,
+    profileSkills: normalizeProfileSkills(normalized.profileSkills),
     experience: Number.isFinite(normalized.experience) ? Math.max(0, Math.floor(normalized.experience)) : 0,
     premiumGold: Number.isFinite(normalized.premiumGold) ? Math.max(0, normalized.premiumGold) : 0,
     maxHealth: Number.isFinite(normalized.maxHealth) && normalized.maxHealth > 0 ? normalized.maxHealth : 100,
@@ -815,6 +818,24 @@ export const gameReducer = (state: GameState, action: GameAction): GameState => 
         gold: state.gold + DAILY_GOLD,
         daily: { ...state.daily, goldClaimed: true },
         lastMessage: `Ежедневный вход: +${DAILY_GOLD} золота.`,
+      };
+    }
+    case 'UPGRADE_PROFILE_SKILL': {
+      const skill = SKILL_DEFS.find((item) => item.id === action.skillId);
+      if (!skill) return state;
+      if (state.battle) return msg(state, 'Завершите бой перед улучшением навыков.');
+      const skills = normalizeProfileSkills(state.profileSkills);
+      const level = skills[skill.id];
+      if (level >= SKILL_MAX_LEVEL) return msg(state, 'Навык уже достиг максимального уровня.');
+      const cost = skillCost(level);
+      if (state.bullets < cost) return msg(state, `Нужно ${cost} патронов на навык «${skill.name}».`);
+      return {
+        ...state,
+        bullets: state.bullets - cost,
+        profileSkills: { ...skills, [skill.id]: level + 1 },
+        maxHealth: state.maxHealth + (skill.id === 'health' ? SKILL_HP_PER_LEVEL : 0),
+        health: state.health + (skill.id === 'health' ? SKILL_HP_PER_LEVEL : 0),
+        lastMessage: `Навык «${skill.name}» улучшен до ${level + 1} уровня.`,
       };
     }
     case 'UPGRADE_LEVEL': {
@@ -1051,7 +1072,10 @@ export const gameReducer = (state: GameState, action: GameAction): GameState => 
       const battle = current.battle;
       if ((battle.skillReadyAt[skill.id] ?? 0) > action.now) return msg(current, `${skill.name}: приём ещё не готов.`);
       if (current.bullets < skill.ammo) return msg(current, `Для «${skill.name}» нужно ${skill.ammo} пули.`);
-      const damage = Math.min(battle.bossHp, Math.max(1, Math.round((8 + current.level / 4) * skill.multiplier)));
+      const fistMultiplier = skill.ammo === 0 ? 1 + (current.profileSkills?.fist ?? 0) * SKILL_FIST_PERCENT / 100 : 1;
+      const luckLevel = current.profileSkills?.luck ?? 0;
+      const luckCrit = skill.id !== 'critical' && luckLevel > 0 && Math.random() < luckLevel / 100;
+      const damage = Math.min(battle.bossHp, Math.max(1, Math.round((8 + current.level / 4) * skill.multiplier * fistMultiplier * (luckCrit ? 1.5 : 1))));
       const updated: BattleState = {
         ...battle,
         bossHp: battle.bossHp - damage,
@@ -1060,10 +1084,10 @@ export const gameReducer = (state: GameState, action: GameAction): GameState => 
         bossEnergy: Math.min(BOSS_ENERGY_MAX, (battle.bossEnergy ?? 0) + BOSS_ENERGY_PER_HIT),
         turn: battle.turn + 1,
         blocking: skill.id === 'guard',
-        lastHit: { damage, crit: skill.id === 'critical', missed: false },
+        lastHit: { damage, crit: skill.id === 'critical' || luckCrit, missed: false },
         lastSkillId: skill.id,
         skillReadyAt: { ...battle.skillReadyAt, [skill.id]: action.now + skill.cooldown * 2_000 },
-        log: [...battle.log, `${skill.icon} ${skill.name}: −${damage} HP`].slice(-15),
+        log: [...battle.log, `${skill.icon} ${skill.name}: −${damage} HP${luckCrit ? ' (крит)' : ''}`].slice(-15),
       };
       const spent = { ...current, bullets: current.bullets - skill.ammo };
       return updated.bossHp <= 0
