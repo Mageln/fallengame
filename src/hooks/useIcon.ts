@@ -118,7 +118,7 @@ export const useIcon = () => {
         loadIconWithTimeout('/icon/personaz.jpg', 2000),
         loadIconWithTimeout('/icon/kazino.jpg', 2000),
         loadIconWithTimeout('/icon/cloth.jpg', 2000),
-        loadIconWithTimeout('/icon/komnata.jpg', 2000),
+        loadIconWithTimeout('/icon/shelter.png', 2000),
         loadIconWithTimeout('/icon/raion.jpg', 2000),
         // Нижние кнопки: друзья, задания, кланы
         loadIconWithTimeout('/icon/friends.png', 2000),
@@ -164,7 +164,7 @@ export const useIcon = () => {
         kazino: results[11]?.status === 'fulfilled' ? ICON_SRCS.kazino : null,
         cloth: results[12]?.status === 'fulfilled' ? ICON_SRCS.cloth : null,
         gold: results[4]?.status === 'fulfilled' ? ICON_SRCS.gold : null,
-        komnata: results[13]?.status === 'fulfilled' ? '/icon/komnata.jpg' : null,
+        komnata: results[13]?.status === 'fulfilled' ? '/icon/shelter.png' : null,
         raion: results[14]?.status === 'fulfilled' ? '/icon/raion.jpg' : null,
       });
 

@@ -371,17 +371,28 @@ const drawRightPanel = (
       ctx.fill();
     }
 
-    // Кнопка «Комната» — ржавая дверь убежища вместо иконки.
-    if (item.action === 'go_komnata') {
-      drawShelterDoor(ctx, iconSize, active, lockedRoomsRemain);
-      ctx.restore();
-      return;
-    }
-
-    // Иконка из картинки
+    // Иконка убежища загружается так же, как остальные кнопки.
     const icon = icons[item.iconKey];
-    if (icon && icon instanceof HTMLImageElement && icon.complete) {
+    if (icon && icon instanceof HTMLImageElement && icon.complete && icon.naturalWidth > 0) {
       ctx.drawImage(icon, -iconSize / 2, -iconSize / 2, iconSize, iconSize);
+      if (item.action === 'go_komnata' && lockedRoomsRemain) {
+        const badgeR = iconSize * 0.16;
+        const bx = iconSize / 2 - badgeR;
+        const by = -iconSize / 2 + badgeR;
+        ctx.fillStyle = '#a52d26';
+        ctx.beginPath();
+        ctx.arc(bx, by, badgeR, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = '#fff';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+        ctx.font = `bold ${Math.round(iconSize * 0.16)}px Arial`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('🔒', bx, by + 1);
+      }
+    } else if (item.action === 'go_komnata') {
+      drawShelterDoor(ctx, iconSize, active, lockedRoomsRemain);
     } else {
       ctx.font = `${Math.round(slotSize * 0.5)}px Arial`;
       ctx.textAlign = 'center';
