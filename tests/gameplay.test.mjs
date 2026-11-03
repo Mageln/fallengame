@@ -362,3 +362,41 @@ test('shop weapons improve boss arena damage', () => {
   const better = act(upgraded, 'BOSS_SKILL', { skillId: 'jab', now: upgraded.battle.startedAt + 1 });
   assert.ok(better.battle.lastHit.damage > normal.battle.lastHit.damage);
 });
+
+test('opening map raids and old notifications never starts or restarts raids', () => {
+  let state = { ...createInitialState(), energy: 100 };
+  const raidId = state.mapRaids[0].id;
+  state = act(state, 'OPEN_MAP_RAID', { raidId });
+  assert.equal(state.showRaidModal, true);
+  assert.equal(state.energy, 100);
+  assert.equal(state.mapRaids[0].isRunning, false);
+  state = act(state, 'START_RAID', { raidId });
+  const afterCost = state.energy;
+  const finish = state.mapRaids[0].endTime;
+  state = act(state, 'OPEN_MAP_RAID', { raidId });
+  assert.equal(state.energy, afterCost);
+  assert.equal(state.mapRaids[0].endTime, finish);
+  const realNow = Date.now;
+  try {
+    Date.now = () => finish + 1;
+    state = act(state, 'CHECK_RAIDS');
+    assert.equal(state.notifications[0].raidId, raidId);
+    state = act(state, 'CLAIM_RAID_REWARD', { raidId });
+    assert.equal(state.mapRaids[0].isRunning, false);
+    assert.equal(state.mapRaids[0].completed, true);
+    assert.equal(state.mapRaids[0].endTime, undefined);
+    assert.equal(state.showRaidModal, true);
+    assert.equal(state.energy, afterCost);
+    const xp = state.experience;
+    state = act(state, 'OPEN_MAP_RAID', { raidId }); // старое уведомление или значок на карте
+    state = act(state, 'CHECK_RAIDS');
+    state = act(state, 'CLAIM_RAID_REWARD', { raidId });
+    assert.equal(state.experience, xp);
+    assert.equal(state.energy, afterCost);
+    assert.equal(state.mapRaids[0].isRunning, false);
+    state = act(state, 'START_RAID', { raidId }); // явное нажатие «Начать рейд»
+    assert.equal(state.mapRaids[0].isRunning, true);
+    assert.equal(state.energy, afterCost - state.mapRaids[0].energyCost);
+    assert.equal(state.mapRaids[0].completed, false);
+  } finally { Date.now = realNow; }
+});

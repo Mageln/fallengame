@@ -1370,6 +1370,17 @@ export const gameReducer = (state: GameState, action: GameAction): GameState => 
       }
       return { ...state, battle: null, battleVisible: false };
     }
+    case 'OPEN_MAP_RAID': {
+      const raid = state.mapRaids.find((entry) => entry.id === action.raidId);
+      if (!raid) return state;
+      return {
+        ...state,
+        showRaidModal: true,
+        activeRaidId: raid.id,
+        raidTasks: raid.isRunning ? { raidId: raid.id, completedIds: state.raidTaskProgress[raid.id] ?? [], open: false } : null,
+        lastMessage: raid.isRunning ? `${raid.name}: рейд уже начат.` : raid.completed ? `${raid.name}: награда получена. Можно начать рейд заново.` : `${raid.name}: нажмите «Начать рейд».`,
+      };
+    }
     case 'START_RAID': {
       // Рейды с карты районов: запускают таймер и открывают окно рейда
       const mapRaid = state.mapRaids.find((r) => r.id === action.raidId);
@@ -1888,13 +1899,11 @@ export const gameReducer = (state: GameState, action: GameAction): GameState => 
         experience: state.experience + mapRaidExperience(raid.type),
         matches: state.matches + raid.rewards.matches,
         keys: state.keys + raid.rewards.materials,
-        showRaidModal: false,
-        activeRaidId: null,
         raidTasks: state.raidTasks?.raidId === raid.id ? { ...state.raidTasks, open: false } : state.raidTasks,
         mapRaids: state.mapRaids.map((r) =>
           r.id === action.raidId ? { ...r, isRunning: false, completed: true, startTime: undefined, endTime: undefined } : r
         ),
-        lastMessage: `${raid.name}: +${mapRaidExperience(raid.type)} опыта, +${raid.rewards.matches} спичек из рейда.`,
+        lastMessage: `${raid.name}: +${mapRaidExperience(raid.type)} опыта, +${raid.rewards.matches} спичек из рейда. Чтобы повторить рейд, нажмите «Начать рейд».`,
       }, 'raid', { matches: raid.rewards.matches });
       return recordClanEvent(collected, 'raid');
     }

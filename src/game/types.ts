@@ -506,6 +506,7 @@ export type GameAction =
   | { type: 'BATTLE_HEAL' }
   | { type: 'INVITE_FRIEND' }
   | { type: 'LEAVE_BATTLE' }
+  | { type: 'OPEN_MAP_RAID'; raidId: string }
   | { type: 'START_RAID'; raidId: string }
   | { type: 'RAID_SCOUT' }
   | { type: 'RAID_BYPASS' }

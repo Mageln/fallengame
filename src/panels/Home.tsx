@@ -49,7 +49,7 @@ export const Home = ({ id }: HomeProps) => {
 
   // Обработчики для рейдов
   const handleRaidClick = (raidId: string) => {
-    dispatch({ type: 'START_RAID', raidId });
+    dispatch({ type: 'OPEN_MAP_RAID', raidId });
   };
 
   return (
@@ -113,7 +113,7 @@ export const Home = ({ id }: HomeProps) => {
         onNotificationRaidClick={(raidId) => {
           // Закрываем панель уведомлений и открываем окно рейда
           dispatch({ type: 'TOGGLE_NOTIFICATIONS' });
-          dispatch({ type: 'START_RAID', raidId });
+          dispatch({ type: 'OPEN_MAP_RAID', raidId });
         }}
         onNotificationRemove={(id) => dispatch({ type: 'REMOVE_NOTIFICATION', id })}
         onNotificationsClear={() => dispatch({ type: 'CLEAR_NOTIFICATIONS' })}
