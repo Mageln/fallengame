@@ -75,7 +75,7 @@ import {
 } from './formulas';
 import { BOSSES } from './bosses';
 import { getBossAttackEntry, normalizeBossAttacks, resetBossAttacks, setBossAttackEntry } from './bossAttacks';
-import { BOSS_COUNTER_MS, BOSS_DURATION_MS, BOSS_ENERGY_MAX, BOSS_ENERGY_PER_HIT, BOSS_POWER_MULTIPLIER, BOSS_SKILLS, DAILY_BOSS_ATTACKS, RAID_DANGER_TASKS, RAID_TASK_GOLD_PRICE, bossAttackPrice, roomDropChance, todayLocal } from './survival';
+import { BOSS_ATTACK_CONFIG, BOSS_COUNTER_MS, BOSS_DURATION_MS, BOSS_ENERGY_MAX, BOSS_ENERGY_PER_HIT, BOSS_POWER_MULTIPLIER, BOSS_SKILLS, DAILY_BOSS_ATTACKS, RAID_DANGER_TASKS, RAID_TASK_GOLD_PRICE, bossAttackPrice, roomDropChance, todayLocal } from './survival';
 import type { ResourceEvent, ResourceSource } from './survival';
 import { advanceClanContracts, clanRating, normalizeClanName, validateClanName, CLAN_EMBLEMS, CLAN_MEMBER_BONUS } from './clans';
 import { BattleState, ClanState, ClanTaskEvent, ClanWarHistoryEntry, ClanWarState, GameAction, GameNotification, GameState } from './types';
@@ -270,17 +270,17 @@ const startBattle = (
 ): GameState => {
   if (state.battle) return { ...state, battleVisible: true, lastMessage: 'Продолжается текущий бой.' };
   let current = resetBossAttacks(state);
-  if (source === 'boss') {
+  if (state.weapon.broken) return msg(current, 'Оружие сломано. Почините его в Мастерской.');
+  if (current.health <= 0) return msg(current, 'Сначала восстановите HP в рейдовых заданиях.');
+  if (source === 'boss' && BOSS_ATTACK_CONFIG.timedLimits) {
     const def = BOSSES.find((b) => b.id === bossId);
     const dailyLimit = def?.dailyLimit ?? DAILY_BOSS_ATTACKS;
     const entry = getBossAttackEntry(current, bossId);
     if (entry.used >= dailyLimit + entry.purchased) {
-      return msg(current, `ЛИМИТ ИСЧЕРПАН: ${bossName}. Докупите атаку за донат или ждите местной полуночи.`);
+      return msg(current, `ЛИМИТ ИСЧЕРПАН: ${bossName}. Докупите атаку или дождитесь обновления попыток.`);
     }
     current = setBossAttackEntry(current, bossId, { ...entry, used: entry.used + 1 });
   }
-  if (state.weapon.broken) return msg(current, 'Оружие сломано. Почините его в Мастерской.');
-  if (current.health <= 0) return msg(current, 'Сначала восстановите HP в рейдовых заданиях.');
   const hp = totalStamina(current);
   const limit = TURN_LIMIT[source];
   const now = Date.now();
@@ -1007,6 +1007,7 @@ export const gameReducer = (state: GameState, action: GameAction): GameState => 
     case 'BOSS_TICK':
       return advanceBossClock(resetBossAttacks(state, action.now), action.now);
     case 'BUY_BOSS_ATTACK': {
+      if (!BOSS_ATTACK_CONFIG.timedLimits) return msg(state, 'В тестовом режиме атаки не ограничены.');
       const boss = BOSSES.find((b) => b.id === action.bossId);
       if (!boss) return state;
       const current = resetBossAttacks(state);

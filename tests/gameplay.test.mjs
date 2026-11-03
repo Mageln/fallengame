@@ -7,7 +7,7 @@ after(() => vite.close());
 
 const { createInitialState } = await vite.ssrLoadModule('/src/game/initialState.ts');
 const { gameReducer, hydrateState } = await vite.ssrLoadModule('/src/game/reducer.ts');
-const { roomDropChance, BOSS_COUNTER_MS, BOSS_DURATION_MS, bossAttackPrice, todayLocal, nextResetLocal } = await vite.ssrLoadModule('/src/game/survival.ts');
+const { roomDropChance, BOSS_COUNTER_MS, BOSS_DURATION_MS, bossAttackPrice, todayLocal, BOSS_ATTACK_CONFIG } = await vite.ssrLoadModule('/src/game/survival.ts');
 
 const act = (state, type, details = {}) => gameReducer(state, { type, ...details });
 
@@ -25,7 +25,7 @@ test('a boss victory rolls a room; only an available drop can be claimed', () =>
   assert.deepEqual(initial.unlockedRooms, ['location1']);
   assert.equal(act(initial, 'CHANGE_LOCATION', { locationId: 'location2' }).currentLocation, 'location1');
   let state = act(initial, 'START_BOSS_FIGHT', { bossId: '1' });
-  assert.equal(state.bossAttacks.entries['1'].used, 1);
+  assert.equal(state.bossAttacks.entries['1'], undefined);
   state = { ...state, battle: { ...state.battle, bossHp: 1, damageDealt: 900 } };
   const random = Math.random;
   try {
@@ -87,7 +87,9 @@ test('leaving a boss battle does not pause the boss; returning resumes it', () =
   assert.equal(state.battle, null);
 });
 
-test('boss attacks reset by local day and extra attacks cost caps per boss', () => {
+test('timed boss attacks reset after two hours and extra attacks cost caps', () => {
+  BOSS_ATTACK_CONFIG.timedLimits = true;
+  try {
   const initial = createInitialState();
   const price = bossAttackPrice(5);
   let state = {
@@ -106,10 +108,11 @@ test('boss attacks reset by local day and extra attacks cost caps per boss', () 
   assert.equal(state.bossAttacks.entries['1'].used, 6);
   assert.equal(state.battle.source, 'boss');
   assert.equal(act(state, 'BATTLE_GRENADES', { count: 1 }), state);
-  const reset = act({ ...state, battle: null }, 'BOSS_TICK', { now: nextResetLocal() });
+  const reset = act({ ...state, battle: null }, 'BOSS_TICK', { now: state.bossAttacks.resetAt });
   assert.deepEqual(reset.bossAttacks.entries, {});
   assert.equal(reset.caps, 5);
   assert.equal(reset.premiumGold, 10);
+  } finally { BOSS_ATTACK_CONFIG.timedLimits = false; }
 });
 
 test('raid awards matches, tasks award tokens and health, never donation gold', () => {
@@ -186,4 +189,15 @@ test('boss energy charges on successful hits and powers a strong attack', () => 
   assert.ok(hp - state.battle.bossHp > 8);
   assert.equal(state.battle.damageDealt - total, hp - state.battle.bossHp);
   assert.equal(act(state, 'BOSS_POWER_ATTACK', { now: now + 11 }).battle.bossHp, state.battle.bossHp);
+});
+
+test('test mode allows attacking an exhausted boss without consuming or buying attacks', () => {
+  let state = { ...createInitialState(), caps: 100, bossAttacks: { date: todayLocal(), entries: { '1': { used: 999, purchased: 1 } } } };
+  const before = state.bossAttacks;
+  const bought = act(state, 'BUY_BOSS_ATTACK', { bossId: '1' });
+  assert.equal(bought.caps, 100);
+  assert.equal(bought.bossAttacks, before);
+  state = act(bought, 'START_BOSS_FIGHT', { bossId: '1' });
+  assert.equal(state.battle.source, 'boss');
+  assert.equal(state.bossAttacks, before);
 });

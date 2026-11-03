@@ -353,6 +353,7 @@ export interface BossAttackEntry {
 
 export interface BossAttacks {
   date: string;
+  resetAt?: number; // Конец двухчасового периода, если лимиты включены.
   // Подушевой учёт: bossId -> потраченные/купленные атаки на сегодня.
   // Старые сохранения с общими used/purchased мигрируют в 'shared'.
   entries: Record<string, BossAttackEntry>;

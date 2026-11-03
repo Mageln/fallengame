@@ -2,6 +2,13 @@
 export const DAILY_BOSS_ATTACKS = 3;
 export const EXTRA_ATTACK_PRICE = 20;
 
+// false — тестовый режим: не ограничивать нападения.
+// true — лимиты восстанавливаются через два часа после первого нападения.
+export const BOSS_ATTACK_CONFIG: { timedLimits: boolean; resetIntervalMs: number } = {
+  timedLimits: false,
+  resetIntervalMs: 2 * 60 * 60 * 1000,
+};
+
 // Цена докупки атаки на конкретного босса (тестовый режим — за крышки).
 // Чем сильнее босс (меньше бесплатных попыток), тем дороже докупка.
 export const bossAttackPrice = (dailyLimit: number): number =>
