@@ -24,7 +24,7 @@ export const LoginReward = ({ onClose }: { onClose: () => void }) => {
         {current && <em>{status.available ? 'СЕГОДНЯ' : 'ПОЛУЧЕНО'}</em>}
       </article>;
     })}</div>
-    <div className={styles.actions}><p>{status.available ? `День ${status.day} из 7 · после седьмого дня начнётся новая серия` : 'Сегодняшняя награда получена. Следующая — завтра.'}</p><button type="button" disabled={!status.available} onClick={() => dispatch({ type: 'CLAIM_LOGIN_REWARD' })}>{status.available ? 'ЗАБРАТЬ НАГРАДУ' : 'ПОЛУЧЕНО ✓'}</button></div>
+    <div className={styles.actions}><p>{status.available ? `День ${status.day} из 7 · после седьмого дня начнётся новая серия` : 'Сегодняшняя награда получена. Следующая — завтра.'}</p><button type="button" disabled={!status.available} onClick={() => { dispatch({ type: 'CLAIM_LOGIN_REWARD' }); onClose(); }}>{status.available ? 'ЗАБРАТЬ НАГРАДУ' : 'ПОЛУЧЕНО ✓'}</button></div>
     <small className={styles.hint}>Обновление в полночь по времени устройства. 💰 — игровые припасы.</small>
   </section>;
 };
