@@ -49,6 +49,7 @@ export const Home = ({ id }: HomeProps) => {
   // Собираем данные профиля для canvas
   const profileData = {
     level: state.level,
+    experience: state.experience,
     stamina: derived.stamina,
     damage: derived.damage,
     luck: derived.luck,

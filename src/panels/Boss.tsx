@@ -1,3 +1,4 @@
+import { bossExperience } from '../game/experience';
 import { useEffect, useState } from 'react';
 import { useGame } from '../game/GameContext';
 import { BOSSES } from '../game/bosses';
@@ -57,7 +58,7 @@ export const BossHub = ({ onClose }: { onClose: () => void }) => {
           const exhausted = BOSS_ATTACK_CONFIG.timedLimits && left <= 0;
           const price = bossAttackPrice(boss.dailyLimit);
           return <article key={boss.id} className={styles.bossCard}>
-            <div className={styles.bossPortrait}><img src="/enemy/avatar-boss.jpg" alt="" /></div><div className={styles.bossInfo}><h3>{boss.name}</h3><p>{boss.description}</p><span>☠ {boss.hp} HP · 🔫 пули при победе · 🎁 комната </span><span>{BOSS_ATTACK_CONFIG.timedLimits ? `⚔ Нападения: ${left}/${total} · докупка 🥤 ${price}` : '⚔ Нападения без ограничений'}</span></div>
+            <div className={styles.bossPortrait}><img src="/enemy/avatar-boss.jpg" alt="" /></div><div className={styles.bossInfo}><h3>{boss.name}</h3><p>{boss.description}</p><span>☠ {boss.hp} HP · ⭐ {bossExperience(boss.hp)} опыта · 🔫 пули при победе · 🎁 комната </span><span>{BOSS_ATTACK_CONFIG.timedLimits ? `⚔ Нападения: ${left}/${total} · докупка 🥤 ${price}` : '⚔ Нападения без ограничений'}</span></div>
             {exhausted
               ? <button type="button" disabled={!!state.battle} title={state.battle ? 'Сначала завершите текущий бой' : undefined} onClick={() => setBuyBossId(boss.id)}>🥤 КУПИТЬ АТАКУ · {price}</button>
               : <button type="button" disabled={!!state.battle} title={state.battle ? 'Сначала завершите текущий бой' : state.health <= 0 ? 'Восстановите HP в рейде' : state.weapon.broken ? 'Почините оружие в мастерской' : undefined} onClick={() => dispatch({ type: 'START_BOSS_FIGHT', bossId: boss.id })}>НАПАСТЬ{BOSS_ATTACK_CONFIG.timedLimits ? ` · ${left}/${total}` : ''}</button>}
@@ -100,7 +101,7 @@ export const BossFightPanel = () => {
           const wait = Math.max(0, Math.ceil(((battle.skillReadyAt[skill.id] ?? 0) - now) / 1000));
           return <button type="button" key={skill.id} disabled={wait > 0 || state.bullets < skill.ammo} title={wait ? `Откат ${wait} с` : skill.ammo ? `Требуется пуль: ${skill.ammo}` : skill.name} onClick={() => dispatch({ type: 'BOSS_SKILL', skillId: skill.id, now: Date.now() })}><span>{skill.icon}</span>{skill.name}<small>{wait ? `${wait} с` : skill.ammo ? `🔫 ${skill.ammo}` : 'Кулак'}</small></button>;
         })}</div><button type="button" className={styles.exit} onClick={close}>ВЫЙТИ · БОЙ ПРОДОЛЖИТСЯ</button>
-      </> : <div className={styles.results}><strong className={battle.outcome === 'won' ? styles.success : styles.failure}>{battle.outcome === 'won' ? 'БОСС ПОВЕРЖЕН' : 'БОЙ ЗАВЕРШЁН'}</strong><p>Нанесено урона: {battle.damageDealt} · пули: +{battle.reward?.bullets ?? 0}</p><p>Шанс комнаты: {Math.round(chance * 100)}% · <b>{battle.reward?.dropped ? 'ВЫПАЛО' : 'НЕ ВЫПАЛО'}</b></p>{battle.reward?.room && <p>🎁 Найдена комната! Заберите её на экране «Комната».</p>}<button type="button" onClick={close}>{battle.outcome === 'won' ? 'ЗАБРАТЬ НАГРАДУ' : 'ЗАКРЫТЬ'}</button></div>}
+      </> : <div className={styles.results}><strong className={battle.outcome === 'won' ? styles.success : styles.failure}>{battle.outcome === 'won' ? 'БОСС ПОВЕРЖЕН' : 'БОЙ ЗАВЕРШЁН'}</strong><p>Нанесено урона: {battle.damageDealt} · опыт: +{battle.reward?.experience ?? 0} · пули: +{battle.reward?.bullets ?? 0}</p><p>Шанс комнаты: {Math.round(chance * 100)}% · <b>{battle.reward?.dropped ? 'ВЫПАЛО' : 'НЕ ВЫПАЛО'}</b></p>{battle.reward?.room && <p>🎁 Найдена комната! Заберите её на экране «Комната».</p>}<button type="button" onClick={close}>{battle.outcome === 'won' ? 'ЗАБРАТЬ НАГРАДУ' : 'ЗАКРЫТЬ'}</button></div>}
       <div className={styles.battleLog} role="log" aria-live="polite"><h3>ЖУРНАЛ УРОНА</h3>{battle.log.slice(-4).map((line, index) => <p key={`${index}-${line}`}>{line}</p>)}</div>
       {state.lastMessage && <p className={styles.notice} role="status">{state.lastMessage}</p>}
     </section>

@@ -110,6 +110,7 @@ export interface GameData {
 
 export interface ProfileData {
   level: number;
+  experience: number;
   stamina: number;
   damage: number;
   luck: number;

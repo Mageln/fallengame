@@ -1,3 +1,4 @@
+import { mapRaidExperience } from '../game/experience';
 import { useEffect, useState } from 'react';
 import { useGame } from '../game/GameContext';
 import { RAID_DANGER_TASKS, RAID_TASK_GOLD_PRICE } from '../game/survival';
@@ -45,7 +46,7 @@ export const RaidModal = ({ raidId, onClaim, onCancel, onMinimize }: RaidModalPr
       <strong className={styles.timer}>{completed ? '✅ ГОТОВО' : `⏱ ${formatTime((raid.endTime ?? now) - now)}`}</strong>
       <div className={styles.progressLabel}><span>Время рейда</span><strong>{Math.round(progress)}%</strong></div>
       <progress value={progress} max={100} aria-label="Ход рейда" />
-      <div className={styles.rewards}><span>🪵 +{raid.rewards.matches} спичек</span><span>⚙ +{raid.rewards.materials} материалов</span><span>🎟️ Опасные задания: {done}/{RAID_DANGER_TASKS.length}</span></div>
+      <div className={styles.rewards}><span>⭐ +{mapRaidExperience(raid.type)} опыта</span><span>🪵 +{raid.rewards.matches} спичек</span><span>⚙ +{raid.rewards.materials} материалов</span><span>🎟️ Опасные задания: {done}/{RAID_DANGER_TASKS.length}</span></div>
       <button type="button" className={styles.taskButton} onClick={() => dispatch({ type: 'OPEN_RAID_TASKS', raidId })}>☢ ЗАДАНИЯ В РЕЙДЕ · {done}/{RAID_DANGER_TASKS.length}</button>
       <div className={styles.actions}>
         {completed ? <button type="button" className={styles.primary} onClick={onClaim}>ЗАБРАТЬ НАГРАДУ</button>

@@ -218,7 +218,7 @@ export interface BattleState {
   outcome: 'fighting' | 'won' | 'lost';
   startedAt: number; // Date.now() на старте — ключ владения наградой
   endedAt: number | null; // Date.now() на финале
-  reward: { gold: number; bullets: number; keys: number; zhetons: number; room?: string | null; roomChance?: number; dropped?: boolean } | null;
+  reward: { gold: number; bullets: number; keys: number; zhetons: number; experience?: number; room?: string | null; roomChance?: number; dropped?: boolean } | null;
   damageDealt: number;
   endsAt: number;
   lastCounterAt: number;
@@ -408,6 +408,7 @@ export interface GameState {
   medkits: number;
   keys: number;
   level: number;
+  experience: number; // накопленный опыт за боссов и рейды
   baseStamina: number;
   luck: number;
   // Базовые атрибуты персонажа (сила, ловкость, выносливость, интеллект, удача)

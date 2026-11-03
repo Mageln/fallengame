@@ -37,6 +37,7 @@ export const FallenCanvas: React.FC<PrisonCanvasProps & {
   showProfile?: boolean;
   profileData?: {
     level: number;
+    experience: number;
     stamina: number;
     damage: number;
     luck: number;

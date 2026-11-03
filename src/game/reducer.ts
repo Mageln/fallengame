@@ -1,3 +1,4 @@
+import { bossExperience, mapRaidExperience, RAID_LOOT_EXPERIENCE } from './experience';
 import { CLAN_CREATE_GOLD,
   CLAN_MAX_MEMBERS,
   CLAN_WAR_MIN_CONTRIB,
@@ -390,6 +391,7 @@ const bossKilled = (state: GameState, battle: BattleState): GameState => {
       outcome: 'won',
       endedAt: Date.now(),
       reward: {
+        experience: battle.source === 'boss' ? bossExperience(battle.bossMaxHp) : 0,
         bullets: bossReward?.bullets ?? bullets,
         keys: bossReward ? 1 : (battle.source === 'gast' ? 0 : 1),
         zhetons: battle.source === 'boss' ? 0 : zhetons,
@@ -736,6 +738,7 @@ export const hydrateState = (state: GameState): GameState => {
   }
   normalized = {
     ...normalized,
+    experience: Number.isFinite(normalized.experience) ? Math.max(0, Math.floor(normalized.experience)) : 0,
     premiumGold: Number.isFinite(normalized.premiumGold) ? Math.max(0, normalized.premiumGold) : 0,
     maxHealth: Number.isFinite(normalized.maxHealth) && normalized.maxHealth > 0 ? normalized.maxHealth : 100,
     health: Number.isFinite(normalized.health) ? Math.max(0, normalized.health) : 100,
@@ -1281,6 +1284,7 @@ export const gameReducer = (state: GameState, action: GameAction): GameState => 
         if (r) {
           const collected = recordResources({
             ...bumpKillQuests(state),
+            experience: state.experience + (r.experience ?? 0),
             bullets: state.bullets + r.bullets,
             keys: state.keys + (r.keys ?? 0),
             zhetons: state.zhetons + r.zhetons,
@@ -1289,7 +1293,7 @@ export const gameReducer = (state: GameState, action: GameAction): GameState => 
             woundedBosses: wb,
             battle: null,
             battleVisible: false,
-            lastMessage: `Награда за босса: +${r.bullets} пуль${r.gold ? `, +${r.gold} припасов` : ''}.${r.dropped ? ' ВЫПАЛО: найдена комната!' : ' НЕ ВЫПАЛО.'}`,
+            lastMessage: `Награда за босса: +${r.experience ?? 0} опыта, +${r.bullets} пуль${r.gold ? `, +${r.gold} припасов` : ''}.${r.dropped ? ' ВЫПАЛО: найдена комната!' : ' НЕ ВЫПАЛО.'}`,
           }, 'boss', { bullets: r.bullets, supplies: r.gold });
           return recordClanEvent(collected, 'zombie');
         }
@@ -1386,6 +1390,7 @@ export const gameReducer = (state: GameState, action: GameAction): GameState => 
       const bonus = raid.id === 'marauder_base' ? 2 : 1;
       let next = {
         ...state,
+        experience: state.experience + RAID_LOOT_EXPERIENCE,
         matches: state.matches + raid.matches * bonus,
         grenades: state.grenades + raid.grenades * bonus,
         medkits: state.medkits + raid.medkits * bonus,
@@ -1406,7 +1411,7 @@ export const gameReducer = (state: GameState, action: GameAction): GameState => 
       }
       next = {
         ...next,
-        lastMessage: `${raid.name}: ящики собраны. +${raid.matches * bonus} спичек, гранаты и аптечки.${dropMsg}`,
+        lastMessage: `${raid.name}: ящики собраны. +${RAID_LOOT_EXPERIENCE} опыта, +${raid.matches * bonus} спичек, гранаты и аптечки.${dropMsg}`,
       };
       // Update quest progress for raid_loot
       const lootQuest = next.daily.quests.find((qp) => qp.questId === 'q3');
@@ -1821,6 +1826,7 @@ export const gameReducer = (state: GameState, action: GameAction): GameState => 
 
       const collected = recordResources({
         ...state,
+        experience: state.experience + mapRaidExperience(raid.type),
         matches: state.matches + raid.rewards.matches,
         keys: state.keys + raid.rewards.materials,
         showRaidModal: false,
@@ -1829,7 +1835,7 @@ export const gameReducer = (state: GameState, action: GameAction): GameState => 
         mapRaids: state.mapRaids.map((r) =>
           r.id === action.raidId ? { ...r, isRunning: false, completed: true, startTime: undefined, endTime: undefined } : r
         ),
-        lastMessage: `${raid.name}: +${raid.rewards.matches} спичек из рейда.`,
+        lastMessage: `${raid.name}: +${mapRaidExperience(raid.type)} опыта, +${raid.rewards.matches} спичек из рейда.`,
       }, 'raid', { matches: raid.rewards.matches });
       return recordClanEvent(collected, 'raid');
     }

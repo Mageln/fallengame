@@ -1,5 +1,6 @@
 interface ProfileData {
   level: number;
+  experience: number;
   stamina: number;
   damage: number;
   luck: number;
@@ -328,6 +329,8 @@ export const drawProfile = (
   ctx.stroke();
 
   drawGlowText(ctx, `Ур. ${profileData.level}`, charCenterX, levelBadgeY + 14, 12, '#ffd700', '#ffd700');
+
+  drawGlowText(ctx, `Опыт: ${profileData.experience}`, charCenterX, levelBadgeY + 42, 11, '#ffd700', '#9b7921');
 
   // ===== ПРАВАЯ КОЛОНКА — СТАТЫ =====
   const rightColX = panelX + panelWidth * 0.46;

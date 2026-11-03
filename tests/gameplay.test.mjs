@@ -228,3 +228,36 @@ test('finished hidden boss battle can be reopened and closed before another atta
   state = act(state, 'LEAVE_BATTLE');
   assert.equal(state.battle, null);
 });
+
+test('experience from boss victory is awarded exactly once on claiming', () => {
+  let state = act(createInitialState(), 'START_BOSS_FIGHT', { bossId: '1' });
+  state = { ...state, battle: { ...state.battle, bossHp: 1 } };
+  state = act(state, 'BOSS_SKILL', { skillId: 'jab', now: state.battle.startedAt + 1 });
+  assert.equal(state.experience, 0);
+  assert.equal(state.battle.reward.experience, 110);
+  state = act(state, 'LEAVE_BATTLE');
+  assert.equal(state.experience, 110);
+  assert.equal(act(state, 'LEAVE_BATTLE').experience, 110);
+});
+
+test('completed map raids grant less experience and cannot be claimed twice', () => {
+  const initial = createInitialState();
+  const raid = initial.mapRaids[0];
+  let state = { ...initial, mapRaids: [{ ...raid, isRunning: true, endTime: Date.now() - 1 }] };
+  state = act(state, 'CLAIM_RAID_REWARD', { raidId: raid.id });
+  assert.equal(state.experience, 20);
+  assert.equal(act(state, 'CLAIM_RAID_REWARD', { raidId: raid.id }).experience, 20);
+  const red = { ...raid, type: 'red', isRunning: true, endTime: Date.now() - 1 };
+  state = act({ ...initial, mapRaids: [red] }, 'CLAIM_RAID_REWARD', { raidId: red.id });
+  assert.equal(state.experience, 40);
+});
+
+test('raid loot awards experience once and older saves start with zero', () => {
+  const old = createInitialState();
+  delete old.experience;
+  assert.equal(hydrateState(old).experience, 0);
+  let state = { ...createInitialState(), raid: { raidId: 'house', scouted: true, pathClear: true, cratesLooted: false } };
+  state = act(state, 'RAID_LOOT');
+  assert.equal(state.experience, 20);
+  assert.equal(act(state, 'RAID_LOOT').experience, 20);
+});

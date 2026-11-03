@@ -1,3 +1,4 @@
+import { RAID_LOOT_EXPERIENCE } from '../game/experience';
 import { Panel, PanelHeader, Group, Button, Text, Header, Box, Cell } from '@vkontakte/vkui';
 import { Icon28ArrowLeftOutline } from '@vkontakte/icons';
 import { useRouteNavigator } from '@vkontakte/vk-mini-apps-router';
@@ -47,7 +48,7 @@ export const Raid = ({ id }: Props) => {
           return (
             <Cell
               key={raid.id}
-              subtitle={`${raid.energy} ⚡ | 🔥+${raid.matches} 💣+${raid.grenades} 💊+${raid.medkits} ${isHighDrop ? '• Повышенный дроп!' : ''}`}
+              subtitle={`${raid.energy} ⚡ | ⭐+${RAID_LOOT_EXPERIENCE} опыта | 🔥+${raid.matches} 💣+${raid.grenades} 💊+${raid.medkits} ${isHighDrop ? '• Повышенный дроп!' : ''}`}
               after={
                 <Button size="s" onClick={() => dispatch({ type: 'START_RAID', raidId: raid.id })}>
                   Войти

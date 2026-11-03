@@ -83,7 +83,7 @@ export const Profile = ({ id }: Props) => {
           subtitle={`Цена ${lvlCost} патронов, +3 золота`}
           after={<Button size="s" onClick={() => dispatch({ type: 'UPGRADE_LEVEL' })}>Повысить</Button>}
         >
-          Уровень {state.level}
+          Уровень {state.level} · Опыт {state.experience}
         </Cell>
         <Cell
           subtitle={`Цена от базы (${state.baseStamina}): ${stamCost} патронов / +5. Профиль ${stamRate.toFixed(1)} за вын.`}
