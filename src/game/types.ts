@@ -55,6 +55,7 @@ export interface DailyQuest {
   rewardMatches: number;
   rewardGrenades: number;
   rewardGold: number;
+  rewardExperience: number;
 }
 
 export interface DailyQuestProgress {
@@ -330,6 +331,8 @@ export interface DailyState {
   lotteryUsed: boolean;
   goldClaimed: boolean;
   quests: DailyQuestProgress[];
+  questDate: string; // локальная дата ежедневных контрактов
+  questBonusClaimed: boolean;
 }
 
 export interface GastState {
@@ -531,6 +534,7 @@ export type GameAction =
   | { type: 'UNFORGE_ITEM' }
   | { type: 'CLAIM_DAILY' }
   | { type: 'CLAIM_QUEST_REWARD'; questId: string }
+  | { type: 'CLAIM_DAILY_QUEST_BONUS' }
   | { type: 'EQUIP_ITEM'; slotIndex: number }
   | { type: 'UNEQUIP_ITEM'; slotIndex: number }
   | { type: 'CRAFT_ITEM'; recipeId: string }

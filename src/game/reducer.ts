@@ -159,12 +159,9 @@ const applyDailyReset = (state: GameState): GameState => {
         dateKey: today,
         lotteryUsed: false,
         goldClaimed: false,
-        quests: DAILY_QUESTS.map((q) => ({
-          questId: q.id,
-          progress: 0,
-          completed: false,
-          claimed: false,
-        })),
+        questDate: state.daily.questDate,
+        questBonusClaimed: state.daily.questBonusClaimed,
+        quests: state.daily.quests,
       },
       // Вчерашняя война клана закрыта — сегодня жеребьёвка новой
       clanWar: null,
@@ -173,6 +170,14 @@ const applyDailyReset = (state: GameState): GameState => {
   }
   next = withTodayWar(next);
   return rollGast(next);
+};
+
+// Контракты обновляются по локальной полуночи, независимо от других суточных таймеров.
+const refreshDailyQuests = (state: GameState): GameState => {
+  const today = todayLocal();
+  if (state.daily.questDate === today) return state;
+  return { ...state, daily: { ...state.daily, questDate: today, questBonusClaimed: false,
+    quests: DAILY_QUESTS.map((q) => ({ questId: q.id, progress: 0, completed: false, claimed: false })) } };
 };
 
 // ── Клановые войны (ежедневные) ───────────────────────────────────────────────
@@ -628,6 +633,17 @@ export const hydrateState = (state: GameState): GameState => {
       },
     };
   }
+  // Сохраняем совпадающие контракты старых сохранений, включая уже забранные награды.
+  const oldQuests = normalized.daily.quests;
+  normalized = { ...normalized, daily: { ...normalized.daily,
+    questDate: normalized.daily.questDate ?? (normalized.daily.dateKey === dateKey() ? todayLocal() : normalized.daily.dateKey),
+    questBonusClaimed: normalized.daily.questBonusClaimed ?? false,
+    quests: DAILY_QUESTS.map((quest) => {
+      const old = oldQuests.find((entry) => entry.questId === quest.id);
+      const progress = Math.min(quest.target, Math.max(0, Number.isFinite(old?.progress) ? old!.progress : 0));
+      return { questId: quest.id, progress, completed: !!old?.claimed || progress >= quest.target, claimed: !!old?.claimed };
+    }),
+  } };
   // Оружие в старых сохранениях содержало только name/level/broken/baseDamage/upgraded.
   // Приводим к полному Weapon: недостающие поля (тип, точность, прочность, моды)
   // заполняются значениями по умолчанию, уже прокачанные — сохраняются.
@@ -762,10 +778,11 @@ export const hydrateState = (state: GameState): GameState => {
     resourceEvents: Array.isArray(normalized.resourceEvents) ? normalized.resourceEvents : [],
   };
 
-  return advanceBossClock(resetBossAttacks(applyDailyReset(syncClans(normalized, normalized.clanDirectory))), Date.now());
+  return advanceBossClock(resetBossAttacks(refreshDailyQuests(applyDailyReset(syncClans(normalized, normalized.clanDirectory)))), Date.now());
 };
 
 export const gameReducer = (state: GameState, action: GameAction): GameState => {
+  if (action.type !== 'HYDRATE_STATE') state = refreshDailyQuests(state);
   // Босс на отдельной арене: старые кнопки пошагового боя не обходят его кулдауны.
   if (state.battle?.source === 'boss' && (action.type.startsWith('BATTLE_') || action.type === 'INVITE_FRIEND')) return state;
   switch (action.type) {
@@ -1701,14 +1718,23 @@ export const gameReducer = (state: GameState, action: GameAction): GameState => 
         matches: state.matches + quest.rewardMatches,
         grenades: state.grenades + quest.rewardGrenades,
         gold: state.gold + quest.rewardGold,
+        experience: state.experience + quest.rewardExperience,
         daily: {
           ...state.daily,
           quests: state.daily.quests.map((qp) =>
             qp.questId === action.questId ? { ...qp, claimed: true } : qp
           ),
         },
-        lastMessage: `Квест «${quest.name}» выполнен! +${quest.rewardBullets} патронов, +${quest.rewardMatches} спичек, +${quest.rewardGrenades} гранат, +${quest.rewardGold} золота.`,
+        lastMessage: `Квест «${quest.name}» выполнен! +${quest.rewardBullets} патронов, +${quest.rewardMatches} спичек, +${quest.rewardGrenades} гранат, +${quest.rewardGold} припасов, +${quest.rewardExperience} опыта.`,
       };
+    }
+    case 'CLAIM_DAILY_QUEST_BONUS': {
+      if (state.daily.questBonusClaimed || !DAILY_QUESTS.every((quest) => state.daily.quests.some((progress) => progress.questId === quest.id && progress.completed))) {
+        return msg(state, 'Ящик доступен после выполнения всех заданий и выдаётся один раз в день.');
+      }
+      return { ...state, bullets: state.bullets + 100, gold: state.gold + 50, medkits: state.medkits + 1,
+        daily: { ...state.daily, questBonusClaimed: true },
+        lastMessage: 'Ящик контрактов: +100 патронов, +50 припасов, +1 аптечка.' };
     }
     case 'EQUIP_ITEM': {
       const slot = state.inventory[action.slotIndex];
@@ -1905,7 +1931,10 @@ export const gameReducer = (state: GameState, action: GameAction): GameState => 
         ),
         lastMessage: `${raid.name}: +${mapRaidExperience(raid.type)} опыта, +${raid.rewards.matches} спичек из рейда. Чтобы повторить рейд, нажмите «Начать рейд».`,
       }, 'raid', { matches: raid.rewards.matches });
-      return recordClanEvent(collected, 'raid');
+      const quest = DAILY_QUESTS.find((entry) => entry.id === 'q3');
+      const updated = { ...collected, daily: { ...collected.daily, quests: collected.daily.quests.map((progress) =>
+        progress.questId === 'q3' && !progress.claimed ? { ...progress, progress: quest?.target ?? 1, completed: true } : progress) } };
+      return recordClanEvent(updated, 'raid');
     }
     case 'OPEN_RAID_TASKS': {
       const raid = state.mapRaids.find((entry) => entry.id === action.raidId);

@@ -46,6 +46,8 @@ export const createInitialState = (): GameState => ({
   clanWarHistory: [],
   daily: {
     dateKey: dateKey(),
+    questDate: todayLocal(),
+    questBonusClaimed: false,
     lotteryUsed: false,
     goldClaimed: false,
     quests: DAILY_QUESTS.map((q) => ({

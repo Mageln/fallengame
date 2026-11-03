@@ -1,0 +1,37 @@
+import { useEffect } from 'react';
+import { useGame } from '../game/GameContext';
+import { DAILY_QUESTS } from '../game/constants';
+import styles from '../style/QuestBoard.module.scss';
+
+const ICONS: Record<string, string> = { q1: '⚔️', q2: '🏚️', q3: '🎒', q4: '🚗', q5: '🔧', q6: '☠️' };
+
+export const QuestBoard = ({ onClose }: { onClose: () => void }) => {
+  const { state, dispatch } = useGame();
+  useEffect(() => {
+    const handler = (event: KeyboardEvent) => { if (event.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [onClose]);
+  const done = DAILY_QUESTS.filter((quest) => state.daily.quests.some((item) => item.questId === quest.id && item.completed)).length;
+  const ready = done === DAILY_QUESTS.length;
+  return <div className={styles.backdrop} onClick={onClose}>
+    <section className={styles.panel} role="dialog" aria-modal="true" aria-labelledby="quest-title" onClick={(event) => event.stopPropagation()}>
+      <header className={styles.header}><span className={styles.lamp} aria-hidden="true" /><div><small>РАЦИЯ · ДОСКА КОНТРАКТОВ</small><h2 id="quest-title">ЗАДАНИЯ ВЫЖИВШЕГО</h2><p>Каждый день — новый шанс подготовиться к выходу.</p></div><button type="button" onClick={onClose} aria-label="Закрыть задания">✕</button></header>
+      <div className={styles.overview}><div><small>СЕГОДНЯШНИЕ КОНТРАКТЫ</small><strong>{done} / {DAILY_QUESTS.length} ВЫПОЛНЕНО</strong></div><div><small>ОБНОВЛЕНИЕ</small><strong>В ПОЛНОЧЬ ПО ВРЕМЕНИ УСТРОЙСТВА</strong></div></div>
+      <progress className={styles.totalProgress} value={done} max={DAILY_QUESTS.length} aria-label="Выполненные задания" />
+      <div className={styles.list}>{DAILY_QUESTS.map((quest) => {
+        const item = state.daily.quests.find((entry) => entry.questId === quest.id);
+        if (!item) return null;
+        return <article className={`${styles.card} ${item.completed ? styles.completed : ''}`} key={quest.id}>
+          <div className={styles.icon} aria-hidden="true">{ICONS[quest.id]}</div><div className={styles.details}>
+            <div className={styles.title}><h3>{quest.name}</h3><span>{item.claimed ? 'ПОЛУЧЕНО' : item.completed ? 'ГОТОВО' : 'В ПРОЦЕССЕ'}</span></div><p>{quest.description}</p>
+            <div className={styles.progressText}><span>ПРОГРЕСС</span><strong>{item.progress} / {quest.target}</strong></div><progress value={item.progress} max={quest.target} aria-label={`Прогресс: ${quest.name}`} />
+            <div className={styles.rewards}><small>НАГРАДА:</small>{quest.rewardBullets > 0 && <span>🔫 {quest.rewardBullets}</span>}{quest.rewardMatches > 0 && <span>🔥 {quest.rewardMatches}</span>}{quest.rewardGold > 0 && <span>💰 {quest.rewardGold} припасов</span>}{quest.rewardExperience > 0 && <span>⭐ {quest.rewardExperience} опыта</span>}</div>
+          </div><button className={styles.claim} type="button" disabled={!item.completed || item.claimed} onClick={() => dispatch({ type: 'CLAIM_QUEST_REWARD', questId: quest.id })}>{item.claimed ? 'ПОЛУЧЕНО' : 'ЗАБРАТЬ'}</button>
+        </article>;
+      })}</div>
+      <div className={styles.bonus}><div className={styles.bonusIcon}>📦</div><div><small>ОСОБАЯ НАГРАДА</small><h3>ЯЩИК ЗА ВСЕ КОНТРАКТЫ</h3><p>Выполните все шесть заданий: 🔫 100 патронов · 💰 50 припасов · 💊 1 аптечка</p></div><button type="button" disabled={!ready || state.daily.questBonusClaimed} onClick={() => dispatch({ type: 'CLAIM_DAILY_QUEST_BONUS' })}>{state.daily.questBonusClaimed ? 'ПОЛУЧЕНО' : 'ЗАБРАТЬ ЯЩИК'}</button></div>
+      {state.lastMessage && <p className={styles.notice} role="status">{state.lastMessage}</p>}
+    </section>
+  </div>;
+};

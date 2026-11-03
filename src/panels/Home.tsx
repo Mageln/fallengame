@@ -8,6 +8,7 @@ import { DEFAULT_VIEW_PANELS } from '../routes';
 import { RoomGallery } from './RoomGallery';
 import { FriendsPanel } from './Friends';
 import { SurvivorProfile } from './SurvivorProfile';
+import { QuestBoard } from './QuestBoard';
 
 interface HomeProps {
   id: string;
@@ -21,6 +22,7 @@ export const Home = ({ id }: HomeProps) => {
   const [showProfile, setShowProfile] = useState(false);
   const [showRoomGallery, setShowRoomGallery] = useState(false);
   const [showFriends, setShowFriends] = useState(false);
+  const [showQuests, setShowQuests] = useState(false);
 
   // Просто закрыть профиль
   const closeProfileOnly = () => {
@@ -82,7 +84,7 @@ export const Home = ({ id }: HomeProps) => {
         onGoRaid={() => navigator.push(DEFAULT_VIEW_PANELS.RAID)}
         onGoClan={() => dispatch({ type: 'TOGGLE_CLAN_MODAL' })}
         onGoInventory={() => navigator.push(DEFAULT_VIEW_PANELS.INVENTORY)}
-        onGoQuests={() => navigator.push(DEFAULT_VIEW_PANELS.QUESTS)}
+        onGoQuests={() => setShowQuests(true)}
         onGoCrafting={() => navigator.push(DEFAULT_VIEW_PANELS.CRAFTING)}
         onLottery={() => dispatch({ type: 'LOTTERY' })}
         onClaimDaily={() => dispatch({ type: 'CLAIM_DAILY' })}
@@ -130,6 +132,8 @@ export const Home = ({ id }: HomeProps) => {
         onBosses={() => dispatch({ type: state.battle?.source === 'boss' ? 'OPEN_BATTLE' : 'TOGGLE_BOSS_MODAL' })}
         onClan={() => dispatch({ type: 'TOGGLE_CLAN_MODAL' })}
       />}
+
+      {showQuests && <QuestBoard onClose={() => setShowQuests(false)} />}
 
       {/* Панель друзей */}
       {showFriends && (

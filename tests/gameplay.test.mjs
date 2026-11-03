@@ -400,3 +400,68 @@ test('opening map raids and old notifications never starts or restarts raids', (
     assert.equal(state.mapRaids[0].completed, false);
   } finally { Date.now = realNow; }
 });
+
+test('daily contracts track real activities and give the stated rewards only once', () => {
+  let state = { ...createInitialState(), energy: 100, matches: 100, inventory: Array.from({ length: 5 }, () => ({ itemId: 'scrap_metal', equipped: false })) };
+  const quest = (id) => state.daily.quests.find((item) => item.questId === id);
+  state = act(state, 'DO_TASK', { taskId: 'sg1' });
+  state = act(state, 'DO_TASK', { taskId: 'sg1' });
+  state = act(state, 'DO_TASK', { taskId: 'sg1' });
+  assert.equal(quest('q2').progress, 3);
+  state = act(state, 'UPGRADE_CAR');
+  assert.equal(quest('q4').completed, true);
+  state = act(state, 'CRAFT_ITEM', { recipeId: 'repair_kit' });
+  assert.equal(quest('q5').completed, true);
+  const raid = state.mapRaids[0];
+  state = { ...state, mapRaids: [{ ...raid, isRunning: true, endTime: Date.now() - 1 }] };
+  state = act(state, 'CLAIM_RAID_REWARD', { raidId: raid.id });
+  assert.equal(quest('q3').completed, true);
+  const before = { bullets: state.bullets, experience: state.experience, premiumGold: state.premiumGold };
+  state = act(state, 'CLAIM_QUEST_REWARD', { questId: 'q3' });
+  assert.equal(state.bullets, before.bullets + 40);
+  assert.equal(state.experience, before.experience + 20);
+  assert.equal(state.premiumGold, before.premiumGold);
+  state = act(state, 'CLAIM_QUEST_REWARD', { questId: 'q3' });
+  assert.equal(state.experience, before.experience + 20);
+  for (let i = 0; i < 3; i++) {
+    state = act(state, 'START_BOSS_FIGHT', { bossId: '1' });
+    state = { ...state, battle: { ...state.battle, bossHp: 1 } };
+    state = act(state, 'BOSS_SKILL', { skillId: 'jab', now: state.battle.startedAt + 1 });
+    state = act(state, 'LEAVE_BATTLE');
+  }
+  assert.equal(quest('q1').completed, true);
+  assert.equal(quest('q6').progress, 3);
+  const beforeBonus = { bullets: state.bullets, gold: state.gold, medkits: state.medkits };
+  state = act(state, 'CLAIM_DAILY_QUEST_BONUS');
+  assert.equal(state.bullets, beforeBonus.bullets + 100);
+  assert.equal(state.gold, beforeBonus.gold + 50);
+  assert.equal(state.medkits, beforeBonus.medkits + 1);
+  state = act(state, 'CLAIM_DAILY_QUEST_BONUS');
+  assert.equal(state.bullets, beforeBonus.bullets + 100);
+  state = act(state, 'CLAIM_QUEST_REWARD', { questId: 'q6' });
+  assert.equal(quest('q6').claimed, true);
+});
+
+test('daily quests migrate previous progress and reset once at local midnight', () => {
+  const original = createInitialState();
+  const legacy = { ...original, daily: { ...original.daily, quests: [
+    { questId: 'q1', progress: 1, completed: true, claimed: true },
+    { questId: 'q6', progress: 4, completed: false, claimed: false },
+    { questId: 'q8', progress: 0, completed: false, claimed: false },
+  ] } };
+  delete legacy.daily.questDate;
+  delete legacy.daily.questBonusClaimed;
+  let state = hydrateState(legacy);
+  assert.equal(state.daily.quests.find((q) => q.questId === 'q1').claimed, true);
+  assert.equal(state.daily.quests.find((q) => q.questId === 'q6').completed, true);
+  assert.equal(state.daily.quests.length, 6);
+  assert.equal(act(state, 'CLAIM_DAILY_QUEST_BONUS').daily.questBonusClaimed, false);
+  const now = Date.now;
+  try {
+    Date.now = () => now() + 2 * 24 * 60 * 60 * 1000;
+    state = act(state, 'RESTORE_ENERGY_TICK');
+    assert.ok(state.daily.quests.every((q) => q.progress === 0 && !q.claimed));
+    assert.equal(state.daily.questBonusClaimed, false);
+    assert.equal(state.daily.questDate, todayLocal(Date.now()));
+  } finally { Date.now = now; }
+});
