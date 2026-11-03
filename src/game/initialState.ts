@@ -1,6 +1,6 @@
 import { TUTORIAL, DAILY_QUESTS, STARTER_WEAPON, DEFAULT_STATS } from './constants';
 import { dateKey, weekKey } from './formulas';
-import { todayUtc } from './survival';
+import { todayLocal } from './survival';
 import { GameState } from './types';
 
 export const createInitialState = (): GameState => ({
@@ -59,7 +59,7 @@ export const createInitialState = (): GameState => ({
   },
   battle: null,
   battleVisible: false,
-  bossAttacks: { date: todayUtc(), entries: {} },
+  bossAttacks: { date: todayLocal(), entries: {} },
   lastRoomRoll: null,
   pendingRoomDrop: null,
   raidTasks: null,

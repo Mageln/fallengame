@@ -9,6 +9,10 @@ export const bossAttackPrice = (dailyLimit: number): number =>
 export const RAID_TASK_GOLD_PRICE = 30;
 export const BOSS_DURATION_MS = 3 * 60_000;
 export const BOSS_COUNTER_MS = 8_000;
+// Боевой заряд не связан с обычной энергией для заданий.
+export const BOSS_ENERGY_MAX = 100;
+export const BOSS_ENERGY_PER_HIT = 20;
+export const BOSS_POWER_MULTIPLIER = 3;
 export const ROOM_BASE_CHANCE = 0.05;
 export const ROOM_DAMAGE_FACTOR = 0.0005;
 export const ROOM_MAX_CHANCE = 0.5;
@@ -18,6 +22,19 @@ export const roomDropChance = (damage: number): number =>
 
 export const todayUtc = (now = Date.now()): string => new Date(now).toISOString().slice(0, 10);
 export const nextResetUtc = (now = Date.now()): number => Date.parse(`${todayUtc(now)}T00:00:00.000Z`) + 86_400_000;
+
+// Дата и следующая полночь в часовом поясе устройства игрока.
+export const todayLocal = (now = Date.now()): string => {
+  const date = new Date(now);
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${date.getFullYear()}-${month}-${day}`;
+};
+export const nextResetLocal = (now = Date.now()): number => {
+  const date = new Date(now);
+  date.setHours(24, 0, 0, 0);
+  return date.getTime();
+};
 
 export const BOSS_SKILLS = [
   { id: 'jab', name: 'Прямой', icon: '👊', multiplier: 1, cooldown: 0, ammo: 0 },

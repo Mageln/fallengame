@@ -110,7 +110,6 @@ export const FallenCanvas: React.FC<PrisonCanvasProps & {
   onNotificationRaidClick,
   onNotificationRemove,
   onNotificationsClear,
-  onFriendsClick,
   onRoomsClick,
 }) => {
   const { dispatch, state } = useGame();

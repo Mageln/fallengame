@@ -74,7 +74,8 @@ import {
   resolveIncoming,
 } from './formulas';
 import { BOSSES } from './bosses';
-import { BOSS_COUNTER_MS, BOSS_DURATION_MS, BOSS_SKILLS, DAILY_BOSS_ATTACKS, EXTRA_ATTACK_PRICE, RAID_DANGER_TASKS, RAID_TASK_GOLD_PRICE, bossAttackPrice, roomDropChance, todayUtc } from './survival';
+import { getBossAttackEntry, normalizeBossAttacks, resetBossAttacks, setBossAttackEntry } from './bossAttacks';
+import { BOSS_COUNTER_MS, BOSS_DURATION_MS, BOSS_ENERGY_MAX, BOSS_ENERGY_PER_HIT, BOSS_POWER_MULTIPLIER, BOSS_SKILLS, DAILY_BOSS_ATTACKS, RAID_DANGER_TASKS, RAID_TASK_GOLD_PRICE, bossAttackPrice, roomDropChance, todayLocal } from './survival';
 import type { ResourceEvent, ResourceSource } from './survival';
 import { advanceClanContracts, clanRating, normalizeClanName, validateClanName, CLAN_EMBLEMS, CLAN_MEMBER_BONUS } from './clans';
 import { BattleState, ClanState, ClanTaskEvent, ClanWarHistoryEntry, ClanWarState, GameAction, GameNotification, GameState } from './types';
@@ -89,62 +90,6 @@ const recordResources = (state: GameState, source: ResourceSource, changes: Part
     })),
     ...state.resourceEvents,
   ].slice(0, 80),
-});
-
-const resetBossAttacks = (state: GameState, now = Date.now()): GameState => {
-  const today = todayUtc(now);
-  if (state.bossAttacks.date === today) return state;
-  return { ...state, bossAttacks: { date: today, entries: {} } };
-};
-
-// Лимиты нападений — свои у каждого босса (см. BossDef.dailyLimit).
-// Старые сохранения с общим счётчиком (used/purchased без entries) мигрируют в 'shared',
-// чтобы не сбросить купленные атаки молча.
-const normalizeBossAttacks = (attacks: GameState['bossAttacks']): GameState['bossAttacks'] => {
-  const raw = attacks as unknown as { date: string; entries?: Record<string, { used?: number; purchased?: number }>; used?: number; purchased?: number };
-  const today = todayUtc();
-  const date = typeof raw?.date === 'string' ? raw.date : today;
-  if (raw && typeof raw.entries === 'object' && raw.entries !== null) {
-    const entries: Record<string, { used: number; purchased: number }> = {};
-    for (const [bossId, entry] of Object.entries(raw.entries)) {
-      entries[bossId] = {
-        used: Math.max(0, Math.floor(entry?.used ?? 0)),
-        purchased: Math.max(0, Math.floor(entry?.purchased ?? 0)),
-      };
-    }
-    return date === today ? { date, entries } : { date: today, entries: {} };
-  }
-  const used = Math.max(0, Math.floor(raw?.used ?? 0));
-  const purchased = Math.max(0, Math.floor(raw?.purchased ?? 0));
-  if (used === 0 && purchased === 0) return { date: today, entries: {} };
-  // Общий лимит раньше равнялся DAILY_BOSS_ATTACKS на всех боссов —
-  // при миграции отдаём остаток каждому известному боссу, но не больше его лимита.
-  const entries: Record<string, { used: number; purchased: number }> = {};
-  if (date === today) {
-    for (const boss of BOSSES) {
-      const free = Math.max(0, Math.min(boss.dailyLimit, DAILY_BOSS_ATTACKS) - used);
-      if (free < boss.dailyLimit || purchased > 0) {
-        entries[boss.id] = { used: boss.dailyLimit - free, purchased };
-      }
-    }
-    if (purchased > 0 || used > 0) entries.shared = { used, purchased };
-  }
-  return { date: today, entries };
-};
-
-const getBossAttackEntry = (state: GameState, bossId: string): { used: number; purchased: number } =>
-  state.bossAttacks.entries[bossId] ?? { used: 0, purchased: 0 };
-
-const setBossAttackEntry = (
-  state: GameState,
-  bossId: string,
-  entry: { used: number; purchased: number }
-): GameState => ({
-  ...state,
-  bossAttacks: {
-    ...state.bossAttacks,
-    entries: { ...state.bossAttacks.entries, [bossId]: entry },
-  },
 });
 
 const replaceClan = (state: GameState, clan: ClanState): GameState => ({
@@ -310,6 +255,7 @@ const normalizeBattle = (battle: BattleState): BattleState => ({
   damageDealt: battle.damageDealt ?? 0,
   endsAt: battle.endsAt ?? (battle.startedAt + BOSS_DURATION_MS),
   lastCounterAt: battle.lastCounterAt ?? battle.startedAt,
+  bossEnergy: Math.max(0, Math.min(BOSS_ENERGY_MAX, Number.isFinite(battle.bossEnergy) ? battle.bossEnergy! : 0)),
   skillReadyAt: battle.skillReadyAt ?? {},
   lastSkillId: battle.lastSkillId ?? null,
 });
@@ -329,7 +275,7 @@ const startBattle = (
     const dailyLimit = def?.dailyLimit ?? DAILY_BOSS_ATTACKS;
     const entry = getBossAttackEntry(current, bossId);
     if (entry.used >= dailyLimit + entry.purchased) {
-      return msg(current, `ЛИМИТ ИСЧЕРПАН: ${bossName}. Докупите атаку за донат или ждите завтра (UTC).`);
+      return msg(current, `ЛИМИТ ИСЧЕРПАН: ${bossName}. Докупите атаку за донат или ждите местной полуночи.`);
     }
     current = setBossAttackEntry(current, bossId, { ...entry, used: entry.used + 1 });
   }
@@ -371,6 +317,7 @@ const startBattle = (
       damageDealt: 0,
       endsAt: now + BOSS_DURATION_MS,
       lastCounterAt: now,
+      bossEnergy: 0,
       skillReadyAt: {},
       lastSkillId: null,
     },
@@ -795,7 +742,7 @@ export const hydrateState = (state: GameState): GameState => {
     battleVisible: normalized.battle ? (normalized.battleVisible ?? true) : false,
     battle: normalized.battle ? normalizeBattle(normalized.battle) : null,
     bossAttacks: normalizeBossAttacks(
-      normalized.bossAttacks ?? { date: todayUtc(), entries: {} },
+      normalized.bossAttacks ?? { date: todayLocal(), entries: {} },
     ),
     lastRoomRoll: normalized.lastRoomRoll ?? null,
     pendingRoomDrop: normalized.pendingRoomDrop ?? null,
@@ -1106,6 +1053,7 @@ export const gameReducer = (state: GameState, action: GameAction): GameState => 
         bossHp: battle.bossHp - damage,
         damageDealt: battle.damageDealt + damage,
         comboStreak: battle.comboStreak + 1,
+        bossEnergy: Math.min(BOSS_ENERGY_MAX, (battle.bossEnergy ?? 0) + BOSS_ENERGY_PER_HIT),
         turn: battle.turn + 1,
         blocking: skill.id === 'guard',
         lastHit: { damage, crit: skill.id === 'critical', missed: false },
@@ -1117,6 +1065,29 @@ export const gameReducer = (state: GameState, action: GameAction): GameState => 
       return updated.bossHp <= 0
         ? bossKilled(spent, updated)
         : { ...spent, battle: updated, lastMessage: `${skill.name}: −${damage} HP. Шанс комнаты: ${Math.round(roomDropChance(updated.damageDealt) * 100)}%.` };
+    }
+    case 'BOSS_POWER_ATTACK': {
+      if (!Number.isFinite(action.now)) return state;
+      const current = advanceBossClock(state, action.now);
+      const battle = current.battle;
+      if (!battle || battle.source !== 'boss' || battle.outcome !== 'fighting') return current;
+      if ((battle.bossEnergy ?? 0) < BOSS_ENERGY_MAX) return msg(current, 'Для сильного удара накопите 100 энергии.');
+      const damage = Math.min(battle.bossHp, Math.max(1, Math.round((8 + current.level / 4) * BOSS_POWER_MULTIPLIER)));
+      const updated: BattleState = {
+        ...battle,
+        bossEnergy: 0,
+        bossHp: battle.bossHp - damage,
+        damageDealt: battle.damageDealt + damage,
+        comboStreak: battle.comboStreak + 1,
+        turn: battle.turn + 1,
+        blocking: false,
+        lastHit: { damage, crit: false, missed: false },
+        lastSkillId: 'power',
+        log: [...battle.log, `💥 Сильный удар: −${damage} HP`].slice(-15),
+      };
+      return updated.bossHp <= 0
+        ? bossKilled(current, updated)
+        : { ...current, battle: updated, lastMessage: `Сильный удар: −${damage} HP.` };
     }
     case 'BATTLE_ATTACK': {
       if (!state.battle || state.battle.outcome !== 'fighting') return state;

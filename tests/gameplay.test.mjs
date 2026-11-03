@@ -7,7 +7,7 @@ after(() => vite.close());
 
 const { createInitialState } = await vite.ssrLoadModule('/src/game/initialState.ts');
 const { gameReducer, hydrateState } = await vite.ssrLoadModule('/src/game/reducer.ts');
-const { roomDropChance, BOSS_COUNTER_MS, BOSS_DURATION_MS, EXTRA_ATTACK_PRICE, todayUtc } = await vite.ssrLoadModule('/src/game/survival.ts');
+const { roomDropChance, BOSS_COUNTER_MS, BOSS_DURATION_MS, bossAttackPrice, todayLocal, nextResetLocal } = await vite.ssrLoadModule('/src/game/survival.ts');
 
 const act = (state, type, details = {}) => gameReducer(state, { type, ...details });
 
@@ -25,7 +25,7 @@ test('a boss victory rolls a room; only an available drop can be claimed', () =>
   assert.deepEqual(initial.unlockedRooms, ['location1']);
   assert.equal(act(initial, 'CHANGE_LOCATION', { locationId: 'location2' }).currentLocation, 'location1');
   let state = act(initial, 'START_BOSS_FIGHT', { bossId: '1' });
-  assert.equal(state.bossAttacks.used, 1);
+  assert.equal(state.bossAttacks.entries['1'].used, 1);
   state = { ...state, battle: { ...state.battle, bossHp: 1, damageDealt: 900 } };
   const random = Math.random;
   try {
@@ -87,23 +87,29 @@ test('leaving a boss battle does not pause the boss; returning resumes it', () =
   assert.equal(state.battle, null);
 });
 
-test('boss attacks reset by UTC day, and an extra attack costs only premium gold', () => {
+test('boss attacks reset by local day and extra attacks cost caps per boss', () => {
   const initial = createInitialState();
-  let state = { ...initial, premiumGold: EXTRA_ATTACK_PRICE + 5, bossAttacks: { date: todayUtc(), used: 3, purchased: 0 } };
+  const price = bossAttackPrice(5);
+  let state = {
+    ...initial,
+    caps: price + 5,
+    premiumGold: 10,
+    bossAttacks: { date: todayLocal(), entries: { '1': { used: 5, purchased: 0 } } },
+  };
   assert.equal(act(state, 'START_BOSS_FIGHT', { bossId: '1' }).battle, null);
-  state = act(state, 'BUY_BOSS_ATTACK');
-  assert.equal(state.premiumGold, 5);
-  assert.equal(state.bossAttacks.purchased, 1);
-  assert.equal(act(state, 'BUY_BOSS_ATTACK').premiumGold, 5);
+  state = act(state, 'BUY_BOSS_ATTACK', { bossId: '1' });
+  assert.equal(state.caps, 5);
+  assert.equal(state.premiumGold, 10);
+  assert.equal(state.bossAttacks.entries['1'].purchased, 1);
+  assert.equal(act(state, 'BUY_BOSS_ATTACK', { bossId: '1' }).caps, 5);
   state = act(state, 'START_BOSS_FIGHT', { bossId: '1' });
-  assert.equal(state.bossAttacks.used, 4);
+  assert.equal(state.bossAttacks.entries['1'].used, 6);
   assert.equal(state.battle.source, 'boss');
   assert.equal(act(state, 'BATTLE_GRENADES', { count: 1 }), state);
-  const future = Date.parse(`${todayUtc()}T00:00:00.000Z`) + 86_400_000;
-  const reset = act({ ...state, battle: null }, 'BOSS_TICK', { now: future });
-  assert.equal(reset.bossAttacks.used, 0);
-  assert.equal(reset.bossAttacks.purchased, 0);
-  assert.equal(reset.premiumGold, 5);
+  const reset = act({ ...state, battle: null }, 'BOSS_TICK', { now: nextResetLocal() });
+  assert.deepEqual(reset.bossAttacks.entries, {});
+  assert.equal(reset.caps, 5);
+  assert.equal(reset.premiumGold, 10);
 });
 
 test('raid awards matches, tasks award tokens and health, never donation gold', () => {
@@ -162,4 +168,22 @@ test('old saves preserve their current room and get safe new defaults', () => {
   assert.equal(loaded.premiumGold, 0);
   assert.deepEqual(loaded.raidTaskProgress, {});
   assert.equal(act(loaded, 'CHANGE_LOCATION', { locationId: 'location4' }).currentLocation, 'location4');
+});
+
+test('boss energy charges on successful hits and powers a strong attack', () => {
+  let state = act(createInitialState(), 'START_BOSS_FIGHT', { bossId: '1' });
+  state = { ...state, battle: { ...state.battle, bossHp: 10000, bossMaxHp: 10000 } };
+  const now = state.battle.startedAt + 1;
+  assert.equal(state.battle.bossEnergy, 0);
+  const tooEarly = act(state, 'BOSS_POWER_ATTACK', { now });
+  assert.equal(tooEarly.battle.bossHp, state.battle.bossHp);
+  for (let i = 0; i < 6; i++) state = act(state, 'BOSS_SKILL', { skillId: 'jab', now: now + i });
+  assert.equal(state.battle.bossEnergy, 100);
+  const hp = state.battle.bossHp;
+  const total = state.battle.damageDealt;
+  state = act(state, 'BOSS_POWER_ATTACK', { now: now + 10 });
+  assert.equal(state.battle.bossEnergy, 0);
+  assert.ok(hp - state.battle.bossHp > 8);
+  assert.equal(state.battle.damageDealt - total, hp - state.battle.bossHp);
+  assert.equal(act(state, 'BOSS_POWER_ATTACK', { now: now + 11 }).battle.bossHp, state.battle.bossHp);
 });
