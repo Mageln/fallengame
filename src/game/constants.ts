@@ -65,10 +65,10 @@ export const LOCATIONS = [
 // ===== УБЕЖИЩЕ (КОМНАТА) ======================================================
 // Полка торговца: товары за игровые припасы. Комнаты выпадают только за бой.
 export const SHELTER_ITEMS: ShelterItem[] = [
-  { id: 'bed', icon: '🛏️', name: 'Кровать выжившего', description: '+50% энергии', price: 200, repeatable: false },
-  { id: 'weapon_crate', icon: '🔫', name: 'Ящик с оружием', description: 'Случайный предмет', price: 300, repeatable: true },
-  { id: 'survivor_kit', icon: '🧰', name: 'Набор выжившего', description: 'Ресурсы + бонус', price: 400, repeatable: true },
-  { id: 'generator', icon: '⚡', name: 'Генератор', description: 'Ускоряет производство', price: 700, repeatable: false },
+  { id: 'bed', icon: '🛏️', name: 'Кровать выжившего', description: 'Навсегда увеличивает максимум энергии на 50% и сразу добавляет столько же энергии.', price: 200, repeatable: false },
+  { id: 'weapon_crate', icon: '🔫', name: 'Ящик с оружием', description: 'Сразу выдаёт один случайный предмет из магазина в инвентарь. Можно покупать повторно.', price: 300, repeatable: true },
+  { id: 'survivor_kit', icon: '🧰', name: 'Набор выжившего', description: 'Сразу выдаёт 100 пуль, 50 спичек, 5 аптечек, 2 гранаты и 200 припасов. Можно покупать повторно.', price: 400, repeatable: true },
+  { id: 'generator', icon: '⚡', name: 'Генератор', description: 'Постоянно ускоряет восстановление энергии в 2 раза, пока игра открыта.', price: 700, repeatable: false },
 ];
 
 // Оформления комнат. price: 0 — базовый скин (выдаётся вместе с комнатой).
