@@ -55,7 +55,7 @@ export const Home = ({ id }: HomeProps) => {
   };
 
   return (
-    <div id={id} style={{ width: '100vw', height: '100vh', overflow: 'hidden', position: 'relative' }}>
+    <div id={id} style={{ width: '100vw', height: '100dvh', overflow: 'hidden', position: 'relative' }}>
       <FallenCanvas
         onTaskComplete={(taskId) => dispatch({ type: 'DO_TASK', taskId })}
         onResourceClick={() => {}}

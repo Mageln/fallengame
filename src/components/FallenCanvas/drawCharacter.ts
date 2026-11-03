@@ -1,4 +1,17 @@
 import { Position } from './types';
+import { getVisibleBounds } from './iconBounds';
+
+// Центрируем видимую фигуру и ставим её над нижней панелью на любом экране.
+export const getCharacterPosition = (width: number, height: number, aspect = 402 / 600): Position => {
+  const w = Number.isFinite(width) ? Math.max(0, width) : 0;
+  const h = Number.isFinite(height) ? Math.max(0, height) : 0;
+  const ratio = Number.isFinite(aspect) && aspect > 0 ? aspect : 402 / 600;
+  const top = Math.min(65, h * 0.15);
+  const bottom = h - Math.min(86, h * 0.2);
+  const characterHeight = Math.min(540, Math.max(0, bottom - top) * 0.9, (w * 0.65) / ratio);
+  const characterWidth = characterHeight * ratio;
+  return { x: (w - characterWidth) / 2, y: bottom - characterHeight, width: characterWidth, height: characterHeight };
+};
 
 export const drawCharacter = (
   ctx: CanvasRenderingContext2D,
@@ -6,49 +19,29 @@ export const drawCharacter = (
   characterImage: HTMLImageElement | null,
   appearanceColor = '#d4a574'
 ) => {
-  if (characterImage) {
+  if (characterImage && characterImage.complete && characterImage.naturalWidth > 0 && characterImage.naturalHeight > 0) {
+    const visible = getVisibleBounds(characterImage);
     ctx.drawImage(
       characterImage,
+      visible.x, visible.y, visible.w, visible.h,
       position.x,
       position.y,
       position.width,
       position.height
     );
   } else {
-    const centerX = position.x + position.width / 2;
-    const centerY = position.y + 50;
-
-    // Тело с полосками
-    ctx.fillStyle = "#2a2a2a";
-    ctx.fillRect(centerX - 25, centerY + 20, 50, 60);
-    for (let i = 0; i < 4; i++) {
-      ctx.fillStyle = i % 2 === 0 ? "#3a3a3a" : "#2a2a2a";
-      ctx.fillRect(centerX - 25, centerY + 20 + i * 15, 50, 15);
-    }
-
-    // Голова
+    // Запасной силуэт занимает тот же прямоугольник, что и спрайт.
+    ctx.save();
+    ctx.translate(position.x, position.y);
+    ctx.scale(position.width / 100, position.height / 160);
     ctx.fillStyle = appearanceColor;
     ctx.beginPath();
-    ctx.arc(centerX, centerY - 10, 25, 0, Math.PI * 2);
+    ctx.arc(50, 20, 15, 0, Math.PI * 2);
     ctx.fill();
-
-    // Глаза
-    ctx.fillStyle = "#fff";
-    ctx.beginPath();
-    ctx.arc(centerX - 10, centerY - 12, 6, 0, Math.PI * 2);
-    ctx.arc(centerX + 10, centerY - 12, 6, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = "#000";
-    ctx.beginPath();
-    ctx.arc(centerX - 12, centerY - 12, 3, 0, Math.PI * 2);
-    ctx.arc(centerX + 8, centerY - 12, 3, 0, Math.PI * 2);
-    ctx.fill();
+    ctx.fillStyle = '#2a2a2a';
+    ctx.fillRect(25, 38, 50, 70);
+    ctx.fillRect(25, 108, 20, 52);
+    ctx.fillRect(55, 108, 20, 52);
+    ctx.restore();
   }
-};
-
-export const CHARACTER_POSITION: Position = {
-  x: 210,
-  y: 150,
-  width: 410,
-  height: 540,
 };
