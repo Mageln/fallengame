@@ -465,3 +465,20 @@ test('daily quests migrate previous progress and reset once at local midnight', 
     assert.equal(state.daily.questDate, todayLocal(Date.now()));
   } finally { Date.now = now; }
 });
+
+test('existing profile upgrades and skill levels survive loading and level upgrades', () => {
+  const initial = createInitialState();
+  const saved = { ...initial, bullets: 1000, level: 32, baseStamina: 55, luck: 65,
+    profileSkills: { health: 2, fist: 3, luck: 4, block: 1 } };
+  const loaded = hydrateState(saved);
+  assert.equal(loaded.level, 32);
+  assert.equal(loaded.baseStamina, 55);
+  assert.equal(loaded.luck, 65);
+  assert.deepEqual(loaded.profileSkills, saved.profileSkills);
+  const upgraded = act(loaded, 'UPGRADE_LEVEL');
+  assert.equal(upgraded.level, 33);
+  assert.equal(upgraded.baseStamina, 55);
+  assert.equal(upgraded.luck, 65);
+  assert.deepEqual(upgraded.profileSkills, saved.profileSkills);
+  assert.equal(upgraded.bullets, 1000 - (40 + 32 * 15));
+});

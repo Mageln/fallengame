@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react';
 import { useGame } from '../game/GameContext';
-import { getDistrict, levelUpCost, luckUpgradeCost, staminaUpgradeCost } from '../game/formulas';
+import { getDistrict, levelUpCost } from '../game/formulas';
 import { LOCATIONS } from '../game/constants';
 import styles from '../style/SurvivorProfile.module.scss';
 import { SKILL_DEFS, SKILL_MAX_LEVEL, skillCost } from '../game/profileSkills';
 
-type Tab = 'file' | 'training' | 'skills';
+type Tab = 'file' | 'skills';
 interface Props {
   onClose: () => void;
   onWorkshop: () => void;
@@ -29,11 +29,6 @@ export const SurvivorProfile = ({ onClose, onWorkshop, onBosses, onInventory, on
   const room = LOCATIONS.find((item) => item.id === state.currentLocation)?.name ?? 'Неизвестно';
   const district = getDistrict(state.currentDistrict)?.name ?? 'Неизвестно';
   const durabilityMax = Math.max(1, state.weapon.maxDurability);
-  const upgrades = [
-    { label: 'Уровень', value: state.level, detail: '+1 уровень и +3 припасов', cost: levelUpCost(state.level), action: 'UPGRADE_LEVEL' as const },
-    { label: 'Выносливость', value: state.baseStamina, detail: '+5 базовой выносливости', cost: staminaUpgradeCost(state.baseStamina), action: 'UPGRADE_STAMINA' as const },
-    { label: 'Удача', value: state.luck, detail: '+15 базовой удачи', cost: luckUpgradeCost(state.luck), action: 'UPGRADE_LUCK' as const },
-  ];
   const go = (callback: () => void) => { onClose(); callback(); };
 
   return <div className={styles.backdrop} onClick={onClose}>
@@ -45,7 +40,6 @@ export const SurvivorProfile = ({ onClose, onWorkshop, onBosses, onInventory, on
       <div className={styles.tabs} role="tablist" aria-label="Разделы профиля">
         <button type="button" role="tab" aria-selected={tab === 'file'} className={tab === 'file' ? styles.activeTab : ''} onClick={() => setTab('file')}>ЛИЧНОЕ ДЕЛО</button>
         <button type="button" role="tab" aria-selected={tab === 'skills'} className={tab === 'skills' ? styles.activeTab : ''} onClick={() => { setFeedback(''); setTab('skills'); }}>НАВЫКИ</button>
-        <button type="button" role="tab" aria-selected={tab === 'training'} className={tab === 'training' ? styles.activeTab : ''} onClick={() => setTab('training')}>ПРОКАЧКА</button>
       </div>
       {tab === 'file' ? <div className={styles.content} role="tabpanel">
         <div className={styles.hero}>
@@ -53,7 +47,7 @@ export const SurvivorProfile = ({ onClose, onWorkshop, onBosses, onInventory, on
           <div className={styles.identity}>
             <span className={styles.sectionLabel}>● СТАТУС: ВЫЖИВШИЙ</span><h3>{name}</h3>
             <div className={styles.tags}><span>УРОВЕНЬ {format(state.level)}</span><span>★ {format(state.experience)} ОПЫТА</span></div>
-            <p className={styles.caption}>Опыт накапливается за боссов и рейды. Уровень повышается отдельно во вкладке «Прокачка».</p>
+            <p className={styles.caption}>Опыт накапливается за боссов и рейды. Уровень повышается отдельно во вкладке «Навыки» за патроны.</p>
             <div className={styles.meter}><div><span>ЗДОРОВЬЕ</span><strong>{format(state.health)} / {format(state.maxHealth)}</strong></div><progress value={state.health} max={state.maxHealth} aria-label="Здоровье" /></div>
             <div className={`${styles.meter} ${styles.energy}`}><div><span>ЭНЕРГИЯ</span><strong>{format(state.energy)} / {format(state.maxEnergy)}</strong></div><progress value={state.energy} max={state.maxEnergy} aria-label="Энергия" /></div>
             <div className={styles.location}>⌖ {district} <span>/</span> 🏠 {room}</div>
@@ -68,9 +62,14 @@ export const SurvivorProfile = ({ onClose, onWorkshop, onBosses, onInventory, on
           <button type="button" onClick={() => go(onWorkshop)}>МАСТЕРСКАЯ ↗</button>
         </div>
         <div className={styles.links}><button type="button" onClick={() => go(onInventory)}>▣ ИНВЕНТАРЬ</button><button type="button" onClick={() => go(onBosses)}>⚔ БОССЫ</button><button type="button" onClick={() => go(onClan)}>☠ КЛАН</button></div>
-      </div> : tab === 'skills' ? <div className={styles.content} role="tabpanel">
+      </div> : <div className={styles.content} role="tabpanel">
         <div className={styles.sectionHeading}><div><small>ЛИЧНЫЕ УМЕНИЯ</small><h3>НАВЫКИ ВЫЖИВШЕГО</h3></div><span>ПАТРОНЫ: {format(state.bullets)}</span></div>
         <p className={styles.caption}>Постоянные улучшения за патроны. Каждый навык можно улучшить до {SKILL_MAX_LEVEL} уровня; цена следующего уровня растёт.</p>
+        <article className={styles.upgrade}>
+          <div><small>ТЕКУЩИЙ УРОВЕНЬ · {format(state.level)}</small><h3>Уровень персонажа</h3><p>+1 уровень и +3 припасов. Опыт не расходуется.</p></div>
+          <button type="button" disabled={state.bullets < levelUpCost(state.level)} onClick={() => { dispatch({ type: 'UPGRADE_LEVEL' }); setFeedback('Уровень повышен.'); }}>ПОВЫСИТЬ · {format(levelUpCost(state.level))} 🔫</button>
+        </article>
+        <p className={styles.caption}>Ранее приобретённые уровни, выносливость и удача сохранены и учитываются в характеристиках.</p>
         {state.battle && <p className={styles.feedback}>Завершите текущий бой, чтобы улучшать навыки.</p>}
         <div className={styles.skills}>{SKILL_DEFS.map((skill) => {
           const level = state.profileSkills[skill.id];
@@ -82,15 +81,6 @@ export const SurvivorProfile = ({ onClose, onWorkshop, onBosses, onInventory, on
           </article>;
         })}</div>
         {feedback && <p className={styles.feedback} role="status">{state.lastMessage}</p>}
-      </div> : <div className={styles.content} role="tabpanel">
-        <div className={styles.sectionHeading}><div><small>ПОДГОТОВКА К ВЫХОДУ</small><h3>ПРОКАЧКА ПЕРСОНАЖА</h3></div><span>ПАТРОНЫ: {format(state.bullets)}</span></div>
-        <p className={styles.caption}>Улучшения приобретаются за патроны. Накопленный опыт при этом не расходуется.</p>
-        <div className={styles.upgrades}>{upgrades.map((item) => <article key={item.action} className={styles.upgrade}>
-          <div><small>ТЕКУЩЕЕ ЗНАЧЕНИЕ · {format(item.value)}</small><h3>{item.label}</h3><p>{item.detail}</p></div>
-          <button type="button" disabled={state.bullets < item.cost} onClick={() => { dispatch({ type: item.action }); setFeedback(`${item.label}: улучшение куплено.`); }}>УЛУЧШИТЬ · {format(item.cost)} 🔫</button>
-        </article>)}</div>
-        <p className={styles.caption}>Стоимость выносливости и удачи рассчитывается по базовым значениям, без бонусов экипировки.</p>
-        {feedback && <p className={styles.feedback} role="status">{feedback} {state.lastMessage}</p>}
       </div>}
       <footer className={styles.footer}><span>FALLEN / АРХИВ ВЫЖИВШИХ</span><span>СОЕДИНЕНИЕ УСТАНОВЛЕНО ●</span></footer>
     </section>
