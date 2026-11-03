@@ -214,7 +214,7 @@ const RIGHT_PANEL_ITEMS = [
   { action: 'go_district', iconKey: 'raion', label: 'Районы' },
   { action: 'go_boss', iconKey: 'boss', label: 'Боссы' },
   { action: 'go_kazino', iconKey: 'kazino', label: 'Казино' },
-  { action: 'go_cloth', iconKey: 'cloth', label: 'Одежда' },
+  { action: 'go_cloth', iconKey: 'cloth', label: 'Магазин' },
   { action: 'go_komnata', iconKey: 'komnata', label: 'Комната' },
 ];
 

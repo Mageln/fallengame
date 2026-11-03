@@ -423,6 +423,7 @@ export interface GameState {
   unlockedDistricts: string[];
   unlockedRooms: string[];
   weapon: Weapon;
+  storedWeapons: Weapon[]; // купленное и снятое оружие с сохранением прочности
   equipmentIds: string[];
   inventory: InventorySlot[];
   craftingRecipes: string[];
@@ -482,6 +483,8 @@ export type GameAction =
   | { type: 'ENTER_DISTRICT'; districtId: string }
   | { type: 'DO_TASK'; taskId: string }
   | { type: 'BUY_EQUIPMENT'; itemId: string }
+  | { type: 'BUY_SHOP_ITEM'; category: 'weapon' | 'clothing'; itemId: string; currency: 'gold' | 'premium' }
+  | { type: 'EQUIP_SHOP_WEAPON'; weaponId: string }
   | { type: 'UPGRADE_WEAPON' }
   | { type: 'UPGRADE_WEAPON_UPGRADE' }
   | { type: 'REPAIR_WEAPON' }

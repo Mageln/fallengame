@@ -32,6 +32,7 @@ export const createInitialState = (): GameState => ({
   // Полноценный стартовый ствол: раньше тут был объект без id/icon/type/ammo,
   // из-за чего боевая математика не знала дальность, точность и боезапас.
   weapon: { ...STARTER_WEAPON },
+  storedWeapons: [],
   equipmentIds: [],
   inventory: [],
   craftingRecipes: ['repair_kit', 'medkit_bundle'],

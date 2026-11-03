@@ -10,6 +10,7 @@ import { FAKE_BOSSES } from "./bosses";
 import { RaidModal } from "../../panels/RaidModal";
 import { ClanModal } from "../../panels/Clan";
 import { RoomModal } from "../../panels/Room";
+import { StoreModal } from "../../panels/Store";
 import { BossFightPanel, BossHub, PremiumShop } from "../../panels/Boss";
 import { FriendsPanel } from "../../panels/Friends";
 import { NotificationsPanel } from "../NotificationsPanel";
@@ -122,6 +123,7 @@ export const FallenCanvas: React.FC<PrisonCanvasProps & {
   const [bossImage, setBossImage] = useState<HTMLImageElement | null>(null);
   const [showRoomModal, setShowRoomModal] = useState(false);
   const [showPremiumShop, setShowPremiumShop] = useState(false);
+  const [showStore, setShowStore] = useState(false);
   const [showFriends, setShowFriends] = useState(false);
 
   // "Атаковать"/"В бой" — запускает бой через reducer (state.battle)
@@ -329,7 +331,8 @@ export const FallenCanvas: React.FC<PrisonCanvasProps & {
     undefined, // onSelectRoom — выбор комнаты теперь в React-модалке
     lockedRoomsRemain,
     state.premiumGold,
-    () => setShowPremiumShop(true)
+    () => setShowPremiumShop(true),
+    () => setShowStore(true)
   );
 
   // Связываем ref с реальной функцией fullscreen из useCanvas
@@ -382,6 +385,7 @@ export const FallenCanvas: React.FC<PrisonCanvasProps & {
         <BossHub onClose={() => dispatch({ type: 'TOGGLE_BOSS_MODAL' })} />
       )}
       <BossFightPanel />
+      {showStore && <StoreModal onClose={() => setShowStore(false)} />}
       {showPremiumShop && <PremiumShop onClose={() => setShowPremiumShop(false)} />}
       {showFriends && <FriendsPanel onClose={() => setShowFriends(false)} />}
 

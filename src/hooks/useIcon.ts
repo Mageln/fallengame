@@ -47,7 +47,7 @@ const ICON_SRCS = {
   arena: '/icon/arena.jpg',
   personaz: '/icon/personaz.jpg',
   kazino: '/icon/kazino.jpg',
-  cloth: '/icon/cloth.jpg',
+  cloth: '/icon/shop/store.svg',
   gold: '/icon/resource/gold.png',
 } as const;
 
@@ -117,7 +117,7 @@ export const useIcon = () => {
         loadIconWithTimeout('/icon/arena.jpg', 2000),
         loadIconWithTimeout('/icon/personaz.jpg', 2000),
         loadIconWithTimeout('/icon/kazino.jpg', 2000),
-        loadIconWithTimeout('/icon/cloth.jpg', 2000),
+        loadIconWithTimeout('/icon/shop/store.svg', 2000),
         loadIconWithTimeout('/icon/shelter.png', 2000),
         loadIconWithTimeout('/icon/raion.jpg', 2000),
         // Нижние кнопки: друзья, задания, кланы

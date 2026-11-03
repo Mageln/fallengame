@@ -1,3 +1,4 @@
+import { SHOP_CLOTHING, SHOP_WEAPONS, clothingSlot } from './shopCatalog';
 import { normalizeProfileSkills, SKILL_BLOCK_PERCENT, SKILL_DEFS, SKILL_FIST_PERCENT, SKILL_HP_PER_LEVEL, SKILL_MAX_LEVEL, skillCost } from './profileSkills';
 import { bossExperience, mapRaidExperience, RAID_LOOT_EXPERIENCE } from './experience';
 import { CLAN_CREATE_GOLD,
@@ -13,6 +14,7 @@ import { CLAN_CREATE_GOLD,
   DISTRICT_TASKS,
   DISTRICTS,
   LEVEL_GOLD,
+  INVENTORY_SLOTS,
   LOCATIONS,
   RAIDS,
   SHOP,
@@ -57,6 +59,8 @@ import {
   lootDrop,
   staminaUpgradeCost,
   totalStamina,
+  weaponDamage,
+  equipmentDamage,
   weaponRepairCost,
   weaponUpgradeCost,
   weaponUpgradeUpgradeCost,
@@ -740,6 +744,7 @@ export const hydrateState = (state: GameState): GameState => {
   }
   normalized = {
     ...normalized,
+    storedWeapons: Array.isArray(normalized.storedWeapons) ? normalized.storedWeapons.filter((w) => w && typeof w.id === 'string' && w.id !== normalized.weapon.id).map(normalizeWeapon) : [],
     profileSkills: normalizeProfileSkills(normalized.profileSkills),
     experience: Number.isFinite(normalized.experience) ? Math.max(0, Math.floor(normalized.experience)) : 0,
     premiumGold: Number.isFinite(normalized.premiumGold) ? Math.max(0, normalized.premiumGold) : 0,
@@ -953,6 +958,34 @@ export const gameReducer = (state: GameState, action: GameAction): GameState => 
       }
       return recordResources(result, 'solo-task', { tokens: 1 });
     }
+    case 'BUY_SHOP_ITEM': {
+      if (action.currency !== 'gold' && action.currency !== 'premium') return state;
+      if (action.category !== 'weapon' && action.category !== 'clothing') return state;
+      const weapon = action.category === 'weapon' ? SHOP_WEAPONS.find((entry) => entry.weapon.id === action.itemId) : undefined;
+      const clothing = action.category === 'clothing' ? SHOP_CLOTHING.find((entry) => entry.item.id === action.itemId) : undefined;
+      const entry = weapon ?? clothing;
+      if (!entry) return state;
+      if (weapon && (state.weapon.id === action.itemId || state.storedWeapons.some((w) => w.id === action.itemId))) return msg(state, 'Оружие уже куплено.');
+      if (clothing && (state.inventory.some((slot) => slot.itemId === action.itemId) || state.equipmentIds.includes(action.itemId))) return msg(state, 'Предмет уже куплен.');
+      if (clothing && state.inventory.length >= INVENTORY_SLOTS) return msg(state, 'Инвентарь заполнен.');
+      const cost = entry.price[action.currency];
+      const balance = action.currency === 'gold' ? state.gold : state.premiumGold;
+      if (balance < cost) return msg(state, action.currency === 'gold' ? 'Не хватает игровых припасов.' : 'Не хватает премиум-золота.');
+      return {
+        ...state,
+        gold: state.gold - (action.currency === 'gold' ? cost : 0),
+        premiumGold: state.premiumGold - (action.currency === 'premium' ? cost : 0),
+        storedWeapons: weapon ? [...state.storedWeapons, { ...weapon.weapon, mods: [] }] : state.storedWeapons,
+        inventory: clothing ? [...state.inventory, { itemId: clothing.item.id, equipped: false }] : state.inventory,
+        lastMessage: `${weapon?.weapon.name ?? clothing?.item.name} куплен. ${weapon ? 'Выберите «Взять» в магазине.' : 'Наденьте предмет в магазине или инвентаре.'}`,
+      };
+    }
+    case 'EQUIP_SHOP_WEAPON': {
+      if (state.battle) return msg(state, 'Завершите бой перед сменой оружия.');
+      const weapon = state.storedWeapons.find((item) => item.id === action.weaponId);
+      if (!weapon) return state;
+      return { ...state, weapon, storedWeapons: [...state.storedWeapons.filter((item) => item.id !== weapon.id), state.weapon], lastMessage: `Выбрано оружие: ${weapon.name}.` };
+    }
     case 'BUY_EQUIPMENT': {
       if (state.equipmentIds.includes(action.itemId)) return msg(state, 'Уже надето.');
       const item = SHOP.find((s) => s.id === action.itemId);
@@ -1075,7 +1108,7 @@ export const gameReducer = (state: GameState, action: GameAction): GameState => 
       const fistMultiplier = skill.ammo === 0 ? 1 + (current.profileSkills?.fist ?? 0) * SKILL_FIST_PERCENT / 100 : 1;
       const luckLevel = current.profileSkills?.luck ?? 0;
       const luckCrit = skill.id !== 'critical' && luckLevel > 0 && Math.random() < luckLevel / 100;
-      const damage = Math.min(battle.bossHp, Math.max(1, Math.round((8 + current.level / 4) * skill.multiplier * fistMultiplier * (luckCrit ? 1.5 : 1))));
+      const damage = Math.min(battle.bossHp, Math.max(1, Math.round((8 + current.level / 4 + Math.max(0, weaponDamage(current) - 6) + equipmentDamage(current.equipmentIds)) * skill.multiplier * fistMultiplier * (luckCrit ? 1.5 : 1))));
       const updated: BattleState = {
         ...battle,
         bossHp: battle.bossHp - damage,
@@ -1100,7 +1133,7 @@ export const gameReducer = (state: GameState, action: GameAction): GameState => 
       const battle = current.battle;
       if (!battle || battle.source !== 'boss' || battle.outcome !== 'fighting') return current;
       if ((battle.bossEnergy ?? 0) < BOSS_ENERGY_MAX) return msg(current, 'Для сильного удара накопите 100 энергии.');
-      const damage = Math.min(battle.bossHp, Math.max(1, Math.round((8 + current.level / 4) * BOSS_POWER_MULTIPLIER)));
+      const damage = Math.min(battle.bossHp, Math.max(1, Math.round((8 + current.level / 4 + Math.max(0, weaponDamage(current) - 6) + equipmentDamage(current.equipmentIds)) * BOSS_POWER_MULTIPLIER)));
       const updated: BattleState = {
         ...battle,
         bossEnergy: 0,
@@ -1680,11 +1713,13 @@ export const gameReducer = (state: GameState, action: GameAction): GameState => 
       }
       // Check if already equipped
       if (state.equipmentIds.includes(slot.itemId)) return msg(state, 'Уже надето.');
-      // Unequip same type item if needed
+      // Один предмет на каждый слот одежды; прочая экипировка остаётся совместимой.
+      const clothingType = clothingSlot(slot.itemId);
+      const replacedIds = clothingType ? state.equipmentIds.filter((id) => clothingSlot(id) === clothingType) : [];
       return {
         ...state,
-        inventory: state.inventory.map((s, i) => (i === action.slotIndex ? { ...s, equipped: true } : s)),
-        equipmentIds: [...state.equipmentIds, slot.itemId],
+        inventory: state.inventory.map((s, i) => i === action.slotIndex ? { ...s, equipped: true } : replacedIds.includes(s.itemId) ? { ...s, equipped: false } : s),
+        equipmentIds: [...state.equipmentIds.filter((id) => !replacedIds.includes(id)), slot.itemId],
         lastMessage: `Надето: ${INVENTORY_ITEMS.find((i) => i.id === slot.itemId)?.name ?? 'предмет'}.`,
       };
     }

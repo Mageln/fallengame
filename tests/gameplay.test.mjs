@@ -313,3 +313,52 @@ test('block skill improves active block only in both combat systems', async () =
   const better = act({ ...blocking, profileSkills: trained.profileSkills }, 'BOSS_TICK', { now });
   assert.ok(better.battle.playerHp > base.battle.playerHp);
 });
+
+test('shop purchases charge chosen currency once, preserve weapons on swap and migrate old saves', () => {
+  const old = createInitialState(); delete old.storedWeapons;
+  assert.deepEqual(hydrateState(old).storedWeapons, []);
+  let state = { ...createInitialState(), gold: 1000, premiumGold: 100 };
+  const denied = act({ ...state, gold: 0 }, 'BUY_SHOP_ITEM', { category: 'weapon', itemId: 'shop_bat', currency: 'gold' });
+  assert.equal(denied.storedWeapons.length, 0);
+  state = act(state, 'BUY_SHOP_ITEM', { category: 'weapon', itemId: 'shop_bat', currency: 'gold' });
+  assert.equal(state.gold, 500);
+  assert.equal(state.storedWeapons[0].id, 'shop_bat');
+  const duplicate = act(state, 'BUY_SHOP_ITEM', { category: 'weapon', itemId: 'shop_bat', currency: 'premium' });
+  assert.equal(duplicate.premiumGold, 100);
+  state = act(state, 'EQUIP_SHOP_WEAPON', { weaponId: 'shop_bat' });
+  assert.equal(state.weapon.id, 'shop_bat');
+  state = { ...state, weapon: { ...state.weapon, durability: 37, level: 2 } };
+  state = act(state, 'EQUIP_SHOP_WEAPON', { weaponId: 'rusty_pistol' });
+  state = act(hydrateState(state), 'EQUIP_SHOP_WEAPON', { weaponId: 'shop_bat' });
+  assert.equal(state.weapon.durability, 37);
+  assert.equal(state.weapon.level, 2);
+  const battle = act(state, 'START_BOSS_FIGHT', { bossId: '2' });
+  assert.equal(act(battle, 'EQUIP_SHOP_WEAPON', { weaponId: 'rusty_pistol' }).weapon.id, 'shop_bat');
+  assert.equal(act(state, 'BUY_SHOP_ITEM', { category: 'weapon', itemId: 'shop_rifle', currency: 'other' }), state);
+});
+
+test('clothes are purchasable with premium, equip bonuses and replace same slot', async () => {
+  const { totalStamina } = await vite.ssrLoadModule('/src/game/formulas.ts');
+  let state = { ...createInitialState(), gold: 1000, premiumGold: 100 };
+  state = act(state, 'BUY_SHOP_ITEM', { category: 'clothing', itemId: 'shop_cap', currency: 'premium' });
+  assert.equal(state.premiumGold, 85);
+  state = act(state, 'EQUIP_ITEM', { slotIndex: 0 });
+  assert.equal(totalStamina(state), totalStamina(createInitialState()) + 8);
+  state = act(state, 'BUY_SHOP_ITEM', { category: 'clothing', itemId: 'shop_helmet', currency: 'gold' });
+  state = act(state, 'EQUIP_ITEM', { slotIndex: 1 });
+  assert.deepEqual(state.equipmentIds, ['shop_helmet']);
+  assert.equal(state.inventory[0].equipped, false);
+  assert.equal(totalStamina(state), totalStamina(createInitialState()) + 20);
+  const full = { ...state, inventory: Array.from({ length: 20 }, () => ({ itemId: 'scrap_metal', equipped: false })) };
+  assert.equal(act(full, 'BUY_SHOP_ITEM', { category: 'clothing', itemId: 'shop_jacket', currency: 'gold' }).gold, full.gold);
+});
+
+test('shop weapons improve boss arena damage', () => {
+  let state = { ...createInitialState(), gold: 500 };
+  state = act(state, 'BUY_SHOP_ITEM', { category: 'weapon', itemId: 'shop_bat', currency: 'gold' });
+  const baseline = act(state, 'START_BOSS_FIGHT', { bossId: '2' });
+  const upgraded = act(act(state, 'EQUIP_SHOP_WEAPON', { weaponId: 'shop_bat' }), 'START_BOSS_FIGHT', { bossId: '2' });
+  const normal = act(baseline, 'BOSS_SKILL', { skillId: 'jab', now: baseline.battle.startedAt + 1 });
+  const better = act(upgraded, 'BOSS_SKILL', { skillId: 'jab', now: upgraded.battle.startedAt + 1 });
+  assert.ok(better.battle.lastHit.damage > normal.battle.lastHit.damage);
+});
