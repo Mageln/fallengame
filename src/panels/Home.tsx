@@ -9,6 +9,9 @@ import { RoomGallery } from './RoomGallery';
 import { FriendsPanel } from './Friends';
 import { SurvivorProfile } from './SurvivorProfile';
 import { QuestBoard } from './QuestBoard';
+import { LoginReward } from './LoginReward';
+import { loginRewardStatus } from '../game/loginRewards';
+import loginStyles from '../style/LoginReward.module.scss';
 
 interface HomeProps {
   id: string;
@@ -17,12 +20,21 @@ interface HomeProps {
 
 export const Home = ({ id }: HomeProps) => {
   const navigator = useRouteNavigator();
-  const { state, dispatch, derived, vkUser } = useGame();
+  const { state, dispatch, derived, vkUser, isLoading } = useGame();
   const district = getDistrict(state.currentDistrict);
   const [showProfile, setShowProfile] = useState(false);
   const [showRoomGallery, setShowRoomGallery] = useState(false);
   const [showFriends, setShowFriends] = useState(false);
   const [showQuests, setShowQuests] = useState(false);
+  const [showLoginReward, setShowLoginReward] = useState(false);
+  const [loginChecked, setLoginChecked] = useState(false);
+
+  // Открываем окно только после загрузки сохранения пользователя.
+  useEffect(() => {
+    if (isLoading || loginChecked) return;
+    setLoginChecked(true);
+    if (loginRewardStatus(state.loginRewards).available) setShowLoginReward(true);
+  }, [isLoading, loginChecked, state.loginRewards]);
 
   // Просто закрыть профиль
   const closeProfileOnly = () => {
@@ -133,6 +145,8 @@ export const Home = ({ id }: HomeProps) => {
         onClan={() => dispatch({ type: 'TOGGLE_CLAN_MODAL' })}
       />}
 
+      {showLoginReward && <LoginReward onClose={() => setShowLoginReward(false)} />}
+      {!isLoading && loginChecked && !showLoginReward && loginRewardStatus(state.loginRewards).available && <button type="button" className={loginStyles.reopen} onClick={() => setShowLoginReward(true)}>🎁 Награда за вход</button>}
       {showQuests && <QuestBoard onClose={() => setShowQuests(false)} />}
 
       {/* Панель друзей */}

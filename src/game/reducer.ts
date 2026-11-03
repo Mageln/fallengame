@@ -1,3 +1,4 @@
+import { LOGIN_REWARDS, loginRewardStatus, normalizeLoginRewards } from './loginRewards';
 import { SHOP_CLOTHING, SHOP_WEAPONS, clothingSlot } from './shopCatalog';
 import { normalizeProfileSkills, SKILL_BLOCK_PERCENT, SKILL_DEFS, SKILL_FIST_PERCENT, SKILL_HP_PER_LEVEL, SKILL_MAX_LEVEL, skillCost } from './profileSkills';
 import { bossExperience, mapRaidExperience, RAID_LOOT_EXPERIENCE } from './experience';
@@ -761,6 +762,7 @@ export const hydrateState = (state: GameState): GameState => {
   normalized = {
     ...normalized,
     storedWeapons: Array.isArray(normalized.storedWeapons) ? normalized.storedWeapons.filter((w) => w && typeof w.id === 'string' && w.id !== normalized.weapon.id).map(normalizeWeapon) : [],
+    loginRewards: normalizeLoginRewards(normalized.loginRewards),
     profileSkills: normalizeProfileSkills(normalized.profileSkills),
     experience: Number.isFinite(normalized.experience) ? Math.max(0, Math.floor(normalized.experience)) : 0,
     premiumGold: Number.isFinite(normalized.premiumGold) ? Math.max(0, normalized.premiumGold) : 0,
@@ -1726,6 +1728,21 @@ export const gameReducer = (state: GameState, action: GameAction): GameState => 
           ),
         },
         lastMessage: `Квест «${quest.name}» выполнен! +${quest.rewardBullets} патронов, +${quest.rewardMatches} спичек, +${quest.rewardGrenades} гранат, +${quest.rewardGold} припасов, +${quest.rewardExperience} опыта.`,
+      };
+    }
+    case 'CLAIM_LOGIN_REWARD': {
+      const loginRewards = normalizeLoginRewards(state.loginRewards);
+      const status = loginRewardStatus(loginRewards);
+      if (!status.available) return msg(state, 'Награда за сегодняшний вход уже получена.');
+      const reward = LOGIN_REWARDS[status.day - 1];
+      return {
+        ...state,
+        bullets: state.bullets + reward.bullets,
+        gold: state.gold + reward.gold,
+        matches: state.matches + reward.matches,
+        medkits: state.medkits + reward.medkits,
+        loginRewards: { lastClaimDate: status.today, streak: status.day },
+        lastMessage: `Награда за вход · день ${status.day}: +${reward.bullets} патронов${reward.gold ? `, +${reward.gold} припасов` : ''}${reward.matches ? `, +${reward.matches} спичек` : ''}${reward.medkits ? `, +${reward.medkits} аптечек` : ''}.`,
       };
     }
     case 'CLAIM_DAILY_QUEST_BONUS': {

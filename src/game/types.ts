@@ -1,4 +1,5 @@
 import type { ResourceEvent } from './survival';
+import type { LoginRewardState } from './loginRewards';
 
 export type AppearanceId = 0 | 1 | 2 | 3 | 4 | 5;
 
@@ -415,6 +416,7 @@ export interface GameState {
   keys: number;
   level: number;
   experience: number; // накопленный опыт за боссов и рейды
+  loginRewards: LoginRewardState;
   profileSkills: ProfileSkills;
   baseStamina: number;
   luck: number;
@@ -535,6 +537,7 @@ export type GameAction =
   | { type: 'CLAIM_DAILY' }
   | { type: 'CLAIM_QUEST_REWARD'; questId: string }
   | { type: 'CLAIM_DAILY_QUEST_BONUS' }
+  | { type: 'CLAIM_LOGIN_REWARD' }
   | { type: 'EQUIP_ITEM'; slotIndex: number }
   | { type: 'UNEQUIP_ITEM'; slotIndex: number }
   | { type: 'CRAFT_ITEM'; recipeId: string }

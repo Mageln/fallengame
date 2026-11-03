@@ -482,3 +482,49 @@ test('existing profile upgrades and skill levels survive loading and level upgra
   assert.deepEqual(upgraded.profileSkills, saved.profileSkills);
   assert.equal(upgraded.bullets, 1000 - (40 + 32 * 15));
 });
+
+test('seven-day login rewards can be claimed once per local day and cycle after day seven', async () => {
+  const { LOGIN_REWARDS } = await vite.ssrLoadModule('/src/game/loginRewards.ts');
+  const realNow = Date.now;
+  const day = new Date(2026, 2, 1, 12);
+  let state = createInitialState();
+  try {
+    for (let i = 0; i < 7; i++) {
+      Date.now = () => day.getTime();
+      const before = state;
+      state = act(state, 'CLAIM_LOGIN_REWARD');
+      assert.equal(state.loginRewards.streak, i + 1);
+      assert.equal(state.bullets, before.bullets + LOGIN_REWARDS[i].bullets);
+      assert.equal(state.gold, before.gold + LOGIN_REWARDS[i].gold);
+      assert.equal(state.matches, before.matches + LOGIN_REWARDS[i].matches);
+      assert.equal(state.medkits, before.medkits + LOGIN_REWARDS[i].medkits);
+      assert.equal(state.premiumGold, before.premiumGold);
+      const again = act(state, 'CLAIM_LOGIN_REWARD');
+      assert.equal(again.bullets, state.bullets);
+      assert.equal(again.gold, state.gold);
+      state = hydrateState(state);
+      assert.equal(act(state, 'CLAIM_LOGIN_REWARD').bullets, state.bullets);
+      day.setDate(day.getDate() + 1);
+    }
+    Date.now = () => day.getTime();
+    state = act(state, 'CLAIM_LOGIN_REWARD');
+    assert.equal(state.loginRewards.streak, 1);
+    assert.equal(state.loginRewards.lastClaimDate, todayLocal(day.getTime()));
+  } finally { Date.now = realNow; }
+});
+
+test('login rewards restart after a missed day and reject backwards dates', async () => {
+  const { loginRewardStatus, normalizeLoginRewards } = await vite.ssrLoadModule('/src/game/loginRewards.ts');
+  const first = new Date(2026, 0, 31, 12);
+  const next = new Date(2026, 1, 1, 12);
+  const missed = new Date(2026, 1, 3, 12);
+  const state = { lastClaimDate: todayLocal(first.getTime()), streak: 3 };
+  assert.equal(loginRewardStatus(state, next.getTime()).day, 4);
+  assert.equal(loginRewardStatus(state, missed.getTime()).day, 1);
+  assert.equal(loginRewardStatus(state, missed.getTime()).reset, true);
+  assert.equal(loginRewardStatus(state, first.getTime() - 86400000).available, false);
+  assert.deepEqual(normalizeLoginRewards({ streak: 100, lastClaimDate: 'not-a-date' }), { streak: 0, lastClaimDate: null });
+  const old = createInitialState();
+  delete old.loginRewards;
+  assert.deepEqual(hydrateState(old).loginRewards, { streak: 0, lastClaimDate: null });
+});
