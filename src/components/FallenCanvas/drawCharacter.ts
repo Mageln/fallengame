@@ -14,10 +14,6 @@ export const drawCharacter = (
       position.width,
       position.height
     );
-    ctx.fillStyle = appearanceColor;
-    ctx.globalAlpha = 0.18;
-    ctx.fillRect(position.x, position.y, position.width, position.height);
-    ctx.globalAlpha = 1;
   } else {
     const centerX = position.x + position.width / 2;
     const centerY = position.y + 50;

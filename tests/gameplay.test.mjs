@@ -201,3 +201,30 @@ test('test mode allows attacking an exhausted boss without consuming or buying a
   assert.equal(state.battle.source, 'boss');
   assert.equal(state.bossAttacks, before);
 });
+
+test('boss battles report health and weapon restrictions without consuming attacks', () => {
+  const initial = createInitialState();
+  const injured = { ...initial, health: 0 };
+  const noHealth = act(injured, 'START_BOSS_FIGHT', { bossId: '1' });
+  assert.equal(noHealth.battle, null);
+  assert.match(noHealth.lastMessage, /восстановите HP/i);
+  assert.deepEqual(noHealth.bossAttacks, injured.bossAttacks);
+
+  const broken = { ...initial, weapon: { ...initial.weapon, broken: true } };
+  const noWeapon = act(broken, 'START_BOSS_FIGHT', { bossId: '1' });
+  assert.equal(noWeapon.battle, null);
+  assert.match(noWeapon.lastMessage, /Оружие сломано/i);
+  assert.deepEqual(noWeapon.bossAttacks, broken.bossAttacks);
+});
+
+test('finished hidden boss battle can be reopened and closed before another attack', () => {
+  let state = act(createInitialState(), 'START_BOSS_FIGHT', { bossId: '1' });
+  state = act(state, 'LEAVE_BATTLE');
+  state = act(state, 'BOSS_TICK', { now: state.battle.endsAt + 1 });
+  assert.equal(state.battle.outcome, 'lost');
+  assert.equal(state.battleVisible, false);
+  state = act(state, 'OPEN_BATTLE');
+  assert.equal(state.battleVisible, true);
+  state = act(state, 'LEAVE_BATTLE');
+  assert.equal(state.battle, null);
+});
