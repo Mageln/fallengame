@@ -6,7 +6,6 @@ import './style/global-styles.scss';
 
 vkBridge.send('VKWebAppInit');
 
-// Отладка событий VK Bridge (подписка на Failed-события)
 vkBridge.subscribe((event) => {
   if (!event.detail) return;
   if (event.detail.type.endsWith('Failed')) {
