@@ -6,7 +6,7 @@ const GAME_IMAGES = [
   '/bossRoom/FonLoot.jpg', '/bossRoom/fonIconBoss.jpg', '/bossRoom/fonWinnera.jpg',
   '/enemy/avatar-boss.jpg', '/enemy/boss1.jpg', '/enemy/zombi.jpg', '/enemy/zombi1.jpg',
   '/icon/arena.jpg', '/icon/boss.jpg', '/icon/clans.jpg', '/icon/clans.png',
-  '/icon/shop/store.svg', '/icon/friends.png', '/icon/kazino.jpg', '/icon/shelter.png',
+  '/icon/shop/store.png', '/icon/friends.png', '/icon/kazino.jpg', '/icon/shelter.png',
   '/icon/personaz.jpg', '/icon/plus.png', '/icon/quest.png', '/icon/raion.jpg',
   '/icon/shop/shop_knuckles.svg', '/icon/shop/shop_bat.svg', '/icon/shop/shop_pistol.svg',
   '/icon/shop/shop_smg.svg', '/icon/shop/shop_rifle.svg', '/icon/shop/shop_cap.svg',
