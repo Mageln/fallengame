@@ -1,0 +1,45 @@
+.backdrop { position: fixed; inset: 0; z-index: 10030; display: grid; place-items: center; padding: 12px; background: radial-gradient(circle at 50% 10%, rgba(72,44,27,.72), rgba(7,8,7,.96) 70%); color: #ddd2bb; font-family: 'Courier New', monospace; }
+.backdrop * { box-sizing: border-box; }
+.backdrop button { font: inherit; cursor: pointer; }
+.backdrop button:disabled { opacity: .48; cursor: not-allowed; }
+.backdrop :focus-visible { outline: 2px solid #e2bb58; outline-offset: 2px; }
+.panel { width: min(920px,100%); max-height: 94dvh; overflow: auto; border: 3px ridge #725036; background: repeating-linear-gradient(106deg, transparent 0 69px, rgba(216,208,192,.025) 70px 72px), radial-gradient(circle at 90% 10%, #3a2920, transparent 40%), #1a1b18; box-shadow: inset 0 0 50px #100e0b, 0 24px 70px #000; }
+.header { padding: 20px 24px 16px; display: flex; align-items: center; justify-content: space-between; gap: 12px; border-bottom: 1px dashed #76593c; }
+.headerLeft { display: flex; align-items: center; gap: 14px; }
+.lamp { width: 12px; height: 12px; background: #c33724; border-radius: 50%; box-shadow: 0 0 15px #d23220; flex: none; }
+.header small, .sectionHeading small, .sectionLabel, .gear small { color: #c5a054; font-size: 10px; font-weight: bold; letter-spacing: .14em; }
+.header h2 { font: bold clamp(19px,3.5vw,29px) Stencil, Impact, sans-serif; letter-spacing: .09em; margin: 4px 0 0; }
+.close { color: #ddd2bb; background: #302821; border: 1px solid #735236; padding: 8px 12px; }
+.tabs { display: flex; gap: 4px; padding: 14px 24px 0; border-bottom: 2px solid #58432c; }
+.tabs button { padding: 11px 19px; background: #292821; border: 1px solid #5a4632; border-bottom: 0; color: #a9a18e; font-size: 12px; font-weight: bold; }
+.tabs .activeTab { color: #f0d79b; background: #453021; box-shadow: inset 0 3px #c9a227; }
+.content { padding: 22px 24px; }
+.hero { display: grid; grid-template-columns: 220px 1fr; gap: 20px; }
+.portrait { position: relative; min-height: 245px; display: flex; justify-content: center; overflow: hidden; border: 2px solid #6d573a; background: radial-gradient(circle at 50% 35%, #6a5835, #282820 55%, #171915); }
+.portrait:after { content: ''; position: absolute; inset: 6px; pointer-events: none; border: 1px solid rgba(206,175,112,.25); }
+.portrait img { height: 235px; max-width: 100%; object-fit: contain; align-self: end; }
+.portraitLabel, .portraitFooter { position: absolute; left: 10px; z-index: 1; color: #d6c098; font-size: 9px; font-weight: bold; letter-spacing: .08em; }
+.portraitLabel { top: 10px; } .portraitFooter { bottom: 8px; }
+.identity { min-width: 0; padding: 5px 0; }
+.identity h3 { margin: 7px 0 12px; color: #f1e5cc; font: bold clamp(23px,4vw,34px) Stencil, Impact, sans-serif; overflow-wrap: anywhere; }
+.tags { display: flex; flex-wrap: wrap; gap: 8px; }
+.tags span { padding: 6px 9px; background: #3a3021; border: 1px solid #715331; color: #e2be70; font-size: 11px; font-weight: bold; }
+.caption { color: #a8a28f; font-size: 11px; line-height: 1.5; }
+.meter { margin-top: 14px; } .meter div { display: flex; justify-content: space-between; gap: 8px; font-size: 11px; margin-bottom: 5px; }
+.meter progress, .gear progress { display: block; width: 100%; height: 9px; accent-color: #a94a35; } .energy progress { accent-color: #c7a547; }
+.location { margin-top: 14px; padding-top: 10px; border-top: 1px dashed #5c503c; color: #bdb399; font-size: 12px; } .location span { color: #765b39; margin: 0 7px; }
+.sectionHeading { display: flex; justify-content: space-between; align-items: end; gap: 10px; margin: 22px 0 12px; border-bottom: 1px solid #5b4933; padding-bottom: 9px; }
+.sectionHeading h3 { margin: 4px 0 0; font: bold 19px Stencil, Impact, sans-serif; letter-spacing: .07em; }
+.sectionHeading > span { color: #8e9875; font-size: 10px; text-align: right; }
+.stats { display: grid; grid-template-columns: repeat(4,1fr); gap: 8px; }
+.stat { display: flex; gap: 10px; align-items: center; padding: 13px 10px; background: #2d2921; border: 1px solid #5b4935; min-width: 0; }
+.stat > span { font-size: 22px; color: #c8a455; } .stat small { display: block; color: #a49a85; font-size: 9px; overflow-wrap: anywhere; } .stat strong { display: block; font-size: 20px; color: #f1e2c0; margin-top: 3px; }
+.gear { margin-top: 12px; padding: 15px; display: flex; align-items: center; gap: 16px; background: linear-gradient(110deg,#382c20,#24231e); border: 1px solid #665039; }
+.gear > div { flex: 1; min-width: 0; }.gear h3 { margin: 6px 0; font-size: 16px; }.gear h3 span { color: #d2ad5b; }.gear p { margin: 5px 0; color: #a8a28f; font-size: 11px; }.gear p.broken { color: #f0806f; }
+.gear button, .upgrade button, .links button { border: 1px solid #8b6441; padding: 10px 13px; background: #514029; color: #f0dec0; font-size: 11px; font-weight: bold; }
+.links { display: grid; grid-template-columns: repeat(3,1fr); gap: 8px; margin-top: 12px; }.links button { background: #2e2921; }
+.upgrades { display: grid; gap: 10px; }.upgrade { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 16px; border: 1px solid #655039; background: linear-gradient(110deg, #352b20, #22221c); }.upgrade small { font-size: 10px; color: #c7a354; }.upgrade h3 { font-size: 17px; margin: 5px 0; }.upgrade p { color: #aca48f; font-size: 12px; margin: 0; }.upgrade button { background: #69402a; white-space: nowrap; }
+.feedback { background: #313022; border-left: 3px solid #c9a227; padding: 10px; font-size: 12px; }
+.footer { border-top: 1px dashed #544432; display: flex; justify-content: space-between; gap: 8px; padding: 13px 24px; color: #817b69; font-size: 9px; letter-spacing: .06em; }
+@media (max-width: 600px) { .header, .content { padding: 15px; } .tabs { padding: 10px 15px 0; }.hero { grid-template-columns: 125px 1fr; gap: 12px; }.portrait { min-height: 195px; }.portrait img { height: 180px; }.stats { grid-template-columns: repeat(2,1fr); }.gear { align-items: stretch; flex-direction: column; }.links { grid-template-columns: 1fr; }.upgrade { align-items: stretch; flex-direction: column; }.upgrade button { white-space: normal; }.footer { padding: 12px 15px; } }
+@media (max-width: 360px) { .hero { grid-template-columns: 1fr; }.portrait { min-height: 170px; }.portrait img { height: 170px; } }

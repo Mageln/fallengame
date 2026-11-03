@@ -7,6 +7,7 @@ import { useRouteNavigator } from '@vkontakte/vk-mini-apps-router';
 import { DEFAULT_VIEW_PANELS } from '../routes';
 import { RoomGallery } from './RoomGallery';
 import { FriendsPanel } from './Friends';
+import { SurvivorProfile } from './SurvivorProfile';
 
 interface HomeProps {
   id: string;
@@ -45,27 +46,6 @@ export const Home = ({ id }: HomeProps) => {
   }, [hasRunningRaids, dispatch]);
 
   const unreadNotifications = state.notifications.filter((n) => !n.read).length;
-
-  // Собираем данные профиля для canvas
-  const profileData = {
-    level: state.level,
-    experience: state.experience,
-    stamina: derived.stamina,
-    damage: derived.damage,
-    luck: derived.luck,
-    crit: derived.crit,
-    gold: state.gold,
-    spicki: state.matches,
-    bullets: state.bullets,
-    zhetons: state.zhetons,
-    appearance: state.appearance,
-    carLevel: state.carLevel,
-    weapon: {
-      name: state.weapon.name,
-      level: state.weapon.level,
-      broken: state.weapon.broken,
-    },
-  };
 
   // Обработчики для рейдов
   const handleRaidClick = (raidId: string) => {
@@ -108,8 +88,6 @@ export const Home = ({ id }: HomeProps) => {
         onClaimDaily={() => dispatch({ type: 'CLAIM_DAILY' })}
         onOpenBossModal={() => dispatch({ type: state.battle?.source === 'boss' ? 'OPEN_BATTLE' : 'TOGGLE_BOSS_MODAL' })}
         onCloseMap={closeMapOnly}
-        showProfile={showProfile}
-        profileData={profileData}
         onProfileClose={closeProfileOnly}
         onCloseProfile={closeProfileOnly}
         onBattleClick={() => {
@@ -144,6 +122,14 @@ export const Home = ({ id }: HomeProps) => {
         lastMessage={state.lastMessage}
       />
 
+
+      {showProfile && <SurvivorProfile
+        onClose={closeProfileOnly}
+        onWorkshop={() => navigator.push(DEFAULT_VIEW_PANELS.WORKSHOP)}
+        onInventory={() => navigator.push(DEFAULT_VIEW_PANELS.INVENTORY)}
+        onBosses={() => dispatch({ type: state.battle?.source === 'boss' ? 'OPEN_BATTLE' : 'TOGGLE_BOSS_MODAL' })}
+        onClan={() => dispatch({ type: 'TOGGLE_CLAN_MODAL' })}
+      />}
 
       {/* Панель друзей */}
       {showFriends && (
