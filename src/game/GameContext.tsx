@@ -33,6 +33,7 @@ interface GameContextValue {
   derived: DerivedState;
   vkUser: VkUser | null;
   isLoading: boolean;
+  serverMode: boolean;
 }
 
 const serverMode = import.meta.env.VITE_SERVER_PROGRESS === 'true';
@@ -178,6 +179,7 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
       },
       vkUser,
       isLoading,
+      serverMode,
     }),
     [state, vkUser, isLoading, dispatch]
   );

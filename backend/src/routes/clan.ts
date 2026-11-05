@@ -1,8 +1,9 @@
 import { Router } from 'express';
 import { Prisma } from '@prisma/client';
 import { prisma } from '../prisma.js';
-import { CLAN_COST, CLAN_MAX_MEMBERS, CLAN_MEMBER_BONUS, CONTRACTS, EMBLEMS, normalizeName, periodKey, validateName } from '../clanRules.js';
+import { CLAN_MAX_MEMBERS, CLAN_MEMBER_BONUS, CONTRACTS, EMBLEMS, normalizeName, validateName } from '../clanRules.js';
 import { requireVkUser, verifyVkLaunch } from '../vkAuth.js';
+import { debitClanCreation } from '../clanFunds.js';
 
 export const clanRouter = Router();
 
@@ -65,11 +66,18 @@ clanRouter.post('/create', async (req, res) => {
     if (!EMBLEMS.includes(req.body?.emblem)) throw new ClanError(400, 'Выберите эмблему.');
     const name = normalizeName(req.body.name);
     const clan = await serializable(async (tx) => {
-      const user = await tx.user.findUnique({ where: { vkId: authenticatedUser(res) }, select: { id: true, clanId: true, gold: true } });
-      if (!user) throw new ClanError(404, 'Сначала создайте профиль игрока.');
+      const vkId = authenticatedUser(res);
+      const progress = await tx.playerProgress.findUnique({ where: { vkId } });
+      if (!progress) throw new ClanError(404, 'Сначала загрузите серверный прогресс.');
+      const nextState = debitClanCreation(progress.state);
+      if (!nextState) throw new ClanError(400, 'Недостаточно припасов: нужно 2500.');
+      const user = await tx.user.upsert({ where: { vkId }, create: { vkId }, update: {}, select: { id: true, clanId: true } });
       if (user.clanId) throw new ClanError(409, 'Вы уже состоите в убежище.');
-      const debit = await tx.user.updateMany({ where: { id: user.id, clanId: null, gold: { gte: CLAN_COST } }, data: { gold: { decrement: CLAN_COST } } });
-      if (debit.count !== 1) throw new ClanError(400, 'Недостаточно припасов: нужно 2500.');
+      const debit = await tx.playerProgress.updateMany({
+        where: { vkId, revision: progress.revision },
+        data: { state: nextState as Prisma.InputJsonValue, revision: { increment: 1 } },
+      });
+      if (debit.count !== 1) throw new ClanError(409, 'Прогресс изменился. Обновите его и повторите.');
       const created = await tx.clan.create({ data: {
         name, nameKey: name.toLocaleLowerCase('ru-RU'), emblem: req.body.emblem, leaderId: user.id,
         rating: CLAN_MEMBER_BONUS, taskPoints: 0,
@@ -77,7 +85,7 @@ clanRouter.post('/create', async (req, res) => {
         members: { create: { userId: user.id, role: 'owner' } },
       } });
       await tx.user.update({ where: { id: user.id }, data: { clanId: created.id, clanRole: 'owner' } });
-      return { id: created.id, gold: user.gold - CLAN_COST };
+      return { id: created.id, gold: nextState.gold, revision: progress.revision + 1 };
     });
     res.status(201).json({ message: 'Убежище основано!', ...clan });
   } catch (error) { fail(res, error); }
@@ -160,22 +168,8 @@ clanRouter.post('/:clanId/tasks/:taskId/progress', async (req, res) => {
     if (!Number.isInteger(amount) || amount < 1 || amount > maxEvent || typeof eventId !== 'string' || !/^[a-zA-Z0-9_-]{8,80}$/.test(eventId)) {
       throw new ClanError(400, 'Неверные данные события.');
     }
-    const key = periodKey(contract.period);
-    const result = await serializable(async (tx) => {
-      const user = await tx.user.findUnique({ where: { vkId: authenticatedUser(res) }, select: { id: true } });
-      if (!user) throw new ClanError(404, 'Профиль не найден.');
-      const membership = await tx.clanMember.findUnique({ where: { userId: user.id } });
-      if (!membership || membership.clanId !== req.params.clanId) throw new ClanError(403, 'Вы не состоите в этом убежище.');
-      await tx.clanTaskEvent.create({ data: { id: eventId, clanId: membership.clanId, taskId: req.params.taskId, userId: user.id } });
-      const where = { clanId_taskId_periodKey: { clanId: membership.clanId, taskId: req.params.taskId, periodKey: key } };
-      const current = await tx.clanTaskProgress.findUnique({ where });
-      if (current?.completedAt) return { progress: current.progress, completed: true, awarded: 0 };
-      const progress = Math.min(contract.target, (current?.progress ?? 0) + amount);
-      const complete = progress >= contract.target;
-      await tx.clanTaskProgress.upsert({ where, create: { clanId: membership.clanId, taskId: req.params.taskId, periodKey: key, progress, completedAt: complete ? new Date() : null, pointsAwarded: complete ? contract.points : 0 }, update: { progress, completedAt: complete ? new Date() : null, pointsAwarded: complete ? contract.points : 0 } });
-      if (complete) await tx.clan.update({ where: { id: membership.clanId }, data: { rating: { increment: contract.points }, taskPoints: { increment: contract.points } } });
-      return { progress, completed: complete, awarded: complete ? contract.points : 0 };
-    });
-    res.json(result);
+    // Untrusted clients cannot prove that a game event happened. Keep this
+    // legacy endpoint closed until events are emitted transactionally by gameplay.
+    throw new ClanError(501, 'Прогресс контрактов принимается только от серверных игровых событий.');
   } catch (error) { fail(res, error); }
 });
