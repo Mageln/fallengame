@@ -11,9 +11,11 @@ test('unverified purchases cannot mint currency in any environment', async () =>
   await new Promise((resolve) => server.once('listening', resolve));
   try {
     const port = server.address().port;
+    const products = await fetch(`http://127.0.0.1:${port}/shop/products`);
+    assert.deepEqual(await products.json(), [{ id: 'caps_550', name: '550 крышек', currency: 'caps', amount: 550, priceVotes: 100, available: false }]);
     const response = await fetch(`http://127.0.0.1:${port}/shop/purchase`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ vkId: 123, productId: 'gold_100' }),
+      body: JSON.stringify({ vkId: 123, productId: 'caps_550' }),
     });
     assert.equal(response.status, 501);
   } finally {

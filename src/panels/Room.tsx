@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useGame } from '../game/GameContext';
+import { BACKEND_URL } from '../config/vkConfig';
 import {
   LOCATIONS,
   SHELTER_ITEMS,
@@ -15,6 +16,8 @@ import { roomDropChance } from '../game/survival';
 import styles from '../style/Room.module.scss';
 
 const number = (value: number) => new Intl.NumberFormat('ru-RU').format(value);
+
+type PaymentProduct = { id: string; name: string; currency: 'caps'; amount: number; priceVotes: number; available: false };
 
 const bossForRoom = (roomId: string) => BOSSES.find((b) => b.reward.room === roomId);
 
@@ -32,10 +35,32 @@ export const RoomModal = ({ onClose }: Props) => {
   const [showHint, setShowHint] = useState(false);
   const [hintRoomId, setHintRoomId] = useState<string | null>(null);
   const [showTopUp, setShowTopUp] = useState(false);
+  const [products, setProducts] = useState<PaymentProduct[] | null>(null);
+  const [catalogError, setCatalogError] = useState(false);
   const [confirm, setConfirm] = useState<Confirm | null>(null);
   const [previewSkinId, setPreviewSkinId] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [stamp, setStamp] = useState('');
+
+  useEffect(() => {
+    if (!serverMode || !showTopUp) return;
+    const controller = new AbortController();
+    setProducts(null);
+    setCatalogError(false);
+    void fetch(`${BACKEND_URL.replace(/\/$/, '')}/api/shop/products`, { signal: controller.signal })
+      .then(async (response) => {
+        if (!response.ok) throw new Error('Каталог недоступен');
+        const data: unknown = await response.json();
+        if (!Array.isArray(data) || !data.every((item) => item && typeof item.id === 'string' &&
+          typeof item.name === 'string' && item.currency === 'caps' && Number.isSafeInteger(item.amount) &&
+          item.amount > 0 && Number.isSafeInteger(item.priceVotes) && item.priceVotes > 0 && item.available === false)) {
+          throw new Error('Некорректный каталог');
+        }
+        setProducts(data as PaymentProduct[]);
+      })
+      .catch(() => { if (!controller.signal.aborted) setCatalogError(true); });
+    return () => controller.abort();
+  }, [serverMode, showTopUp]);
 
   useEffect(() => {
     if (!toast) return;
@@ -288,7 +313,14 @@ export const RoomModal = ({ onClose }: Props) => {
             <span className={styles.tape} aria-hidden="true" />
             <p className={styles.paperEyebrow}>ЯЩИК С ПРИПАСАМИ · ДОНАТ</p>
             <h3>📦 Пополнить крышки</h3>
-            {serverMode ? <p role="status">Покупка крышек пока недоступна. Реальные платежи не подключены, списания не будет.</p> : <>
+            {serverMode ? <>
+              <p role="status">Покупка пока недоступна: платежи VK ещё не подключены. Списания не будет.</p>
+              {catalogError ? <p>Не удалось загрузить каталог.</p> : products === null ? <p>Загрузка каталога…</p> :
+                <div className={styles.packList}>{products.map((product) => <div className={styles.packCard} key={product.id}>
+                  <span>{product.name}</span><strong>🥤 {number(product.amount)}</strong>
+                  <span className={styles.packPrice}>{number(product.priceVotes)} голосов VK · недоступно</span>
+                </div>)}</div>}
+            </> : <>
             <p>Крышки добываются за реальные деньги / редкие награды.</p>
             <div className={styles.packList}>
               {CAPS_PACKS.map((pack) => (
