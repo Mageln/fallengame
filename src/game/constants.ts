@@ -1,3 +1,4 @@
+import { SHOP_CLOTHING } from './shopCatalog';
 import { InventoryItem, DailyQuest, Rarity, Weapon, WeaponMod, WeaponType, Zombie, ShelterItem, ShelterItemId, RoomSkin } from './types';
 
 export const WEAPON_MAX_LEVEL = 10;
@@ -65,10 +66,10 @@ export const LOCATIONS = [
 // ===== УБЕЖИЩЕ (КОМНАТА) ======================================================
 // Полка торговца: товары за игровые припасы. Комнаты выпадают только за бой.
 export const SHELTER_ITEMS: ShelterItem[] = [
-  { id: 'bed', icon: '🛏️', name: 'Кровать выжившего', description: '+50% энергии', price: 200, repeatable: false },
-  { id: 'weapon_crate', icon: '🔫', name: 'Ящик с оружием', description: 'Случайный предмет', price: 300, repeatable: true },
-  { id: 'survivor_kit', icon: '🧰', name: 'Набор выжившего', description: 'Ресурсы + бонус', price: 400, repeatable: true },
-  { id: 'generator', icon: '⚡', name: 'Генератор', description: 'Ускоряет производство', price: 700, repeatable: false },
+  { id: 'bed', icon: '🛏️', name: 'Кровать выжившего', description: 'Навсегда увеличивает максимум энергии на 50% и сразу добавляет столько же энергии.', price: 200, repeatable: false },
+  { id: 'weapon_crate', icon: '🔫', name: 'Ящик с оружием', description: 'Сразу выдаёт один случайный предмет из магазина в инвентарь. Можно покупать повторно.', price: 300, repeatable: true },
+  { id: 'survivor_kit', icon: '🧰', name: 'Набор выжившего', description: 'Сразу выдаёт 100 пуль, 50 спичек, 5 аптечек, 2 гранаты и 200 припасов. Можно покупать повторно.', price: 400, repeatable: true },
+  { id: 'generator', icon: '⚡', name: 'Генератор', description: 'Постоянно ускоряет восстановление энергии в 2 раза, пока игра открыта.', price: 700, repeatable: false },
 ];
 
 // Оформления комнат. price: 0 — базовый скин (выдаётся вместе с комнатой).
@@ -167,7 +168,7 @@ const RAW_MATERIALS: InventoryItem[] = [
   { id: 'barricade', name: 'Баррикада', rarity: 'common', staminaBonus: 0, damageBonus: 0, luckBonus: 0, costBullets: 0, icon: '🧱' },
 ];
 
-export const INVENTORY_ITEMS: InventoryItem[] = [...SHOP, ...RAW_MATERIALS];
+export const INVENTORY_ITEMS: InventoryItem[] = [...SHOP, ...SHOP_CLOTHING.map((entry) => entry.item), ...RAW_MATERIALS];
 
 export const CRAFTING_RECIPES = [
   {
@@ -248,14 +249,12 @@ export const CRAFTING_RECIPES = [
 ];
 
 export const DAILY_QUESTS: DailyQuest[] = [
-  { id: 'q1', name: 'Первая кровь', description: 'Убейте босса', type: 'kill_boss', target: 1, rewardBullets: 15, rewardMatches: 5, rewardGrenades: 2, rewardGold: 1 },
-  { id: 'q2', name: 'Разведчик', description: 'Выполните 3 задания в районе', type: 'do_task', target: 3, rewardBullets: 25, rewardMatches: 10, rewardGrenades: 3, rewardGold: 2 },
-  { id: 'q3', name: 'Сборщик', description: 'Соберите ящики в рейде', type: 'raid_loot', target: 1, rewardBullets: 20, rewardMatches: 15, rewardGrenades: 5, rewardGold: 2 },
-  { id: 'q4', name: 'Гонщик', description: 'Прокачайте машину', type: 'upgrade_car', target: 1, rewardBullets: 30, rewardMatches: 12, rewardGrenades: 3, rewardGold: 3 },
-  { id: 'q5', name: 'Мастер', description: 'Скрафтите предмет', type: 'craft_item', target: 1, rewardBullets: 20, rewardMatches: 10, rewardGrenades: 4, rewardGold: 2 },
-  { id: 'q6', name: 'Серийный убийца', description: 'Убейте 5 боссов', type: 'kill_boss', target: 5, rewardBullets: 60, rewardMatches: 25, rewardGrenades: 8, rewardGold: 5 },
-  { id: 'q7', name: 'Трудолюбивый', description: 'Выполните 10 заданий', type: 'do_task', target: 10, rewardBullets: 80, rewardMatches: 40, rewardGrenades: 10, rewardGold: 7 },
-  { id: 'q8', name: 'Аптекарь', description: 'Используйте 10 аптечек в бою', type: 'kill_boss', target: 10, rewardBullets: 40, rewardMatches: 15, rewardGrenades: 6, rewardGold: 3 },
+  { id: 'q2', name: 'Обход территории', description: 'Выполните 3 задания района', type: 'do_task', target: 3, rewardBullets: 30, rewardMatches: 10, rewardGrenades: 0, rewardGold: 0, rewardExperience: 0 },
+  { id: 'q3', name: 'Вылазка за припасами', description: 'Завершите рейд и заберите награду', type: 'raid_loot', target: 1, rewardBullets: 40, rewardMatches: 0, rewardGrenades: 0, rewardGold: 0, rewardExperience: 20 },
+  { id: 'q1', name: 'Опасная цель', description: 'Победите босса и заберите награду', type: 'kill_boss', target: 1, rewardBullets: 60, rewardMatches: 0, rewardGrenades: 0, rewardGold: 0, rewardExperience: 50 },
+  { id: 'q5', name: 'Умелые руки', description: 'Создайте 1 предмет', type: 'craft_item', target: 1, rewardBullets: 25, rewardMatches: 15, rewardGrenades: 0, rewardGold: 0, rewardExperience: 0 },
+  { id: 'q4', name: 'На ходу', description: 'Улучшите машину 1 раз', type: 'upgrade_car', target: 1, rewardBullets: 30, rewardMatches: 0, rewardGrenades: 0, rewardGold: 20, rewardExperience: 0 },
+  { id: 'q6', name: 'Охотник', description: 'Победите 3 боссов и заберите награды', type: 'kill_boss', target: 3, rewardBullets: 100, rewardMatches: 0, rewardGrenades: 0, rewardGold: 0, rewardExperience: 100 },
 ];
 
 export const TUTORIAL = [

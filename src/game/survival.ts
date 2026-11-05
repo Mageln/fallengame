@@ -2,6 +2,13 @@
 export const DAILY_BOSS_ATTACKS = 3;
 export const EXTRA_ATTACK_PRICE = 20;
 
+// false — тестовый режим: не ограничивать нападения.
+// true — лимиты восстанавливаются через два часа после первого нападения.
+export const BOSS_ATTACK_CONFIG: { timedLimits: boolean; resetIntervalMs: number } = {
+  timedLimits: false,
+  resetIntervalMs: 2 * 60 * 60 * 1000,
+};
+
 // Цена докупки атаки на конкретного босса (тестовый режим — за крышки).
 // Чем сильнее босс (меньше бесплатных попыток), тем дороже докупка.
 export const bossAttackPrice = (dailyLimit: number): number =>
@@ -9,6 +16,7 @@ export const bossAttackPrice = (dailyLimit: number): number =>
 export const RAID_TASK_GOLD_PRICE = 30;
 export const BOSS_DURATION_MS = 3 * 60_000;
 export const BOSS_COUNTER_MS = 8_000;
+// Боевой заряд не связан с обычной энергией для заданий.
 export const BOSS_ENERGY_MAX = 100;
 export const BOSS_ENERGY_PER_HIT = 20;
 export const BOSS_POWER_MULTIPLIER = 3;
@@ -20,24 +28,18 @@ export const roomDropChance = (damage: number): number =>
   Math.min(ROOM_MAX_CHANCE, ROOM_BASE_CHANCE + Math.max(0, Number.isFinite(damage) ? damage : 0) * ROOM_DAMAGE_FACTOR);
 
 export const todayUtc = (now = Date.now()): string => new Date(now).toISOString().slice(0, 10);
-export const nextResetUtc = (now = Date.now()): number => Date.parse(`${todayLocal(now)}T00:00:00.000Z`) + 86_400_000;
-// Текущая дата по часовому поясу устройства игрока.
+export const nextResetUtc = (now = Date.now()): number => Date.parse(`${todayUtc(now)}T00:00:00.000Z`) + 86_400_000;
+
+// Дата и следующая полночь в часовом поясе устройства игрока.
 export const todayLocal = (now = Date.now()): string => {
   const date = new Date(now);
-
-  const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, '0');
   const day = String(date.getDate()).padStart(2, '0');
-
-  return `${year}-${month}-${day}`;
+  return `${date.getFullYear()}-${month}-${day}`;
 };
-
-// Следующая полночь по часовому поясу устройства игрока.
 export const nextResetLocal = (now = Date.now()): number => {
   const date = new Date(now);
-
   date.setHours(24, 0, 0, 0);
-
   return date.getTime();
 };
 

@@ -2,7 +2,8 @@ import { useRef, useEffect, useCallback } from 'react';
 import type { BattleState } from '../../game/types';
 import { GameIcons, Task } from './types';
 import { drawBackground } from './drawBackground';
-import { drawCharacter, CHARACTER_POSITION } from './drawCharacter';
+import { drawCharacter, getCharacterPosition } from './drawCharacter';
+import { getVisibleBounds } from './iconBounds';
 import { updateParticles, drawParticles } from './particles';
 import { drawUI, ButtonPosition, ProfileData, UIFlags, BossData, MapRaid, RIGHT_PANEL_MAX_OFFSET, HoverAnim, BOSS_VISIBLE } from './drawUI';
 
@@ -89,7 +90,8 @@ export const useCanvas = (
   onSelectRoom?: (roomId: string) => void,
   lockedRoomsRemain: boolean = false,
   premiumGold: number = 0,
-  onDonationClick?: () => void
+  onDonationClick?: () => void,
+  onGoCloth?: () => void
 ) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const hoveredRef = useRef({ x: 0, y: 0 });
@@ -153,6 +155,7 @@ export const useCanvas = (
     onRoomsClick,
     onNotificationsClick,
     onDonationClick,
+    onGoCloth,
   });
 
   // Обновляем ref callback'ов при каждом изменении
@@ -197,6 +200,7 @@ export const useCanvas = (
       onRoomsClick,
       onNotificationsClick,
       onDonationClick,
+      onGoCloth,
     };
   }, [
     onProfileClick, onBattleClick, onBossModalClose, onCloseMap,
@@ -207,7 +211,7 @@ export const useCanvas = (
     onFightHeal, onFightGrenade, onOpenRoomModal, onSelectRoom,
     onClanClick, onInventoryClick, onQuestsClick, onCraftingClick,
     onGoClan, onGoInventory, onGoQuests, onGoCrafting, onFriendsClick, onRoomsClick,
-    onNotificationsClick, onDonationClick
+    onNotificationsClick, onDonationClick, onGoCloth
   ]);
 
   const render = useCallback(() => {
@@ -224,11 +228,13 @@ export const useCanvas = (
     const displayWidth = canvas.clientWidth;
     const displayHeight = canvas.clientHeight;
     
-    if (canvas.width !== displayWidth * dpr || canvas.height !== displayHeight * dpr) {
-      canvas.width = displayWidth * dpr;
-      canvas.height = displayHeight * dpr;
-      ctx.scale(dpr, dpr);
+    const pixelWidth = Math.round(displayWidth * dpr);
+    const pixelHeight = Math.round(displayHeight * dpr);
+    if (canvas.width !== pixelWidth || canvas.height !== pixelHeight) {
+      canvas.width = pixelWidth;
+      canvas.height = pixelHeight;
     }
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
     const w = displayWidth;
     const h = displayHeight;
@@ -238,7 +244,10 @@ export const useCanvas = (
     const bgState = bgRef.current;
     const bgTransition = bgState.start > 0 ? Math.min(1, (performance.now() - bgState.start) / 400) : 1;
     drawBackground(ctx, w, h, backgroundImage, bgState.prev, bgTransition);
-    drawCharacter(ctx, CHARACTER_POSITION, characterImage, appearanceColor);
+    const bounds = characterImage && characterImage.complete && characterImage.naturalWidth > 0 && characterImage.naturalHeight > 0
+      ? getVisibleBounds(characterImage) : null;
+    const characterPosition = getCharacterPosition(w, h, bounds ? bounds.w / bounds.h : undefined);
+    drawCharacter(ctx, characterPosition, characterImage, appearanceColor);
     
     updateParticles();
     drawParticles(ctx);
@@ -428,9 +437,14 @@ export const useCanvas = (
 
   // Ресайз
   useEffect(() => {
-    const handleResize = () => { needsRenderRef.current = true; };
+    const handleResize = () => {
+      needsRenderRef.current = true;
+      renderRef.current();
+    };
+    const observer = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(handleResize) : null;
+    if (canvasRef.current) observer?.observe(canvasRef.current);
     window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
+    return () => { observer?.disconnect(); window.removeEventListener('resize', handleResize); };
   }, []);
 
   const handleCanvasClick = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {

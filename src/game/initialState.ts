@@ -20,6 +20,9 @@ export const createInitialState = (): GameState => ({
   medkits: 0,
   keys: 0,
   level: 30,
+  experience: 0,
+  loginRewards: { lastClaimDate: null, streak: 0 },
+  profileSkills: { health: 0, fist: 0, luck: 0, block: 0 },
   baseStamina: 40,
   luck: 20,
   // Базовые атрибуты героя (Блок 5). Стартовые значения из DEFAULT_STATS.
@@ -30,6 +33,7 @@ export const createInitialState = (): GameState => ({
   // Полноценный стартовый ствол: раньше тут был объект без id/icon/type/ammo,
   // из-за чего боевая математика не знала дальность, точность и боезапас.
   weapon: { ...STARTER_WEAPON },
+  storedWeapons: [],
   equipmentIds: [],
   inventory: [],
   craftingRecipes: ['repair_kit', 'medkit_bundle'],
@@ -43,6 +47,8 @@ export const createInitialState = (): GameState => ({
   clanWarHistory: [],
   daily: {
     dateKey: dateKey(),
+    questDate: todayLocal(),
+    questBonusClaimed: false,
     lotteryUsed: false,
     goldClaimed: false,
     quests: DAILY_QUESTS.map((q) => ({

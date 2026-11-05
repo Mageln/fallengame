@@ -1,3 +1,4 @@
+import { SKILL_BLOCK_PERCENT, SKILL_LUCK_PER_LEVEL } from './profileSkills';
 import {
   BLOCK_COUNTER_CHANCE,
   BLOCK_HEAL,
@@ -117,7 +118,7 @@ export const burstShots = (w: Weapon) => clamp(Math.round(w.attackSpeed / 3), 2,
 
 // Защита: сколько срезаем входящего урона, с каким шансом контратакуем и сколько лечим.
 export const blockGuard = (state: GameState) => ({
-  reduction: BLOCK_REDUCTION,
+  reduction: Math.max(0.1, BLOCK_REDUCTION - (state.profileSkills?.block ?? 0) * SKILL_BLOCK_PERCENT / 100),
   counterChance: blockCounterChance(state),
   heal: Math.round(totalStamina(state) * BLOCK_HEAL),
 });
@@ -202,7 +203,7 @@ export const resolveIncoming = (
 ): { damage: number; evaded: boolean } => {
   if (o.evaded) return { damage: 0, evaded: true };
   const enragedMul = o.enraged ? ENRAGE_MUL : 1;
-  const blockedMul = o.blocking ? BLOCK_REDUCTION : 1;
+  const blockedMul = o.blocking ? Math.max(0.1, BLOCK_REDUCTION - (state.profileSkills?.block ?? 0) * SKILL_BLOCK_PERCENT / 100) : 1;
   const raw = baseDamage * enragedMul * blockedMul;
   const mitigated = Math.max(1, raw - playerArmor(state) * (o.blocking ? 0.5 : 1));
   return { damage: Math.max(1, Math.round(mitigated)), evaded: false };
@@ -249,7 +250,7 @@ export const totalStamina = (state: GameState) =>
   state.baseStamina + equipmentStamina(state.equipmentIds) + state.level * 2 + state.attributes.endurance * 6;
 
 export const totalLuck = (state: GameState) =>
-  state.luck + equipmentLuck(state.equipmentIds) + state.attributes.luck;
+  state.luck + equipmentLuck(state.equipmentIds) + state.attributes.luck + (state.profileSkills?.luck ?? 0) * SKILL_LUCK_PER_LEVEL;
 
 export const staminaPerBullet = (state: GameState) =>
   staminaUpgradeCost(state.baseStamina) / 5;

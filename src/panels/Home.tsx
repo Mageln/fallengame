@@ -7,6 +7,11 @@ import { useRouteNavigator } from '@vkontakte/vk-mini-apps-router';
 import { DEFAULT_VIEW_PANELS } from '../routes';
 import { RoomGallery } from './RoomGallery';
 import { FriendsPanel } from './Friends';
+import { SurvivorProfile } from './SurvivorProfile';
+import { QuestBoard } from './QuestBoard';
+import { LoginReward } from './LoginReward';
+import { loginRewardStatus } from '../game/loginRewards';
+import loginStyles from '../style/LoginReward.module.scss';
 
 interface HomeProps {
   id: string;
@@ -15,11 +20,21 @@ interface HomeProps {
 
 export const Home = ({ id }: HomeProps) => {
   const navigator = useRouteNavigator();
-  const { state, dispatch, derived, vkUser } = useGame();
+  const { state, dispatch, derived, vkUser, isLoading } = useGame();
   const district = getDistrict(state.currentDistrict);
   const [showProfile, setShowProfile] = useState(false);
   const [showRoomGallery, setShowRoomGallery] = useState(false);
   const [showFriends, setShowFriends] = useState(false);
+  const [showQuests, setShowQuests] = useState(false);
+  const [showLoginReward, setShowLoginReward] = useState(false);
+  const [loginChecked, setLoginChecked] = useState(false);
+
+  // Открываем окно только после загрузки сохранения пользователя.
+  useEffect(() => {
+    if (isLoading || loginChecked) return;
+    setLoginChecked(true);
+    if (loginRewardStatus(state.loginRewards).available) setShowLoginReward(true);
+  }, [isLoading, loginChecked, state.loginRewards]);
 
   // Просто закрыть профиль
   const closeProfileOnly = () => {
@@ -46,33 +61,13 @@ export const Home = ({ id }: HomeProps) => {
 
   const unreadNotifications = state.notifications.filter((n) => !n.read).length;
 
-  // Собираем данные профиля для canvas
-  const profileData = {
-    level: state.level,
-    stamina: derived.stamina,
-    damage: derived.damage,
-    luck: derived.luck,
-    crit: derived.crit,
-    gold: state.gold,
-    spicki: state.matches,
-    bullets: state.bullets,
-    zhetons: state.zhetons,
-    appearance: state.appearance,
-    carLevel: state.carLevel,
-    weapon: {
-      name: state.weapon.name,
-      level: state.weapon.level,
-      broken: state.weapon.broken,
-    },
-  };
-
   // Обработчики для рейдов
   const handleRaidClick = (raidId: string) => {
-    dispatch({ type: 'START_RAID', raidId });
+    dispatch({ type: 'OPEN_MAP_RAID', raidId });
   };
 
   return (
-    <div id={id} style={{ width: '100vw', height: '100vh', overflow: 'hidden', position: 'relative' }}>
+    <div id={id} style={{ width: '100vw', height: '100dvh', overflow: 'hidden', position: 'relative' }}>
       <FallenCanvas
         onTaskComplete={(taskId) => dispatch({ type: 'DO_TASK', taskId })}
         onResourceClick={() => {}}
@@ -101,14 +96,12 @@ export const Home = ({ id }: HomeProps) => {
         onGoRaid={() => navigator.push(DEFAULT_VIEW_PANELS.RAID)}
         onGoClan={() => dispatch({ type: 'TOGGLE_CLAN_MODAL' })}
         onGoInventory={() => navigator.push(DEFAULT_VIEW_PANELS.INVENTORY)}
-        onGoQuests={() => navigator.push(DEFAULT_VIEW_PANELS.QUESTS)}
+        onGoQuests={() => setShowQuests(true)}
         onGoCrafting={() => navigator.push(DEFAULT_VIEW_PANELS.CRAFTING)}
         onLottery={() => dispatch({ type: 'LOTTERY' })}
         onClaimDaily={() => dispatch({ type: 'CLAIM_DAILY' })}
         onOpenBossModal={() => dispatch({ type: state.battle?.source === 'boss' ? 'OPEN_BATTLE' : 'TOGGLE_BOSS_MODAL' })}
         onCloseMap={closeMapOnly}
-        showProfile={showProfile}
-        profileData={profileData}
         onProfileClose={closeProfileOnly}
         onCloseProfile={closeProfileOnly}
         onBattleClick={() => {
@@ -134,7 +127,7 @@ export const Home = ({ id }: HomeProps) => {
         onNotificationRaidClick={(raidId) => {
           // Закрываем панель уведомлений и открываем окно рейда
           dispatch({ type: 'TOGGLE_NOTIFICATIONS' });
-          dispatch({ type: 'START_RAID', raidId });
+          dispatch({ type: 'OPEN_MAP_RAID', raidId });
         }}
         onNotificationRemove={(id) => dispatch({ type: 'REMOVE_NOTIFICATION', id })}
         onNotificationsClear={() => dispatch({ type: 'CLEAR_NOTIFICATIONS' })}
@@ -143,6 +136,18 @@ export const Home = ({ id }: HomeProps) => {
         lastMessage={state.lastMessage}
       />
 
+
+      {showProfile && <SurvivorProfile
+        onClose={closeProfileOnly}
+        onWorkshop={() => navigator.push(DEFAULT_VIEW_PANELS.WORKSHOP)}
+        onInventory={() => navigator.push(DEFAULT_VIEW_PANELS.INVENTORY)}
+        onBosses={() => dispatch({ type: state.battle?.source === 'boss' ? 'OPEN_BATTLE' : 'TOGGLE_BOSS_MODAL' })}
+        onClan={() => dispatch({ type: 'TOGGLE_CLAN_MODAL' })}
+      />}
+
+      {showLoginReward && <LoginReward onClose={() => setShowLoginReward(false)} />}
+      {!isLoading && loginChecked && !showLoginReward && loginRewardStatus(state.loginRewards).available && <button type="button" className={loginStyles.reopen} onClick={() => setShowLoginReward(true)}>🎁 Награда за вход</button>}
+      {showQuests && <QuestBoard onClose={() => setShowQuests(false)} />}
 
       {/* Панель друзей */}
       {showFriends && (

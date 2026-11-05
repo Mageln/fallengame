@@ -16,17 +16,6 @@ import styles from '../style/Room.module.scss';
 
 const number = (value: number) => new Intl.NumberFormat('ru-RU').format(value);
 
-// Цвет превью по имени файла фона.
-const swatch = (bg?: string): string => {
-  if (!bg) return '#3a3a3a';
-  if (bg.includes('room1')) return '#6b4a2f';
-  if (bg.includes('room2')) return '#5a7a3a';
-  if (bg.includes('room3')) return '#8a7447';
-  if (bg.includes('room4')) return '#4a5a7a';
-  if (bg.includes('room5')) return '#55554f';
-  return '#3a3a3a';
-};
-
 const bossForRoom = (roomId: string) => BOSSES.find((b) => b.reward.room === roomId);
 
 type Tab = 'rooms' | 'shop' | 'skins';
@@ -165,8 +154,15 @@ export const RoomModal = ({ onClose }: Props) => {
           <button type="button" className={styles.plainButton} onClick={() => { setHintRoomId(null); setShowHint(true); }}>? Как получить?</button>
         </div>
 
+        <section className={styles.summary} aria-label="Состояние убежища">
+          <strong>ВАШЕ УБЕЖИЩЕ</strong>
+          <span>🏠 Комната: {roomName}</span>
+          <span>🛏️ Кровать: {state.shelterBed ? 'установлена · +50% к максимуму энергии при покупке' : 'не установлена'}</span>
+          <span>⚡ Генератор: {state.shelterGenerator ? 'работает · восстановление энергии ×2' : 'не установлен'}</span>
+        </section>
+
         <nav className={styles.tabs} role="tablist" aria-label="Разделы убежища">
-          {([['rooms', 'КОМНАТЫ'], ['shop', 'ПОЛКА'], ['skins', 'ОФОРМЛЕНИЕ']] as const).map(([id, label]) => (
+          {([['rooms', 'КОМНАТЫ'], ['shop', 'ОБОРУДОВАНИЕ'], ['skins', 'ОФОРМЛЕНИЕ']] as const).map(([id, label]) => (
             <button key={id} type="button" role="tab" aria-selected={tab === id} className={tab === id ? styles.tabActive : styles.tab} onClick={() => { setTab(id); if (id === 'skins') setPreviewSkinId(null); }}>{label}</button>
           ))}
         </nav>
@@ -201,35 +197,34 @@ export const RoomModal = ({ onClose }: Props) => {
 
           {tab === 'shop' && (
             <section className={styles.shop}>
-              <p className={styles.muted}>Полка торговца · доска заказов · цены в крышках</p>
+              <p className={styles.muted}>Улучшения действуют постоянно после покупки. Ящик и набор можно купить повторно — их содержимое выдаётся сразу. Цены указаны в крышках.</p>
               <div className={styles.shopGrid}>
                 {SHELTER_ITEMS.map((item) => {
                   const owned = item.id === 'bed' ? state.shelterBed : item.id === 'generator' ? state.shelterGenerator : false;
                   const affordable = state.caps >= item.price;
                   return (
-                    <article key={item.id} className={`${styles.shopItem} ${owned ? styles.shopOwned : ''}`} onClick={() => buyItem(item.id)}>
+                    <button type="button" key={item.id} className={`${styles.shopItem} ${owned ? styles.shopOwned : ''}`} onClick={() => buyItem(item.id)}>
                       <span className={styles.shopIcon} aria-hidden="true">{item.icon}</span>
                       <div className={styles.shopInfo}>
                         <h4>{item.name}</h4>
                         <p>{item.description}</p>
                       </div>
-                      <span className={`${styles.price} ${!affordable && !owned ? styles.priceLocked : ''}`}>{owned ? 'КУПЛЕНО' : `🥤 ${item.price}`}</span>
-                    </article>
+                      <span className={`${styles.price} ${!affordable && !owned ? styles.priceLocked : ''}`}>{owned ? 'УСТАНОВЛЕНО' : `🥤 ${item.price}`}</span>
+                    </button>
                   );
                 })}
               </div>
+              {state.lastMessage && <p className={styles.status} role="status">Последнее действие: {state.lastMessage}</p>}
             </section>
           )}
 
           {tab === 'skins' && (
             <section className={styles.skins}>
-              <p className={styles.muted}>Оформление комнаты «{roomName}»</p>
+              <p className={styles.muted}>Оформление комнаты «{roomName}» меняет фон главного экрана и не влияет на характеристики. Выберите вариант, чтобы посмотреть его до покупки.</p>
 
               {previewSkin && (
                 <div className={styles.skinPreview}>
-                  <div className={styles.skinSwatch} style={{ background: swatch(previewSkin.bg) }}>
-                    <span>{previewSkin.name}</span>
-                  </div>
+                  <img className={styles.skinSwatch} src={`/${previewSkin.bg}`} alt={`Предпросмотр: ${previewSkin.name}`} />
                   <div className={styles.skinPreviewInfo}>
                     <h4>{previewSkin.name}</h4>
                     <p>{previewSkin.description}</p>
@@ -258,7 +253,7 @@ export const RoomModal = ({ onClose }: Props) => {
                       className={`${styles.skinCard} ${isPreview ? styles.skinActive : ''} ${applied ? styles.skinApplied : ''}`}
                       onClick={() => setPreviewSkinId(skin.id)}
                     >
-                      <span className={styles.miniSwatch} style={{ background: swatch(skin.bg) }} aria-hidden="true" />
+                      <img className={styles.miniSwatch} src={`/${skin.bg}`} alt="" />
                       <span className={styles.skinName}>{skin.name}</span>
                       <span className={styles.skinStatus}>{applied ? 'Применено' : owned ? 'Куплено' : `🥤 ${skin.price}`}</span>
                     </button>

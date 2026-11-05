@@ -1,4 +1,5 @@
 import type { ResourceEvent } from './survival';
+import type { LoginRewardState } from './loginRewards';
 
 export type AppearanceId = 0 | 1 | 2 | 3 | 4 | 5;
 
@@ -55,6 +56,7 @@ export interface DailyQuest {
   rewardMatches: number;
   rewardGrenades: number;
   rewardGold: number;
+  rewardExperience: number;
 }
 
 export interface DailyQuestProgress {
@@ -218,12 +220,12 @@ export interface BattleState {
   outcome: 'fighting' | 'won' | 'lost';
   startedAt: number; // Date.now() на старте — ключ владения наградой
   endedAt: number | null; // Date.now() на финале
-  reward: { gold: number; bullets: number; keys: number; zhetons: number; room?: string | null; roomChance?: number; dropped?: boolean } | null;
+  reward: { gold: number; bullets: number; keys: number; zhetons: number; experience?: number; room?: string | null; roomChance?: number; dropped?: boolean } | null;
   damageDealt: number;
   endsAt: number;
   lastCounterAt: number;
+  bossEnergy?: number; // боевой заряд, отдельный от энергии игрока
   skillReadyAt: Record<string, number>;
-  bossEnergy?: number;
   lastSkillId: string | null;
 }
 
@@ -330,6 +332,8 @@ export interface DailyState {
   lotteryUsed: boolean;
   goldClaimed: boolean;
   quests: DailyQuestProgress[];
+  questDate: string; // локальная дата ежедневных контрактов
+  questBonusClaimed: boolean;
 }
 
 export interface GastState {
@@ -353,6 +357,7 @@ export interface BossAttackEntry {
 
 export interface BossAttacks {
   date: string;
+  resetAt?: number; // Конец двухчасового периода, если лимиты включены.
   // Подушевой учёт: bossId -> потраченные/купленные атаки на сегодня.
   // Старые сохранения с общими used/purchased мигрируют в 'shared'.
   entries: Record<string, BossAttackEntry>;
@@ -391,6 +396,9 @@ export interface RoomSkin {
   price: number; // 0 — базовое оформление комнаты (выдаётся вместе с ней)
 }
 
+export type ProfileSkillId = 'health' | 'fist' | 'luck' | 'block';
+export type ProfileSkills = Record<ProfileSkillId, number>;
+
 export interface GameState {
   appearance: AppearanceId;
   tutorialStep: number;
@@ -407,6 +415,9 @@ export interface GameState {
   medkits: number;
   keys: number;
   level: number;
+  experience: number; // накопленный опыт за боссов и рейды
+  loginRewards: LoginRewardState;
+  profileSkills: ProfileSkills;
   baseStamina: number;
   luck: number;
   // Базовые атрибуты персонажа (сила, ловкость, выносливость, интеллект, удача)
@@ -417,6 +428,7 @@ export interface GameState {
   unlockedDistricts: string[];
   unlockedRooms: string[];
   weapon: Weapon;
+  storedWeapons: Weapon[]; // купленное и снятое оружие с сохранением прочности
   equipmentIds: string[];
   inventory: InventorySlot[];
   craftingRecipes: string[];
@@ -468,6 +480,7 @@ export type GameAction =
   | { type: 'NEXT_TUTORIAL' }
   | { type: 'SKIP_TUTORIAL' }
   | { type: 'RESTORE_ENERGY_TICK' }
+  | { type: 'UPGRADE_PROFILE_SKILL'; skillId: ProfileSkillId }
   | { type: 'UPGRADE_LEVEL' }
   | { type: 'UPGRADE_STAMINA' }
   | { type: 'UPGRADE_LUCK' }
@@ -475,6 +488,8 @@ export type GameAction =
   | { type: 'ENTER_DISTRICT'; districtId: string }
   | { type: 'DO_TASK'; taskId: string }
   | { type: 'BUY_EQUIPMENT'; itemId: string }
+  | { type: 'BUY_SHOP_ITEM'; category: 'weapon' | 'clothing'; itemId: string; currency: 'gold' | 'premium' }
+  | { type: 'EQUIP_SHOP_WEAPON'; weaponId: string }
   | { type: 'UPGRADE_WEAPON' }
   | { type: 'UPGRADE_WEAPON_UPGRADE' }
   | { type: 'REPAIR_WEAPON' }
@@ -484,7 +499,7 @@ export type GameAction =
   | { type: 'OPEN_BATTLE' }
   | { type: 'BOSS_TICK'; now: number }
   | { type: 'BOSS_SKILL'; skillId: string; now: number }
-    | { type: 'BOSS_POWER_ATTACK'; now: number }
+  | { type: 'BOSS_POWER_ATTACK'; now: number }
   | { type: 'BUY_BOSS_ATTACK'; bossId: string }
   | { type: 'CLAIM_ROOM' }
   | { type: 'BATTLE_ATTACK'; technique: boolean }
@@ -496,6 +511,7 @@ export type GameAction =
   | { type: 'BATTLE_HEAL' }
   | { type: 'INVITE_FRIEND' }
   | { type: 'LEAVE_BATTLE' }
+  | { type: 'OPEN_MAP_RAID'; raidId: string }
   | { type: 'START_RAID'; raidId: string }
   | { type: 'RAID_SCOUT' }
   | { type: 'RAID_BYPASS' }
@@ -520,6 +536,8 @@ export type GameAction =
   | { type: 'UNFORGE_ITEM' }
   | { type: 'CLAIM_DAILY' }
   | { type: 'CLAIM_QUEST_REWARD'; questId: string }
+  | { type: 'CLAIM_DAILY_QUEST_BONUS' }
+  | { type: 'CLAIM_LOGIN_REWARD' }
   | { type: 'EQUIP_ITEM'; slotIndex: number }
   | { type: 'UNEQUIP_ITEM'; slotIndex: number }
   | { type: 'CRAFT_ITEM'; recipeId: string }

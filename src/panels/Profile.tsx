@@ -2,7 +2,7 @@ import { Panel, PanelHeader, Group, Button, Text, Header, Cell, Box, Card } from
 import { Icon28ArrowLeftOutline } from '@vkontakte/icons';
 import { useRouteNavigator } from '@vkontakte/vk-mini-apps-router';
 import { useGame } from '../game/GameContext';
-import { APPEARANCES, INVENTORY_ITEMS } from '../game/constants';
+import { APPEARANCES, INVENTORY_ITEMS, SHOP } from '../game/constants';
 import { RARITY_COLORS, RARITY_NAMES } from '../game/types';
 import { luckUpgradeCost, levelUpCost, staminaPerBullet, staminaUpgradeCost } from '../game/formulas';
 import type { Rarity } from '../game/types';
@@ -83,7 +83,7 @@ export const Profile = ({ id }: Props) => {
           subtitle={`Цена ${lvlCost} патронов, +3 золота`}
           after={<Button size="s" onClick={() => dispatch({ type: 'UPGRADE_LEVEL' })}>Повысить</Button>}
         >
-          Уровень {state.level}
+          Уровень {state.level} · Опыт {state.experience}
         </Cell>
         <Cell
           subtitle={`Цена от базы (${state.baseStamina}): ${stamCost} патронов / +5. Профиль ${stamRate.toFixed(1)} за вын.`}
@@ -115,7 +115,7 @@ export const Profile = ({ id }: Props) => {
 
       {/* Equipment shop */}
       <Group header={<Header>Магазин экипировки</Header>}>
-        {INVENTORY_ITEMS.filter((item) => !['scrap_metal', 'leather', 'gun_parts', 'explosives', 'med_components', 'rare_crystal'].includes(item.id)).map((item) => {
+        {SHOP.map((item) => {
           const { owned, per } = getEquipInfo(item);
           const rarityColor = RARITY_COLORS[item.rarity as Rarity] || '#999';
           
