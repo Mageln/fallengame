@@ -1,10 +1,12 @@
-import { createContext, useContext, useEffect, useMemo, useReducer, ReactNode, useState, useRef } from 'react';
+import { createContext, useContext, useEffect, useMemo, useReducer, ReactNode, useState, useRef, useCallback } from 'react';
 import { ENERGY_TICK_MS, INVENTORY_ITEMS } from './constants';
 import { gameReducer, hydrateState } from './reducer';
 import { createInitialState } from './initialState';
 import { clanDirectoryKey, loadClanDirectory, loadStateSync, saveClanDirectory, saveState, setCurrentUserId } from './storage';
 import { getVkUser, getVkUserId, VkUser } from '../services/vkApi';
 import { DailyQuestProgress, GameAction, GameState } from './types';
+import { BACKEND_URL } from '../config/vkConfig';
+import { createServerProgress } from './serverProgress';
 import {
   critChance,
   totalDamage,
@@ -33,11 +35,13 @@ interface GameContextValue {
   isLoading: boolean;
 }
 
+const serverMode = import.meta.env.VITE_SERVER_PROGRESS === 'true';
+
 const GameContext = createContext<GameContextValue | null>(null);
 
 export const GameProvider = ({ children }: { children: ReactNode }) => {
-  const [state, dispatch] = useReducer(
-    gameReducer,
+  const [state, dispatchLocal] = useReducer(
+    (current: GameState, action: GameAction) => serverMode && action.type === 'HYDRATE_STATE' ? action.state : gameReducer(current, action),
     undefined,
     () => hydrateState(createInitialState())
   );
@@ -45,10 +49,44 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
   const [vkUser, setVkUser] = useState<VkUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const hydratedRef = useRef(false);
+  const [serverError, setServerError] = useState('');
+  const [serverReady, setServerReady] = useState(false);
+  const server = useRef(createServerProgress(BACKEND_URL, window.location.search));
+
+  const loadServer = useCallback(async () => {
+    setIsLoading(true);
+    setServerReady(false);
+    setServerError('');
+    try {
+      const saved = await server.current.load();
+      dispatchLocal({ type: 'HYDRATE_STATE', state: saved });
+      setServerReady(true);
+    } catch (error) {
+      setServerReady(false);
+      setServerError(error instanceof Error ? error.message : 'Не удалось загрузить прогресс.');
+    } finally { setIsLoading(false); }
+  }, []);
+
+  const dispatch = useCallback((action: GameAction) => {
+    if (!serverMode) { dispatchLocal(action); return; }
+    // These client timers and synchronization hooks must never grant resources.
+    if (['RESTORE_ENERGY_TICK', 'BOSS_TICK', 'CHECK_RAIDS', 'SYNC_CLANS'].includes(action.type)) return;
+    void server.current.act(action).then((saved) => {
+      dispatchLocal({ type: 'HYDRATE_STATE', state: saved });
+    }).catch((error: unknown) => {
+      setServerError(error instanceof Error ? error.message : 'Не удалось выполнить действие.');
+    });
+  }, []);
 
   // Определение пользователя и загрузка ЕГО сохранения (у каждого свои ресурсы)
   useEffect(() => {
     const init = async () => {
+      if (serverMode) {
+        const user = await getVkUser().catch(() => null);
+        setVkUser(user);
+        await loadServer();
+        return;
+      }
       try {
         // Получаем VK ID пользователя (или мок в режиме разработки)
         const userId = await getVkUserId();
@@ -66,7 +104,7 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
         const playerId = String(userId ?? user?.id ?? 'local');
         const playerName = user ? `${user.first_name} ${user.last_name}`.trim() : 'Выживший';
         hydratedRef.current = true;
-        dispatch({
+        dispatchLocal({
           type: 'HYDRATE_STATE',
           state: {
             ...(saved ?? createInitialState()),
@@ -83,39 +121,42 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
     };
     
     init();
-  }, []);
+  }, [loadServer]);
 
   // Сохранение состояния текущего пользователя
   // Пока идёт загрузка, не сохраняем — чтобы не затереть его сохранение стартовым состоянием
   useEffect(() => {
-    if (isLoading) return;
+    if (isLoading || serverMode) return;
     saveState(state);
   }, [state, isLoading]);
 
   useEffect(() => {
-    if (!isLoading) saveClanDirectory(state.clanDirectory);
+    if (!isLoading && !serverMode) saveClanDirectory(state.clanDirectory);
   }, [state.clanDirectory, isLoading]);
 
   useEffect(() => {
     const onStorage = (event: StorageEvent) => {
       if (event.key === clanDirectoryKey) dispatch({ type: 'SYNC_CLANS', clans: loadClanDirectory() });
     };
+    if (serverMode) return;
     window.addEventListener('storage', onStorage);
     return () => window.removeEventListener('storage', onStorage);
-  }, []);
+  }, [dispatch]);
 
   useEffect(() => {
+    if (serverMode) return;
     // Генератор убежища ускоряет восстановление энергии вдвое.
     const interval = state.shelterGenerator ? ENERGY_TICK_MS / 2 : ENERGY_TICK_MS;
     const id = window.setInterval(() => dispatch({ type: 'RESTORE_ENERGY_TICK' }), interval);
     return () => window.clearInterval(id);
-  }, [state.shelterGenerator]);
+  }, [state.shelterGenerator, dispatch]);
 
   // Бой живёт в состоянии игры и обновляется даже когда экран скрыт.
   useEffect(() => {
+    if (serverMode) return;
     const timer = window.setInterval(() => dispatch({ type: 'BOSS_TICK', now: Date.now() }), 1000);
     return () => window.clearInterval(timer);
-  }, []);
+  }, [dispatch]);
 
   const value = useMemo<GameContextValue>(
     () => ({
@@ -138,10 +179,19 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
       vkUser,
       isLoading,
     }),
-    [state, vkUser, isLoading]
+    [state, vkUser, isLoading, dispatch]
   );
 
-  return <GameContext.Provider value={value}>{children}</GameContext.Provider>;
+  return <GameContext.Provider value={value}>
+    {serverMode && !serverReady ? <div role="alert" style={{ padding: 24, color: 'white', background: '#211b16', minHeight: '100vh' }}>
+      <p>{isLoading ? 'Загружаем серверное сохранение…' : serverError || 'Серверное сохранение недоступно.'}</p>
+      {!isLoading && <button type="button" onClick={() => void loadServer()}>Повторить загрузку</button>}
+    </div> : children}
+    {serverMode && serverReady && <aside style={{ position: 'fixed', zIndex: 100000, bottom: 0, left: 0, right: 0, padding: 8, background: '#392c1b', color: 'white', fontSize: 13 }} role="status">
+      Тестовый серверный режим: бои, рейды и кланы пока недоступны.
+      {serverError && <> {serverError}</>} <button type="button" onClick={() => void loadServer()}>Обновить с сервера</button>
+    </aside>}
+  </GameContext.Provider>;
 };
 
 export const useGame = () => {

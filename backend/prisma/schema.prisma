@@ -292,5 +292,6 @@ model PlayerProgress {
   vkId      Int      @id
   state     Json
   revision  Int      @default(0)
+  energyUpdatedAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
