@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useGame } from '../game/GameContext';
+import { BACKEND_URL } from '../config/vkConfig';
 import {
   LOCATIONS,
   SHELTER_ITEMS,
@@ -16,6 +17,8 @@ import styles from '../style/Room.module.scss';
 
 const number = (value: number) => new Intl.NumberFormat('ru-RU').format(value);
 
+type PaymentProduct = { id: string; name: string; currency: 'caps'; amount: number; priceVotes: number; available: false };
+
 const bossForRoom = (roomId: string) => BOSSES.find((b) => b.reward.room === roomId);
 
 type Tab = 'rooms' | 'shop' | 'skins';
@@ -26,16 +29,38 @@ interface Props {
 }
 
 export const RoomModal = ({ onClose }: Props) => {
-  const { state, dispatch } = useGame();
+  const { state, dispatch, serverMode } = useGame();
   const [tab, setTab] = useState<Tab>('rooms');
   const [currentIndex, setCurrentIndex] = useState(() => Math.max(0, LOCATIONS.findIndex((room) => room.id === state.currentLocation)));
   const [showHint, setShowHint] = useState(false);
   const [hintRoomId, setHintRoomId] = useState<string | null>(null);
   const [showTopUp, setShowTopUp] = useState(false);
+  const [products, setProducts] = useState<PaymentProduct[] | null>(null);
+  const [catalogError, setCatalogError] = useState(false);
   const [confirm, setConfirm] = useState<Confirm | null>(null);
   const [previewSkinId, setPreviewSkinId] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [stamp, setStamp] = useState('');
+
+  useEffect(() => {
+    if (!serverMode || !showTopUp) return;
+    const controller = new AbortController();
+    setProducts(null);
+    setCatalogError(false);
+    void fetch(`${BACKEND_URL.replace(/\/$/, '')}/api/shop/products`, { signal: controller.signal })
+      .then(async (response) => {
+        if (!response.ok) throw new Error('Каталог недоступен');
+        const data: unknown = await response.json();
+        if (!Array.isArray(data) || !data.every((item) => item && typeof item.id === 'string' &&
+          typeof item.name === 'string' && item.currency === 'caps' && Number.isSafeInteger(item.amount) &&
+          item.amount > 0 && Number.isSafeInteger(item.priceVotes) && item.priceVotes > 0 && item.available === false)) {
+          throw new Error('Некорректный каталог');
+        }
+        setProducts(data as PaymentProduct[]);
+      })
+      .catch(() => { if (!controller.signal.aborted) setCatalogError(true); });
+    return () => controller.abort();
+  }, [serverMode, showTopUp]);
 
   useEffect(() => {
     if (!toast) return;
@@ -142,14 +167,14 @@ export const RoomModal = ({ onClose }: Props) => {
 
         <div className={styles.balanceRow}>
           <span className={styles.capsPill}>🥤 {number(state.caps)} крышек</span>
-          <button
+          {!serverMode && <button
             type="button"
             className={styles.plainButton}
             title="Тест: +100 крышек"
             onClick={() => dispatch({ type: 'ADD_RESOURCE', resource: 'caps', amount: 100 })}
           >
             +
-          </button>
+          </button>}
           <button type="button" className={styles.plainButton} onClick={() => setShowTopUp(true)}>🥤 Пополнить</button>
           <button type="button" className={styles.plainButton} onClick={() => { setHintRoomId(null); setShowHint(true); }}>? Как получить?</button>
         </div>
@@ -288,6 +313,14 @@ export const RoomModal = ({ onClose }: Props) => {
             <span className={styles.tape} aria-hidden="true" />
             <p className={styles.paperEyebrow}>ЯЩИК С ПРИПАСАМИ · ДОНАТ</p>
             <h3>📦 Пополнить крышки</h3>
+            {serverMode ? <>
+              <p role="status">Покупка пока недоступна: платежи VK ещё не подключены. Списания не будет.</p>
+              {catalogError ? <p>Не удалось загрузить каталог.</p> : products === null ? <p>Загрузка каталога…</p> :
+                <div className={styles.packList}>{products.map((product) => <div className={styles.packCard} key={product.id}>
+                  <span>{product.name}</span><strong>🥤 {number(product.amount)}</strong>
+                  <span className={styles.packPrice}>{number(product.priceVotes)} голосов VK · недоступно</span>
+                </div>)}</div>}
+            </> : <>
             <p>Крышки добываются за реальные деньги / редкие награды.</p>
             <div className={styles.packList}>
               {CAPS_PACKS.map((pack) => (
@@ -308,7 +341,7 @@ export const RoomModal = ({ onClose }: Props) => {
                 </button>
               ))}
             </div>
-            <p className={styles.muted}>Тестовый режим: пакеты начисляются бесплатно. Оплата через провайдера и подтверждение сервером — позже.</p>
+            <p className={styles.muted}>Тестовый режим: пакеты начисляются бесплатно. Оплата через провайдера и подтверждение сервером — позже.</p></>}
             <div className={styles.actions}><button type="button" className={styles.plainButton} onClick={() => setShowTopUp(false)}>ЗАКРЫТЬ</button></div>
           </section>
         </div>

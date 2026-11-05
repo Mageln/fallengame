@@ -150,7 +150,7 @@ const rollGast = (state: GameState): GameState => {
   };
 };
 
-const applyDailyReset = (state: GameState): GameState => {
+export const applyDailyReset = (state: GameState): GameState => {
   const today = dateKey();
   let next: GameState = state;
   if (state.daily.dateKey !== today) {
