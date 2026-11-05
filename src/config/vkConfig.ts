@@ -1,3 +1,5 @@
+import { hasVkLaunchParams } from '../services/vkEnvironment';
+
 /**
  * Конфигурация VK Mini Apps
  */
@@ -12,8 +14,7 @@ export const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || '';
  * Проверяет, запущено ли приложение в VK
  */
 export function isVkEnvironment(): boolean {
-  return typeof window !== 'undefined' && 
-         window.location.hostname.includes('vk.com');
+  return typeof window !== 'undefined' && hasVkLaunchParams(window.location.search);
 }
 
 /**

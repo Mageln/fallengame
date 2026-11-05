@@ -1,3 +1,5 @@
+import { SKILL_DEFS } from './generated/game.js';
+
 // A request is a command, never a state snapshot or a client-provided timestamp.
 // Actions are admitted only after their reducer implementation has been reviewed.
 const noArguments = new Set([
@@ -13,7 +15,7 @@ const noArguments = new Set([
   'RADIO_HELP', 'FORGE_ITEM', 'UNFORGE_ITEM',
 ]);
 const idArguments: Record<string, string> = {
-  UPGRADE_PROFILE_SKILL: 'skillId', ENTER_DISTRICT: 'districtId', DO_TASK: 'taskId',
+  ENTER_DISTRICT: 'districtId', DO_TASK: 'taskId',
   BUY_EQUIPMENT: 'itemId', EQUIP_SHOP_WEAPON: 'weaponId', CLAIM_QUEST_REWARD: 'questId',
   CRAFT_ITEM: 'recipeId', CHANGE_LOCATION: 'locationId',
   START_BOSS_FIGHT: 'bossId', BOSS_SKILL: 'skillId', BUY_BOSS_ATTACK: 'bossId',
@@ -31,6 +33,10 @@ export const parseProgressAction = (value: unknown): Record<string, unknown> | n
   if (keys === 'appearance,type' && action.type === 'SET_APPEARANCE' &&
       Number.isInteger(action.appearance) && Number(action.appearance) >= 0 && Number(action.appearance) <= 5) {
     return { type: action.type, appearance: action.appearance };
+  }
+  if (action.type === 'UPGRADE_PROFILE_SKILL' && keys === 'skillId,type' &&
+      typeof action.skillId === 'string' && SKILL_DEFS.some((skill) => skill.id === action.skillId)) {
+    return { type: action.type, skillId: action.skillId };
   }
   const key = Object.prototype.hasOwnProperty.call(idArguments, action.type) ? idArguments[action.type] : undefined;
   if (key && keys === [key, 'type'].sort().join(',') && typeof action[key] === 'string' &&

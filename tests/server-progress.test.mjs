@@ -67,3 +67,18 @@ test('client never forwards its combat clock to server', async () => {
   await client.act({ type: 'BOSS_POWER_ATTACK', now: 9999999999 });
   assert.deepEqual(actions, [{ type: 'BOSS_SKILL', skillId: 'jab' }, { type: 'BOSS_TICK' }, { type: 'BOSS_POWER_ATTACK' }]);
 });
+
+test('skill upgrade sends only an action and accepts server-confirmed state', async () => {
+  const requests = [];
+  const client = createServerProgress('', '?signed', async (_url, init) => {
+    if (init.method === 'GET') return new Response(JSON.stringify({ state: { bullets: 100, profileSkills: { health: 0 } }, revision: 4 }));
+    requests.push(JSON.parse(init.body));
+    return new Response(JSON.stringify({ state: { bullets: 50, profileSkills: { health: 1 } }, revision: 5 }));
+  });
+  const initial = await client.load();
+  const upgraded = await client.act({ type: 'UPGRADE_PROFILE_SKILL', skillId: 'health' });
+  assert.deepEqual(requests, [{ revision: 4, action: { type: 'UPGRADE_PROFILE_SKILL', skillId: 'health' } }]);
+  assert.equal(initial.bullets, 100);
+  assert.equal(upgraded.bullets, 50);
+  assert.equal(upgraded.profileSkills.health, 1);
+});
