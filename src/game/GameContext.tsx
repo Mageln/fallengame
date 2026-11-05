@@ -70,7 +70,7 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
   const dispatch = useCallback((action: GameAction) => {
     if (!serverMode) { dispatchLocal(action); return; }
     // These client timers and synchronization hooks must never grant resources.
-    if (['RESTORE_ENERGY_TICK', 'BOSS_TICK', 'CHECK_RAIDS', 'SYNC_CLANS'].includes(action.type)) return;
+    if (['RESTORE_ENERGY_TICK', 'SYNC_CLANS'].includes(action.type)) return;
     void server.current.act(action).then((saved) => {
       dispatchLocal({ type: 'HYDRATE_STATE', state: saved });
     }).catch((error: unknown) => {
@@ -153,10 +153,10 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
 
   // Бой живёт в состоянии игры и обновляется даже когда экран скрыт.
   useEffect(() => {
-    if (serverMode) return;
+    if (serverMode && (state.battle?.source !== 'boss' || state.battle.outcome !== 'fighting')) return;
     const timer = window.setInterval(() => dispatch({ type: 'BOSS_TICK', now: Date.now() }), 1000);
     return () => window.clearInterval(timer);
-  }, [dispatch]);
+  }, [dispatch, state.battle?.source, state.battle?.outcome]);
 
   const value = useMemo<GameContextValue>(
     () => ({
@@ -188,7 +188,7 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
       {!isLoading && <button type="button" onClick={() => void loadServer()}>Повторить загрузку</button>}
     </div> : children}
     {serverMode && serverReady && <aside style={{ position: 'fixed', zIndex: 100000, bottom: 0, left: 0, right: 0, padding: 8, background: '#392c1b', color: 'white', fontSize: 13 }} role="status">
-      Тестовый серверный режим: бои, рейды и кланы пока недоступны.
+      Тестовый серверный режим: общие кланы и реальные платежи пока недоступны.
       {serverError && <> {serverError}</>} <button type="button" onClick={() => void loadServer()}>Обновить с сервера</button>
     </aside>}
   </GameContext.Provider>;

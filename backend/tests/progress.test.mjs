@@ -48,3 +48,59 @@ test('reward actions are validated and daily reward cannot be claimed twice', ()
   assert.equal(second.bullets, first.bullets);
   assert.equal(second.gold, first.gold);
 });
+
+import { applyCombatAction, advanceCombat } from '../dist/progressCombat.js';
+
+test('boss actions reject client-provided clock and enforce server attack interval', () => {
+  assert.equal(parseProgressAction({ type: 'BOSS_SKILL', skillId: 'jab', now: 9999999999 }), null);
+  assert.equal(parseProgressAction({ type: 'BOSS_TICK', now: 9999999999 }), null);
+  const clock = Date.now;
+  try {
+    Date.now = () => 100000;
+    const started = applyCombatAction(createInitialState(), parseProgressAction({ type: 'START_BOSS_FIGHT', bossId: '1' }), Date.now());
+    assert.equal(started.battle.startedAt, 100000);
+    const hit = applyCombatAction(started, parseProgressAction({ type: 'BOSS_SKILL', skillId: 'jab' }), 100100);
+    assert.ok(hit.battle.bossHp < started.battle.bossHp);
+    const tooFast = applyCombatAction(hit, parseProgressAction({ type: 'BOSS_SKILL', skillId: 'jab' }), 100200);
+    assert.equal(tooFast.battle.bossHp, hit.battle.bossHp);
+    const next = applyCombatAction(tooFast, parseProgressAction({ type: 'BOSS_SKILL', skillId: 'jab' }), 100350);
+    assert.ok(next.battle.bossHp < hit.battle.bossHp);
+    const expired = advanceCombat(next, started.battle.endsAt + 1);
+    assert.notEqual(expired.battle.outcome, 'fighting');
+  } finally { Date.now = clock; }
+});
+
+test('map raid uses server time, costs energy, and reward cannot be claimed twice', () => {
+  const clock = Date.now;
+  try {
+    Date.now = () => 100000;
+    const initial = { ...createInitialState(), energy: 100 };
+    const raidId = initial.mapRaids[0].id;
+    const command = (type) => parseProgressAction({ type, raidId });
+    const started = applyCombatAction(initial, command('START_RAID'), Date.now());
+    const raid = started.mapRaids.find((r) => r.id === raidId);
+    assert.equal(raid.startTime, 100000);
+    assert.equal(started.energy, 100 - raid.energyCost);
+    assert.equal(applyCombatAction(started, command('CLAIM_RAID_REWARD'), Date.now()).matches, started.matches);
+    Date.now = () => raid.endTime + 1;
+    const claimed = applyCombatAction(started, command('CLAIM_RAID_REWARD'), Date.now());
+    const repeated = applyCombatAction(claimed, command('CLAIM_RAID_REWARD'), Date.now());
+    assert.equal(claimed.matches, started.matches + raid.rewards.matches);
+    assert.equal(repeated.matches, claimed.matches);
+    assert.equal(repeated.experience, claimed.experience);
+    assert.equal(parseProgressAction({ type: 'COMPLETE_RAID_TASKS', raidId, mode: 'free' }), null);
+    assert.equal(parseProgressAction({ type: 'START_RAID', raidId, rewards: { matches: 99999 } }), null);
+  } finally { Date.now = clock; }
+});
+
+test('turn battle commands are validated and processed by the server', () => {
+  assert.equal(parseProgressAction({ type: 'BATTLE_ATTACK', technique: 'false' }), null);
+  assert.equal(parseProgressAction({ type: 'BATTLE_GRENADES', count: -5 }), null);
+  assert.equal(parseProgressAction({ type: 'BATTLE_GRENADES', count: 2 }), null);
+  assert.equal(parseProgressAction({ type: 'INVITE_FRIEND' }), null);
+  const initial = createInitialState();
+  const started = applyCombatAction(initial, parseProgressAction({ type: 'START_BOSS', districtId: initial.currentDistrict }), Date.now());
+  assert.equal(started.battle.source, 'district');
+  const next = applyCombatAction(started, parseProgressAction({ type: 'BATTLE_ATTACK', technique: false }), Date.now());
+  assert.ok(next.battle.turn > started.battle.turn || next.battle.outcome !== 'fighting');
+});

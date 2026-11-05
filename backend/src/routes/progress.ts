@@ -2,7 +2,8 @@ import { Router } from 'express';
 import { Prisma } from '@prisma/client';
 import { prisma } from '../prisma.js';
 import { requireVkUser } from '../vkAuth.js';
-import { applyDailyReset, createInitialState, gameReducer } from '../generated/game.js';
+import { applyDailyReset, createInitialState } from '../generated/game.js';
+import { advanceCombat, applyCombatAction } from '../progressCombat.js';
 import { restoreEnergy } from '../progressEnergy.js';
 import { parseProgressAction } from '../progressAction.js';
 
@@ -21,7 +22,7 @@ progressRouter.get('/', async (_req, res) => {
       select: { state: true, revision: true, energyUpdatedAt: true },
     });
     const regenerated = restoreEnergy(progress.state as Record<string, unknown>, progress.energyUpdatedAt, new Date());
-    return res.json({ state: regenerated.state, revision: progress.revision });
+    return res.json({ state: advanceCombat(regenerated.state, Date.now()), revision: progress.revision });
   } catch (error) {
     console.error('Progress load error:', error);
     return res.status(500).json({ error: 'Не удалось загрузить прогресс.' });
@@ -43,7 +44,7 @@ progressRouter.post('/action', async (req, res) => {
     const now = new Date();
     const regenerated = restoreEnergy(current.state as Record<string, unknown>, current.energyUpdatedAt, now);
     const refreshed = applyDailyReset(regenerated.state);
-    const state = gameReducer(refreshed, action);
+    const state = applyCombatAction(refreshed, action, now.getTime());
     const updated = await prisma.playerProgress.updateMany({
       where: { vkId, revision },
       data: { state: state as Prisma.InputJsonValue, energyUpdatedAt: regenerated.anchor, revision: { increment: 1 } },

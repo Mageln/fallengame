@@ -53,3 +53,17 @@ test('a rejected unsupported action does not corrupt the revision', async () => 
   await assert.rejects(client.act({ type: 'START_GAST' }), /недоступно/);
   assert.equal((await client.act({ type: 'NEXT_TUTORIAL' })).revision, 3);
 });
+
+test('client never forwards its combat clock to server', async () => {
+  const actions = [];
+  const client = createServerProgress('', '?signed', async (_url, init) => {
+    if (init.method === 'GET') return snapshot(0);
+    actions.push(JSON.parse(init.body).action);
+    return snapshot(actions.length);
+  });
+  await client.load();
+  await client.act({ type: 'BOSS_SKILL', skillId: 'jab', now: 9999999999 });
+  await client.act({ type: 'BOSS_TICK', now: 9999999999 });
+  await client.act({ type: 'BOSS_POWER_ATTACK', now: 9999999999 });
+  assert.deepEqual(actions, [{ type: 'BOSS_SKILL', skillId: 'jab' }, { type: 'BOSS_TICK' }, { type: 'BOSS_POWER_ATTACK' }]);
+});

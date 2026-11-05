@@ -55,7 +55,10 @@ export const createServerProgress = (baseUrl: string, launchParams: string, requ
     act: (action: GameAction) => serial(async () => {
       if (paused || revision === null) throw new ProgressError('Сначала обновите серверное состояние.');
       try {
-        const snapshot = await read('/action', { method: 'POST', body: JSON.stringify({ revision, action }) });
+        // The UI clock is only for rendering. Never send it as an authoritative time.
+        const command = action.type === 'BOSS_SKILL' ? { type: action.type, skillId: action.skillId }
+          : action.type === 'BOSS_TICK' || action.type === 'BOSS_POWER_ATTACK' ? { type: action.type } : action;
+        const snapshot = await read('/action', { method: 'POST', body: JSON.stringify({ revision, action: command }) });
         revision = snapshot.revision;
         return snapshot.state;
       } catch (error) {

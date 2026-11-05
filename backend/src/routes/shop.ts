@@ -1,5 +1,4 @@
 import { Router } from 'express';
-import { prisma } from '../prisma.js';
 
 export const shopRouter = Router();
 
@@ -55,57 +54,8 @@ shopRouter.get('/products', async (req, res) => {
   }
 });
 
-// Покупка товара через VK Pay
-shopRouter.post('/purchase', async (req, res) => {
-  // Демонстрационное начисление без подтверждения оплаты недопустимо в production.
-  if (process.env.NODE_ENV === 'production') return res.status(501).json({ error: 'Покупка недоступна до подключения VK Pay.' });
-  try {
-    const { vkId, productId } = req.body;
-    
-    const user = await prisma.user.findUnique({
-      where: { vkId: parseInt(vkId) }
-    });
-    
-    if (!user) {
-      return res.status(404).json({ error: 'Пользователь не найден' });
-    }
-    
-    // В реальной интеграции здесь будет вызов VK Pay для создания платежа
-    // const vkPayResult = await vkPay.createPayment({
-    //   merchants: '...',
-    //   amount: '...',
-    //   items: [...]
-    // });
-    
-    // Для демо просто начисляем ресурсы
-    const products: Record<string, any> = {
-      'gold_100': { currency: 'gold', amount: 100 },
-      'matches_1': { resource: 'matches', amount: 1 },
-      'bullets_10': { resource: 'bullets', amount: 10 },
-      'energy_50': { resource: 'energy', amount: 50 },
-      'tokens_5': { resource: 'tokens', amount: 5 }
-    };
-    
-    const product = products[productId];
-    if (!product) {
-      return res.status(404).json({ error: 'Товар не найден' });
-    }
-    
-    // Начисляем ресурсы
-    const updateData: any = {};
-    if (product.currency) {
-      updateData[product.currency] = { increment: product.amount };
-    } else if (product.resource) {
-      updateData[product.resource] = { increment: product.amount };
-    }
-    
-    await prisma.user.update({
-      where: { id: user.id },
-      data: updateData
-    });
-    
-    res.json({ success: true });
-  } catch (error) {
-    res.status(500).json({ error: 'Ошибка сервера' });
-  }
+// Payment must not grant anything until VK payment confirmation is implemented.
+// This route is intentionally disabled in every environment, including local WSL.
+shopRouter.post('/purchase', (_req, res) => {
+  return res.status(501).json({ error: 'Покупка недоступна до подключения подтверждения оплаты VK.' });
 });
