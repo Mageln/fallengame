@@ -82,7 +82,7 @@ import {
 } from './formulas';
 import { BOSSES } from './bosses';
 import { getBossAttackEntry, normalizeBossAttacks, resetBossAttacks, setBossAttackEntry } from './bossAttacks';
-import { BOSS_ATTACK_CONFIG, BOSS_COUNTER_MS, BOSS_DURATION_MS, BOSS_ENERGY_MAX, BOSS_ENERGY_PER_HIT, BOSS_SKILLS, DAILY_BOSS_ATTACKS, RAID_DANGER_TASKS, RAID_TASK_GOLD_PRICE, bossAttackPrice, roomDropChance, todayLocal } from './survival';
+import { BOSS_ATTACK_CONFIG, BOSS_COUNTER_MS, BOSS_DURATION_MS, BOSS_ENERGY_MAX, BOSS_ENERGY_PER_HIT, BOSS_LOG_LIMIT, BOSS_SKILLS, DAILY_BOSS_ATTACKS, RAID_DANGER_TASKS, RAID_TASK_GOLD_PRICE, bossAttackPrice, roomDropChance, todayLocal } from './survival';
 import type { ResourceEvent, ResourceSource } from './survival';
 import { advanceClanContracts, clanRating, normalizeClanName, validateClanName, CLAN_EMBLEMS, CLAN_MEMBER_BONUS } from './clans';
 import { BattleState, ClanState, ClanTaskEvent, ClanWarHistoryEntry, ClanWarState, GameAction, GameNotification, GameState } from './types';
@@ -376,6 +376,9 @@ const bumpKillQuests = (state: GameState): GameState => ({
   },
 });
 
+// Keep a useful but bounded history in local and server battle state.
+const appendBossLog = (log: string[], line: string): string[] => [...log, line].slice(-BOSS_LOG_LIMIT);
+
 const bossKilled = (state: GameState, battle: BattleState): GameState => {
   const bullets = 12 + Math.floor(Math.random() * 10);
   const zhetons = battle.source === 'gast' ? 8 : 2;
@@ -411,7 +414,7 @@ const bossKilled = (state: GameState, battle: BattleState): GameState => {
         roomChance: chance,
         dropped,
       },
-      log: [...battle.log, `${battle.bossName} повержен! Забирайте награду.`],
+      log: battle.source === 'boss' ? appendBossLog(battle.log, `${battle.bossName} повержен! Забирайте награду.`) : [...battle.log, `${battle.bossName} повержен! Забирайте награду.`],
     },
     lastMessage: `${battle.bossName} повержен! ${dropped ? 'ВЫПАЛО: найдена комната!' : 'НЕ ВЫПАЛО'} (${Math.round(chance * 100)}%).`,
   };
@@ -424,7 +427,7 @@ const playerDefeated = (state: GameState, battle: BattleState): GameState => ({
     ...battle,
     outcome: 'lost',
     endedAt: Date.now(),
-    log: [...battle.log, 'Вы выбыли из боя.'],
+    log: battle.source === 'boss' ? appendBossLog(battle.log, 'Вы выбыли из боя.') : [...battle.log, 'Вы выбыли из боя.'],
   },
   lastMessage: 'Вы выбыли из боя. Нужны аптечки и выносливость.',
 });
@@ -445,13 +448,13 @@ const advanceBossClock = (state: GameState, now: number): GameState => {
     playerHp,
     blocking: strikes > 0 ? false : battle.blocking,
     lastCounterAt: battle.lastCounterAt + strikes * BOSS_COUNTER_MS,
-    log: strikes > 0 ? [...battle.log, `${battle.bossName}: ${strikes} ответных ударов в фоне.`].slice(-15) : battle.log,
+    log: strikes > 0 ? appendBossLog(battle.log, `${battle.bossName}: ${strikes} ответных ударов в фоне.`) : battle.log,
   };
   if (playerHp <= 0) return playerDefeated(state, next);
   if (now >= battle.endsAt) return {
     ...state,
     health: Math.min(state.maxHealth, playerHp),
-    battle: { ...next, outcome: 'lost', endedAt: battle.endsAt, log: [...next.log, 'Время вышло. Босс ушёл в темноту.'] },
+    battle: { ...next, outcome: 'lost', endedAt: battle.endsAt, log: appendBossLog(next.log, 'Время вышло. Босс ушёл в темноту.') },
     lastMessage: 'Время боя вышло. Урон боссу сохранён.',
   };
   return strikes > 0 ? { ...state, health: Math.min(state.maxHealth, playerHp), battle: next } : state;
@@ -1134,7 +1137,7 @@ export const gameReducer = (state: GameState, action: GameAction): GameState => 
       if (skill.id === 'block') {
         return { ...current, battle: { ...battle, bossEnergy: nextEnergy, blocking: true,
           turn: battle.turn + 1, lastHit: null, lastSkillId: skill.id,
-          log: [...battle.log, '🛡️ Блок до следующего удара босса.'].slice(-15) },
+          log: appendBossLog(battle.log, '🛡️ Блок до следующего удара босса.') },
           lastMessage: 'Блок активен до следующего удара босса.' };
       }
       if (skill.id === 'heal') {
@@ -1143,7 +1146,7 @@ export const gameReducer = (state: GameState, action: GameAction): GameState => 
         return { ...current, health: Math.min(current.maxHealth, playerHp),
           battle: { ...battle, playerHp, bossEnergy: nextEnergy, turn: battle.turn + 1,
             lastHit: null, lastSkillId: skill.id,
-            log: [...battle.log, `💚 Исцеление: +${healed} HP`].slice(-15) },
+            log: appendBossLog(battle.log, `💚 Исцеление: +${healed} HP`) },
           lastMessage: `Исцеление: +${healed} HP.` };
       }
       const fistMultiplier = skill.id === 'jab' ? 1 + (current.profileSkills?.fist ?? 0) * SKILL_FIST_PERCENT / 100 : 1;
@@ -1155,7 +1158,7 @@ export const gameReducer = (state: GameState, action: GameAction): GameState => 
         ...battle, bossHp: battle.bossHp - damage, damageDealt: battle.damageDealt + damage,
         comboStreak: battle.comboStreak + 1, bossEnergy: nextEnergy, turn: battle.turn + 1,
         lastHit: { damage, crit: luckCrit, missed: false }, lastSkillId: skill.id,
-        log: [...battle.log, `${skill.icon} ${skill.name}: −${damage} HP${luckCrit ? ' (крит)' : ''}`].slice(-15),
+        log: appendBossLog(battle.log, `${skill.icon} ${skill.name}: −${damage} HP${luckCrit ? ' (крит)' : ''}`),
       };
       return updated.bossHp <= 0
         ? bossKilled(current, updated)

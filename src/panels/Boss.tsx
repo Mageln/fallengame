@@ -1,5 +1,5 @@
 import { bossExperience } from '../game/experience';
-import { useEffect, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useGame } from '../game/GameContext';
 import { BOSSES } from '../game/bosses';
 import { BOSS_ATTACK_CONFIG, BOSS_ENERGY_MAX, BOSS_ENERGY_PER_HIT, BOSS_SKILLS, bossAttackPrice, roomDropChance } from '../game/survival';
@@ -76,6 +76,13 @@ export const BossFightPanel = () => {
   const { state, dispatch } = useGame();
   const battle = state.battle;
   const [now, setNow] = useState(Date.now());
+  const logRef = useRef<HTMLDivElement>(null);
+  const followLog = useRef(true);
+  useLayoutEffect(() => { followLog.current = true; }, [battle?.startedAt, state.battleVisible]);
+  useLayoutEffect(() => {
+    const log = logRef.current;
+    if (log && followLog.current) log.scrollTop = log.scrollHeight;
+  }, [battle?.log, battle?.startedAt, state.battleVisible]);
   useEffect(() => {
     if (!battle || !state.battleVisible || battle.source !== 'boss') return;
     const timer = window.setInterval(() => setNow(Date.now()), 250);
@@ -106,7 +113,16 @@ export const BossFightPanel = () => {
           </button>;
         })}</div><button type="button" className={styles.exit} onClick={close}>ВЫЙТИ · БОЙ ПРОДОЛЖИТСЯ</button>
       </> : <div className={styles.results}><strong className={battle.outcome === 'won' ? styles.success : styles.failure}>{battle.outcome === 'won' ? 'БОСС ПОВЕРЖЕН' : 'БОЙ ЗАВЕРШЁН'}</strong><p>Нанесено урона: {battle.damageDealt} · опыт: +{battle.reward?.experience ?? 0} · пули: +{battle.reward?.bullets ?? 0}</p><p>Шанс комнаты: {Math.round(chance * 100)}% · <b>{battle.reward?.dropped ? 'ВЫПАЛО' : 'НЕ ВЫПАЛО'}</b></p>{battle.reward?.room && <p>🎁 Найдена комната! Заберите её на экране «Комната».</p>}<button type="button" onClick={close}>{battle.outcome === 'won' ? 'ЗАБРАТЬ НАГРАДУ' : 'ЗАКРЫТЬ'}</button></div>}
-      <div className={styles.battleLog} role="log" aria-live="polite"><h3>ЖУРНАЛ УРОНА</h3>{battle.log.slice(-4).map((line, index) => <p key={`${index}-${line}`}>{line}</p>)}</div>
+      <div className={styles.battleLog}>
+        <h3>ЖУРНАЛ УРОНА</h3>
+        <div ref={logRef} className={styles.battleLogEntries} role="log" aria-label="Журнал урона" aria-live="polite" tabIndex={0}
+          onScroll={(event) => {
+            const log = event.currentTarget;
+            followLog.current = log.scrollHeight - log.scrollTop - log.clientHeight <= 4;
+          }}>
+          {battle.log.map((line, index) => <p key={`${index}-${line}`}>{line}</p>)}
+        </div>
+      </div>
       {state.lastMessage && <p className={styles.notice} role="status">{state.lastMessage}</p>}
     </section>
   </div>;

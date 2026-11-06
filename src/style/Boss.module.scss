@@ -55,7 +55,11 @@
 .results .failure { color: #e66051; }
 .results p { font-size: 12px; }
 .results button { padding: 12px 20px; }
-.battleLog { max-height: 125px; overflow-y: auto; padding: 6px 13px; background: #25221c; font-size: 12px; }
+.battleLog { min-width: 0; margin-top: 10px; padding: 6px 8px 6px 13px; border: 1px solid #6b4a2f; background: #25221c; font-size: 12px; }
+.battleLogEntries { height: clamp(70px, 18dvh, 125px); overflow-y: scroll; overflow-x: hidden; overscroll-behavior: contain; overflow-wrap: anywhere; scrollbar-width: thin; scrollbar-color: #b1824d #201a14; }
+.battleLogEntries::-webkit-scrollbar { width: 10px; }
+.battleLogEntries::-webkit-scrollbar-track { background: #201a14; }
+.battleLogEntries::-webkit-scrollbar-thumb { background: #b1824d; border: 2px solid #201a14; border-radius: 5px; }
 .battleLog h3 { margin: 5px 0; font: 15px Stencil, Impact, sans-serif; }
 .battleLog p { margin: 3px 0; }
 @keyframes blink { 0%, 92%, 100% { opacity: 1; } 93%, 97% { opacity: .2; } }

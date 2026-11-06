@@ -560,3 +560,16 @@ test('login rewards restart after a missed day and reject backwards dates', asyn
   delete old.loginRewards;
   assert.deepEqual(hydrateState(old).loginRewards, { streak: 0, lastClaimDate: null });
 });
+
+test('boss damage history keeps recent entries within a bounded log', () => {
+  let state = act(createInitialState(), 'START_BOSS_FIGHT', { bossId: '1' });
+  state = { ...state, battle: { ...state.battle, bossHp: 100000 } };
+  const now = state.battle.startedAt + 1;
+  for (let i = 0; i < 205; i++) state = act(state, 'BOSS_SKILL', { skillId: 'jab', now: now + i });
+  assert.equal(state.battle.log.length, 200);
+  assert.ok(state.battle.log.every((line) => line.includes('Удар кулаком')));
+  const defeated = act({ ...state, battle: { ...state.battle, bossHp: 1 } }, 'BOSS_SKILL', { skillId: 'jab', now: now + 205 });
+  assert.equal(defeated.battle.outcome, 'won');
+  assert.equal(defeated.battle.log.length, 200);
+  assert.match(defeated.battle.log.at(-1), /повержен/);
+});

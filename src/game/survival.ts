@@ -17,6 +17,7 @@ export const RAID_TASK_GOLD_PRICE = 30;
 export const BOSS_DURATION_MS = 3 * 60_000;
 export const BOSS_COUNTER_MS = 8_000;
 // Боевой заряд не связан с обычной энергией для заданий.
+export const BOSS_LOG_LIMIT = 200;
 export const BOSS_ENERGY_MAX = 100;
 export const BOSS_ENERGY_PER_HIT = 20;
 export const BOSS_WEAPON_COST = 10;
