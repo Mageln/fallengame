@@ -10,7 +10,7 @@ after(() => vite.close());
 const { ResourceIcon, ResourceText, RESOURCE_ICONS } = await vite.ssrLoadModule('/src/components/ResourceIcon.tsx');
 
 test('all resource icons exist and render with readable labels and constrained dimensions', async () => {
-  assert.equal(Object.keys(RESOURCE_ICONS).length, 10);
+  assert.equal(Object.keys(RESOURCE_ICONS).length, 11);
   for (const [name, resource] of Object.entries(RESOURCE_ICONS)) {
     const bytes = await readFile(`public${resource.src}`);
     assert.equal(bytes.subarray(1, 4).toString(), 'PNG', name);
@@ -23,8 +23,8 @@ test('all resource icons exist and render with readable labels and constrained d
 });
 
 test('resource message icons render without changing unrelated text or breaking ordinary words', () => {
-  const html = renderToStaticMarkup(React.createElement(ResourceText, { text: 'Награда: 🔫 25 · 💰 10 · 🥤 3' }));
-  for (const name of ['bullets', 'supplies', 'caps']) assert.ok(html.includes(RESOURCE_ICONS[name].src));
+  const html = renderToStaticMarkup(React.createElement(ResourceText, { text: 'Награда: 🔫 25 · 💰 10 · 🥤 3 · ⭐ 10' }));
+  for (const name of ['bullets', 'supplies', 'caps', 'experience']) assert.ok(html.includes(RESOURCE_ICONS[name].src));
   assert.ok(html.includes('Награда:'));
   assert.ok(!html.includes('🔫'));
   assert.equal(renderToStaticMarkup(React.createElement(ResourceText, { text: 'constructor' })), 'constructor');

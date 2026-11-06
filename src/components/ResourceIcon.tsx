@@ -1,6 +1,7 @@
 import { Fragment } from 'react';
 
 export const RESOURCE_ICONS = {
+  experience: { src: '/icon/resources/experience.png', label: 'опыт' },
   energy: { src: '/icon/resources/energy.png', label: 'энергия' },
   bullets: { src: '/icon/resources/bullets.png', label: 'патроны' },
   supplies: { src: '/icon/resources/supplies.png', label: 'припасы' },
@@ -22,11 +23,11 @@ export const ResourceIcon = ({ name }: { name: ResourceName }) => {
 // Локальные сообщения игры хранятся строками. Заменяем только обозначения
 // ресурсов при выводе, не меняя текст сохранения и игровые правила.
 const TEXT_ICONS: Record<string, ResourceName> = {
-  '⚡': 'energy', '🔫': 'bullets', '💰': 'supplies', '🪙': 'premium',
+  '⭐': 'experience', '⚡': 'energy', '🔫': 'bullets', '💰': 'supplies', '🪙': 'premium',
   '🎟️': 'tokens', '🎫': 'tokens', '🔥': 'matches', '🪵': 'matches',
   '🥤': 'caps', '💊': 'medkits', '💣': 'grenades', '🗝️': 'keys', '🔑': 'keys',
 };
-const resourcePattern = /(🎟️|🗝️|⚡|🔫|💰|🪙|🎫|🔥|🪵|🥤|💊|💣|🔑)/u;
+const resourcePattern = /(🎟️|🗝️|⭐|⚡|🔫|💰|🪙|🎫|🔥|🪵|🥤|💊|💣|🔑)/u;
 export const ResourceText = ({ text }: { text: string }) => <>{text.split(resourcePattern).map((part, index) =>
   Object.prototype.hasOwnProperty.call(TEXT_ICONS, part) ? <ResourceIcon key={index} name={TEXT_ICONS[part]} /> : <Fragment key={index}>{part}</Fragment>
 )}</>;

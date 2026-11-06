@@ -1,10 +1,10 @@
 import { ResourceIcon, ResourceText } from '../components/ResourceIcon';
+import { QuestIcon, QuestChestIcon } from '../components/QuestIcon';
 import { useEffect } from 'react';
 import { useGame } from '../game/GameContext';
 import { DAILY_QUESTS } from '../game/constants';
 import styles from '../style/QuestBoard.module.scss';
 
-const ICONS: Record<string, string> = { q1: '⚔️', q2: '🏚️', q3: '🎒', q4: '🚗', q5: '🔧', q6: '☠️' };
 
 export const QuestBoard = ({ onClose }: { onClose: () => void }) => {
   const { state, dispatch } = useGame();
@@ -24,14 +24,14 @@ export const QuestBoard = ({ onClose }: { onClose: () => void }) => {
         const item = state.daily.quests.find((entry) => entry.questId === quest.id);
         if (!item) return null;
         return <article className={`${styles.card} ${item.completed ? styles.completed : ''}`} key={quest.id}>
-          <div className={styles.icon} aria-hidden="true">{ICONS[quest.id]}</div><div className={styles.details}>
+          <div className={styles.icon} aria-hidden="true"><QuestIcon questId={quest.id} /></div><div className={styles.details}>
             <div className={styles.title}><h3>{quest.name}</h3><span>{item.claimed ? 'ПОЛУЧЕНО' : item.completed ? 'ГОТОВО' : 'В ПРОЦЕССЕ'}</span></div><p>{quest.description}</p>
             <div className={styles.progressText}><span>ПРОГРЕСС</span><strong>{item.progress} / {quest.target}</strong></div><progress value={item.progress} max={quest.target} aria-label={`Прогресс: ${quest.name}`} />
-            <div className={styles.rewards}><small>НАГРАДА:</small>{quest.rewardBullets > 0 && <span><ResourceIcon name="bullets" /> {quest.rewardBullets}</span>}{quest.rewardMatches > 0 && <span><ResourceIcon name="matches" /> {quest.rewardMatches}</span>}{quest.rewardGold > 0 && <span><ResourceIcon name="supplies" /> {quest.rewardGold} припасов</span>}{quest.rewardExperience > 0 && <span>⭐ {quest.rewardExperience} опыта</span>}</div>
+            <div className={styles.rewards}><small>НАГРАДА:</small>{quest.rewardBullets > 0 && <span><ResourceIcon name="bullets" /> {quest.rewardBullets}</span>}{quest.rewardMatches > 0 && <span><ResourceIcon name="matches" /> {quest.rewardMatches}</span>}{quest.rewardGrenades > 0 && <span><ResourceIcon name="grenades" /> {quest.rewardGrenades}</span>}{quest.rewardGold > 0 && <span><ResourceIcon name="supplies" /> {quest.rewardGold} припасов</span>}{quest.rewardExperience > 0 && <span><ResourceIcon name="experience" /> {quest.rewardExperience} опыта</span>}</div>
           </div><button className={styles.claim} type="button" disabled={!item.completed || item.claimed} onClick={() => dispatch({ type: 'CLAIM_QUEST_REWARD', questId: quest.id })}>{item.claimed ? 'ПОЛУЧЕНО' : 'ЗАБРАТЬ'}</button>
         </article>;
       })}</div>
-      <div className={styles.bonus}><div className={styles.bonusIcon}>📦</div><div><small>ОСОБАЯ НАГРАДА</small><h3>ЯЩИК ЗА ВСЕ КОНТРАКТЫ</h3><p>Выполните все шесть заданий: <ResourceIcon name="bullets" /> 100 патронов · <ResourceIcon name="supplies" /> 50 припасов · <ResourceIcon name="medkits" /> 1 аптечка</p></div><button type="button" disabled={!ready || state.daily.questBonusClaimed} onClick={() => dispatch({ type: 'CLAIM_DAILY_QUEST_BONUS' })}>{state.daily.questBonusClaimed ? 'ПОЛУЧЕНО' : 'ЗАБРАТЬ ЯЩИК'}</button></div>
+      <div className={styles.bonus}><div className={styles.bonusIcon} aria-hidden="true"><QuestChestIcon /></div><div><small>ОСОБАЯ НАГРАДА</small><h3>ЯЩИК ЗА ВСЕ КОНТРАКТЫ</h3><p>Выполните все шесть заданий: <ResourceIcon name="bullets" /> 100 патронов · <ResourceIcon name="supplies" /> 50 припасов · <ResourceIcon name="medkits" /> 1 аптечка</p></div><button type="button" disabled={!ready || state.daily.questBonusClaimed} onClick={() => dispatch({ type: 'CLAIM_DAILY_QUEST_BONUS' })}>{state.daily.questBonusClaimed ? 'ПОЛУЧЕНО' : 'ЗАБРАТЬ ЯЩИК'}</button></div>
       {state.lastMessage && <p className={styles.notice} role="status"><ResourceText text={state.lastMessage} /></p>}
     </section>
   </div>;
