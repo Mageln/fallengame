@@ -51,6 +51,7 @@ export const startBattle = (
   bossMaxHp = bossHp
 ): GameState => {
   if (state.battle) return { ...state, battleVisible: true, lastMessage: 'Продолжается текущий бой.' };
+  if (state.arena?.battle?.outcome === 'fighting') return msg(state, 'Сначала завершите бой на арене.');
   let current = resetBossAttacks(state);
   if (state.weapon.broken) return msg(current, 'Оружие сломано. Почините его в Мастерской.');
   if (current.health <= 0) return msg(current, 'Сначала восстановите HP в рейдовых заданиях.');

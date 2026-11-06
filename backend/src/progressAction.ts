@@ -8,7 +8,7 @@ const noArguments = new Set([
   'UPGRADE_CAR', 'UPGRADE_WEAPON', 'UPGRADE_WEAPON_UPGRADE', 'REPAIR_WEAPON',
   'TOGGLE_SOUND', 'CLEAR_MESSAGE', 'TOGGLE_MAP', 'TOGGLE_BOSS_MODAL', 'TOGGLE_CLAN_MODAL',
   'TOGGLE_NOTIFICATIONS', 'CLEAR_NOTIFICATIONS',
-  'OPEN_BATTLE', 'BOSS_TICK', 'LEAVE_BATTLE', 'CLAIM_ROOM',
+  'CLOSE_ARENA_BATTLE', 'OPEN_BATTLE', 'BOSS_TICK', 'LEAVE_BATTLE', 'CLAIM_ROOM',
   'RAID_SCOUT', 'RAID_BYPASS', 'RAID_LOOT', 'LEAVE_RAID', 'MINIMIZE_RAID',
   'CHECK_RAIDS', 'CLOSE_RAID_TASKS', 'START_GAST', 'BATTLE_POWER', 'BATTLE_COMBO',
   'BATTLE_BLOCK', 'BATTLE_EVADE', 'BATTLE_HEAL', 'LOTTERY', 'SEARCH_FRIEND',
@@ -18,7 +18,7 @@ const idArguments: Record<string, string> = {
   ENTER_DISTRICT: 'districtId', DO_TASK: 'taskId',
   BUY_EQUIPMENT: 'itemId', EQUIP_SHOP_WEAPON: 'weaponId', CLAIM_QUEST_REWARD: 'questId',
   CRAFT_ITEM: 'recipeId', CHANGE_LOCATION: 'locationId',
-  START_BOSS_FIGHT: 'bossId', BUY_BOSS_ATTACK: 'bossId',
+  START_ARENA: 'opponentId', START_BOSS_FIGHT: 'bossId', BUY_BOSS_ATTACK: 'bossId',
   START_RAID: 'raidId', OPEN_MAP_RAID: 'raidId', CANCEL_RAID: 'raidId',
   CLAIM_RAID_REWARD: 'raidId', OPEN_RAID_TASKS: 'raidId', REMOVE_NOTIFICATION: 'id',
   START_BOSS: 'districtId', BUY_SHELTER_ITEM: 'itemId', BUY_SKIN: 'skinId', APPLY_SKIN: 'skinId',
@@ -34,7 +34,7 @@ export const parseProgressAction = (value: unknown): Record<string, unknown> | n
       Number.isInteger(action.appearance) && Number(action.appearance) >= 0 && Number(action.appearance) <= 5) {
     return { type: action.type, appearance: action.appearance };
   }
-  if (action.type === 'BOSS_SKILL' && keys === 'skillId,type' &&
+  if ((action.type === 'BOSS_SKILL' || action.type === 'ARENA_SKILL') && keys === 'skillId,type' &&
       typeof action.skillId === 'string' && BOSS_SKILLS.some((skill) => skill.id === action.skillId)) {
     return { type: action.type, skillId: action.skillId };
   }

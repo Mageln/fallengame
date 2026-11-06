@@ -240,3 +240,25 @@ test('server purchases and equips the cap without duplicating or replacing balan
   assert.equal(state.inventory[1].equipped, true);
   assert.equal(applyCombatAction(state, buy('shop_cap'), Date.now()).gold, 170);
 });
+
+test('server arena validates commands and grants a win only once', () => {
+  assert.equal(parseProgressAction({ type: 'START_ARENA', opponentId: 'raider', gold: 999 }), null);
+  assert.equal(parseProgressAction({ type: 'ARENA_SKILL', skillId: 'jab', now: 1 }), null);
+  assert.equal(parseProgressAction({ type: 'ARENA_SKILL', skillId: 'unknown' }), null);
+  const act = (state, action) => applyCombatAction(state, parseProgressAction(action), Date.now());
+  let state = act(createInitialState(), { type: 'START_ARENA', opponentId: 'raider' });
+  assert.equal(state.arena.used, 1);
+  let turns = 0;
+  while (state.arena.battle.outcome === 'fighting' && turns++ < 40) {
+    state = act(state, { type: 'ARENA_SKILL', skillId: state.arena.battle.energy >= 10 ? 'weapon' : 'jab' });
+  }
+  assert.equal(state.arena.battle.outcome, 'won');
+  assert.equal(state.gold, 20);
+  assert.equal(state.bullets, 25);
+  const again = act(state, { type: 'ARENA_SKILL', skillId: 'jab' });
+  assert.equal(again.gold, 20);
+  assert.equal(again.bullets, 25);
+  state = act(state, { type: 'CLOSE_ARENA_BATTLE' });
+  state = act(state, { type: 'START_ARENA', opponentId: 'bogus' });
+  assert.equal(state.arena.used, 1);
+});

@@ -64,6 +64,7 @@ export const createInitialState = (): GameState => ({
     active: false,
     districtId: null,
   },
+  arena: { date: '', used: 0, battle: null },
   battle: null,
   battleVisible: false,
   bossAttacks: { date: todayLocal(), entries: {} },

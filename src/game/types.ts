@@ -400,6 +400,26 @@ export type ProfileSkillId = 'fist' | 'weapon' | 'block' | 'heal';
 // Legacy levels retain already-purchased passive bonuses, but cannot be upgraded.
 export type ProfileSkills = Record<ProfileSkillId, number> & { health?: number; luck?: number };
 
+export interface ArenaBattle {
+  opponentId: string;
+  opponentName: string;
+  opponentHp: number;
+  opponentMaxHp: number;
+  playerHp: number;
+  playerMaxHp: number;
+  energy: number;
+  fistDamage: number;
+  weaponDamage: number;
+  weaponAvailable: boolean;
+  healing: number;
+  blockReduction: number;
+  turn: number;
+  outcome: 'fighting' | 'won' | 'lost';
+  reward: { gold: number; bullets: number } | null;
+  log: string[];
+}
+export interface ArenaProgress { date: string; used: number; battle: ArenaBattle | null }
+
 export interface GameState {
   appearance: AppearanceId;
   tutorialStep: number;
@@ -444,6 +464,7 @@ export interface GameState {
   daily: DailyState;
   gast: GastState;
   battle: BattleState | null;
+  arena: ArenaProgress;
   battleVisible: boolean;
   bossAttacks: BossAttacks;
   lastRoomRoll: RoomDropResult | null;
@@ -477,6 +498,9 @@ export interface GameState {
 }
 
 export type GameAction =
+  | { type: 'START_ARENA'; opponentId: string }
+  | { type: 'ARENA_SKILL'; skillId: string }
+  | { type: 'CLOSE_ARENA_BATTLE' }
   | { type: 'SET_APPEARANCE'; appearance: AppearanceId }
   | { type: 'NEXT_TUTORIAL' }
   | { type: 'SKIP_TUTORIAL' }

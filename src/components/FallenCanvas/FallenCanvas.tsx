@@ -10,6 +10,7 @@ import { FAKE_BOSSES } from "./bosses";
 import { RaidModal } from "../../panels/RaidModal";
 import { ClanModal } from "../../panels/Clan";
 import { RoomModal } from "../../panels/Room";
+import { Arena } from "../../panels/Arena";
 import { StoreModal } from "../../panels/Store";
 import { BossFightPanel, BossHub, PremiumShop } from "../../panels/Boss";
 import { FriendsPanel } from "../../panels/Friends";
@@ -97,7 +98,6 @@ export const FallenCanvas: React.FC<PrisonCanvasProps & {
   showMap = false,
   profileData,
   onProfileClose,
-  onBattleClick,
   onRaidClick,
   onGoDistrict,
   onCloseMap,
@@ -124,6 +124,7 @@ export const FallenCanvas: React.FC<PrisonCanvasProps & {
   const [bossImage, setBossImage] = useState<HTMLImageElement | null>(null);
   const [showRoomModal, setShowRoomModal] = useState(false);
   const [showPremiumShop, setShowPremiumShop] = useState(false);
+  const [showArena, setShowArena] = useState(false);
   const [showStore, setShowStore] = useState(false);
   const [showFriends, setShowFriends] = useState(false);
 
@@ -282,7 +283,7 @@ export const FallenCanvas: React.FC<PrisonCanvasProps & {
     avatarImage,
     // Callbacks
     onGoProfile,       // onProfileClick
-    onBattleClick,     // onBattleClick
+    () => setShowArena(true), // Кнопка «Арена»
     onProfileClose,    // onBossModalClose
     onCloseMap,        // onCloseMap
     onOpenBossModal,   // onOpenBossModal
@@ -395,6 +396,7 @@ export const FallenCanvas: React.FC<PrisonCanvasProps & {
         <BossHub onClose={() => dispatch({ type: 'TOGGLE_BOSS_MODAL' })} />
       )}
       <BossFightPanel />
+      {showArena && <Arena onClose={() => setShowArena(false)} />}
       {showStore && <StoreModal onClose={() => setShowStore(false)} />}
       {showPremiumShop && <PremiumShop onClose={() => setShowPremiumShop(false)} />}
       {showFriends && <FriendsPanel onClose={() => setShowFriends(false)} />}

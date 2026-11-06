@@ -1,3 +1,4 @@
+import { reduceArena } from './arena';
 import { reduceRaid } from './raidReducer';
 import { reduceBattle } from './battleReducer';
 import { normalizeBattle, advanceBossClock } from './battleEngine';
@@ -556,6 +557,10 @@ export const gameReducer = (state: GameState, action: GameAction): GameState => 
         lastMessage: 'Оружие починено, урон снова считается.',
       };
     }
+    case 'START_ARENA':
+    case 'ARENA_SKILL':
+    case 'CLOSE_ARENA_BATTLE':
+      return reduceArena(state, action);
     case 'START_BOSS':
     case 'START_BOSS_FIGHT':
     case 'START_GAST':
