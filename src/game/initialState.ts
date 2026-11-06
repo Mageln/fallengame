@@ -2,6 +2,7 @@ import { TUTORIAL, DAILY_QUESTS, STARTER_WEAPON, DEFAULT_STATS } from './constan
 import { dateKey, weekKey } from './formulas';
 import { todayLocal } from './survival';
 import { GameState } from './types';
+import { emptyProfileSkills } from './profileSkills';
 
 export const createInitialState = (): GameState => ({
   appearance: 0,
@@ -22,7 +23,7 @@ export const createInitialState = (): GameState => ({
   level: 30,
   experience: 0,
   loginRewards: { lastClaimDate: null, streak: 0 },
-  profileSkills: { health: 0, fist: 0, luck: 0, block: 0 },
+  profileSkills: emptyProfileSkills(),
   baseStamina: 40,
   luck: 20,
   // Базовые атрибуты героя (Блок 5). Стартовые значения из DEFAULT_STATS.

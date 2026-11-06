@@ -137,46 +137,73 @@ test('turn battle commands are validated and processed by the server', () => {
 });
 
 test('server validates skill ids and ignores client supplied prices and state', () => {
-  for (const skillId of ['health', 'fist', 'luck', 'block']) {
+  for (const skillId of ['fist', 'weapon', 'block', 'heal']) {
     assert.deepEqual(parseProgressAction({ type: 'UPGRADE_PROFILE_SKILL', skillId }), { type: 'UPGRADE_PROFILE_SKILL', skillId });
   }
   for (const action of [
+    { type: 'UPGRADE_PROFILE_SKILL', skillId: 'health' },
+    { type: 'UPGRADE_PROFILE_SKILL', skillId: 'luck' },
     { type: 'UPGRADE_PROFILE_SKILL', skillId: 'not-a-skill' },
-    { type: 'UPGRADE_PROFILE_SKILL', skillId: 'health', cost: 0 },
-    { type: 'UPGRADE_PROFILE_SKILL', skillId: 'health', level: 10 },
-    { type: 'UPGRADE_PROFILE_SKILL', skillId: 'health', bullets: 999999 },
+    { type: 'UPGRADE_PROFILE_SKILL', skillId: 'heal', cost: 0 },
+    { type: 'UPGRADE_PROFILE_SKILL', skillId: 'heal', level: 10 },
+    { type: 'UPGRADE_PROFILE_SKILL', skillId: 'heal', bullets: 999999 },
   ]) assert.equal(parseProgressAction(action), null);
 });
 
-test('server upgrades skills with server-calculated prices, limits and battle restriction', () => {
+test('server upgrades abilities with server-calculated prices, limits and battle restriction', () => {
   const command = (skillId) => parseProgressAction({ type: 'UPGRADE_PROFILE_SKILL', skillId });
   let state = { ...createInitialState(), bullets: 1000 };
-  state = applyCombatAction(state, command('health'), Date.now());
+  state = applyCombatAction(state, command('heal'), Date.now());
   assert.equal(state.bullets, 950);
-  assert.equal(state.profileSkills.health, 1);
-  assert.equal(state.health, 110);
-  assert.equal(state.maxHealth, 110);
-  state = applyCombatAction(state, command('health'), Date.now());
+  assert.equal(state.profileSkills.heal, 1);
+  assert.equal(state.health, 100);
+  assert.equal(state.maxHealth, 100);
+  state = applyCombatAction(state, command('heal'), Date.now());
   assert.equal(state.bullets, 850);
-  assert.equal(state.profileSkills.health, 2);
-  assert.equal(state.maxHealth, 120);
+  assert.equal(state.profileSkills.heal, 2);
   const persisted = JSON.parse(JSON.stringify(state));
   assert.deepEqual(persisted.profileSkills, state.profileSkills);
   assert.equal(persisted.bullets, 850);
-  const poor = applyCombatAction({ ...state, bullets: 0 }, command('health'), Date.now());
-  assert.equal(poor.profileSkills.health, 2);
+  const poor = applyCombatAction({ ...state, bullets: 0 }, command('heal'), Date.now());
+  assert.equal(poor.profileSkills.heal, 2);
   assert.equal(poor.bullets, 0);
-  const maxed = { ...state, profileSkills: { ...state.profileSkills, health: 10 } };
-  assert.equal(applyCombatAction(maxed, command('health'), Date.now()).bullets, 850);
+  const maxed = { ...state, profileSkills: { ...state.profileSkills, heal: 10 } };
+  assert.equal(applyCombatAction(maxed, command('heal'), Date.now()).bullets, 850);
   const battle = applyCombatAction(state, parseProgressAction({ type: 'START_BOSS_FIGHT', bossId: '1' }), Date.now());
   const blocked = applyCombatAction(battle, command('fist'), Date.now());
   assert.equal(blocked.profileSkills.fist, 0);
   assert.equal(blocked.bullets, battle.bullets);
-  for (const skillId of ['fist', 'luck', 'block']) {
+  for (const skillId of ['fist', 'weapon', 'block']) {
     state = applyCombatAction(state, command(skillId), Date.now());
     assert.equal(state.profileSkills[skillId], 1);
   }
   assert.equal(state.bullets, 700);
+});
+
+test('old server skills normalize without losing purchased passive benefits or bullets', () => {
+  const initial = createInitialState();
+  const legacy = { ...initial, bullets: 123, health: 110, maxHealth: 120,
+    profileSkills: { health: 2, fist: 3, luck: 4, block: 1 } };
+  const loaded = advanceCombat(legacy, Date.now());
+  assert.deepEqual(loaded.profileSkills, { fist: 3, weapon: 0, block: 1, heal: 0, health: 2, luck: 4 });
+  assert.equal(loaded.bullets, 123);
+  assert.equal(loaded.maxHealth, 120);
+  assert.deepEqual(advanceCombat(loaded, Date.now()).profileSkills, loaded.profileSkills);
+  const upgraded = applyCombatAction(legacy, parseProgressAction({ type: 'UPGRADE_PROFILE_SKILL', skillId: 'weapon' }), Date.now());
+  assert.equal(upgraded.profileSkills.weapon, 1);
+  assert.equal(upgraded.profileSkills.health, 2);
+  assert.equal(upgraded.bullets, 73);
+});
+
+test('server weapon and heal levels change the corresponding boss ability', () => {
+  const started = applyCombatAction(createInitialState(), parseProgressAction({ type: 'START_BOSS_FIGHT', bossId: '2' }), Date.now());
+  const prepared = { ...started, battle: { ...started.battle, bossHp: 10000, bossEnergy: 100, playerHp: 30 } };
+  const trained = { ...prepared, profileSkills: { ...prepared.profileSkills, weapon: 5, heal: 5 } };
+  const weapon = parseProgressAction({ type: 'BOSS_SKILL', skillId: 'weapon' });
+  const heal = parseProgressAction({ type: 'BOSS_SKILL', skillId: 'heal' });
+  const now = started.battle.startedAt + 1;
+  assert.ok(applyCombatAction(trained, weapon, now).battle.lastHit.damage > applyCombatAction(prepared, weapon, now).battle.lastHit.damage);
+  assert.equal(applyCombatAction(trained, heal, now).battle.playerHp - applyCombatAction(prepared, heal, now).battle.playerHp, 25);
 });
 
 test('server combat applies fist, luck and block skill effects', () => {

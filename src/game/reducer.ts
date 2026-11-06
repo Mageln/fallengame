@@ -4,7 +4,7 @@ import { normalizeBattle, advanceBossClock } from './battleEngine';
 import { reduceInventory } from './inventoryReducer';
 import { msg, recordResources, replaceClan, syncClans, recordClanEvent, spend } from './reducerShared';
 import { LOGIN_REWARDS, loginRewardStatus, normalizeLoginRewards } from './loginRewards';
-import { normalizeProfileSkills, SKILL_DEFS, SKILL_HP_PER_LEVEL, SKILL_MAX_LEVEL, skillCost } from './profileSkills';
+import { normalizeProfileSkills, SKILL_DEFS, SKILL_MAX_LEVEL, skillCost } from './profileSkills';
 import { CLAN_CREATE_GOLD,
   CLAN_MAX_MEMBERS,
   CLAN_WAR_MIN_CONTRIB,
@@ -320,7 +320,13 @@ export const hydrateState = (state: GameState): GameState => {
 };
 
 export const gameReducer = (state: GameState, action: GameAction): GameState => {
-  if (action.type !== 'HYDRATE_STATE') state = refreshDailyQuests(state);
+  if (action.type !== 'HYDRATE_STATE') {
+    // Server snapshots from before the new skills also pass through this path.
+    if (!state.profileSkills || state.profileSkills.weapon === undefined || state.profileSkills.heal === undefined) {
+      state = { ...state, profileSkills: normalizeProfileSkills(state.profileSkills) };
+    }
+    state = refreshDailyQuests(state);
+  }
   // Босс на отдельной арене: старые кнопки пошагового боя не обходят его кулдауны.
   if (state.battle?.source === 'boss' && (action.type.startsWith('BATTLE_') || action.type === 'INVITE_FRIEND')) return state;
   switch (action.type) {
@@ -393,8 +399,6 @@ export const gameReducer = (state: GameState, action: GameAction): GameState => 
         ...state,
         bullets: state.bullets - cost,
         profileSkills: { ...skills, [skill.id]: level + 1 },
-        maxHealth: state.maxHealth + (skill.id === 'health' ? SKILL_HP_PER_LEVEL : 0),
-        health: state.health + (skill.id === 'health' ? SKILL_HP_PER_LEVEL : 0),
         lastMessage: `Навык «${skill.name}» улучшен до ${level + 1} уровня.`,
       };
     }

@@ -47,12 +47,17 @@ export const SurvivorProfile = ({ onClose, onWorkshop, onBosses, onInventory, on
           <div className={styles.identity}>
             <span className={styles.sectionLabel}>● СТАТУС: ВЫЖИВШИЙ</span><h3>{name}</h3>
             <div className={styles.tags}><span>УРОВЕНЬ {format(state.level)}</span><span>★ {format(state.experience)} ОПЫТА</span></div>
-            <p className={styles.caption}>Опыт накапливается за боссов и рейды. Уровень повышается отдельно во вкладке «Навыки» за патроны.</p>
+            <p className={styles.caption}>Опыт накапливается за боссов и рейды. Уровень повышается отдельно за патроны.</p>
             <div className={styles.meter}><div><span>ЗДОРОВЬЕ</span><strong>{format(state.health)} / {format(state.maxHealth)}</strong></div><progress value={state.health} max={state.maxHealth} aria-label="Здоровье" /></div>
             <div className={`${styles.meter} ${styles.energy}`}><div><span>ЭНЕРГИЯ</span><strong>{format(state.energy)} / {format(state.maxEnergy)}</strong></div><progress value={state.energy} max={state.maxEnergy} aria-label="Энергия" /></div>
             <div className={styles.location}>⌖ {district} <span>/</span> 🏠 {room}</div>
           </div>
         </div>
+        <article className={styles.upgrade}>
+          <div><small>ТЕКУЩИЙ УРОВЕНЬ · {format(state.level)}</small><h3>Уровень персонажа</h3><p>+1 уровень и +3 припасов. Опыт не расходуется.</p></div>
+          <button type="button" disabled={state.bullets < levelUpCost(state.level)} onClick={() => { dispatch({ type: 'UPGRADE_LEVEL' }); setFeedback(state.lastMessage); }}>ПОВЫСИТЬ · {format(levelUpCost(state.level))} 🔫</button>
+        </article>
+        {feedback !== null && <p className={styles.feedback} role="status">{state.lastMessage === feedback ? 'Ожидаем результат…' : state.lastMessage}</p>}
         <div className={styles.sectionHeading}><div><small>БОЕВАЯ ПОДГОТОВКА</small><h3>ХАРАКТЕРИСТИКИ</h3></div><span>ДАННЫЕ АКТУАЛЬНЫ</span></div>
         <div className={styles.stats}>
           {[['⚔', 'УРОН', format(derived.damage)], ['✚', 'ВЫНОСЛИВОСТЬ', format(derived.stamina)], ['♣', 'УДАЧА', format(derived.luck)], ['◎', 'ШАНС КРИТА', `${(derived.crit * 100).toFixed(1)}%`]].map(([icon, label, value]) => <div className={styles.stat} key={label}><span>{icon}</span><div><small>{label}</small><strong>{value}</strong></div></div>)}
@@ -65,11 +70,7 @@ export const SurvivorProfile = ({ onClose, onWorkshop, onBosses, onInventory, on
       </div> : <div className={styles.content} role="tabpanel">
         <div className={styles.sectionHeading}><div><small>ЛИЧНЫЕ УМЕНИЯ</small><h3>НАВЫКИ ВЫЖИВШЕГО</h3></div><span>ПАТРОНЫ: {format(state.bullets)}</span></div>
         <p className={styles.caption}>Постоянные улучшения за патроны. Каждый навык можно улучшить до {SKILL_MAX_LEVEL} уровня; цена следующего уровня растёт.</p>
-        <article className={styles.upgrade}>
-          <div><small>ТЕКУЩИЙ УРОВЕНЬ · {format(state.level)}</small><h3>Уровень персонажа</h3><p>+1 уровень и +3 припасов. Опыт не расходуется.</p></div>
-          <button type="button" disabled={state.bullets < levelUpCost(state.level)} onClick={() => { dispatch({ type: 'UPGRADE_LEVEL' }); setFeedback(state.lastMessage); }}>ПОВЫСИТЬ · {format(levelUpCost(state.level))} 🔫</button>
-        </article>
-        <p className={styles.caption}>Ранее приобретённые уровни, выносливость и удача сохранены и учитываются в характеристиках.</p>
+        <p className={styles.caption}>Улучшения действуют в бою с боссом. Ранее купленные бонусы живучести и удачи сохранены; новые навыки оружия и исцеления начинаются с нуля.</p>
         {state.battle && <p className={styles.feedback}>Завершите текущий бой, чтобы улучшать навыки.</p>}
         <div className={styles.skills}>{SKILL_DEFS.map((skill) => {
           const level = state.profileSkills[skill.id];

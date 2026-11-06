@@ -396,8 +396,9 @@ export interface RoomSkin {
   price: number; // 0 — базовое оформление комнаты (выдаётся вместе с ней)
 }
 
-export type ProfileSkillId = 'health' | 'fist' | 'luck' | 'block';
-export type ProfileSkills = Record<ProfileSkillId, number>;
+export type ProfileSkillId = 'fist' | 'weapon' | 'block' | 'heal';
+// Legacy levels retain already-purchased passive bonuses, but cannot be upgraded.
+export type ProfileSkills = Record<ProfileSkillId, number> & { health?: number; luck?: number };
 
 export interface GameState {
   appearance: AppearanceId;

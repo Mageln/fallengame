@@ -1,6 +1,6 @@
 import { normalizeBattle, startBattle, spendAmmo, wearWeapon, bumpKillQuests, appendBossLog, bossKilled, advanceBossClock, runRound, stunnedRound } from './battleEngine';
 import { msg, recordResources, recordClanEvent } from './reducerShared';
-import { SKILL_FIST_PERCENT } from './profileSkills';
+import { SKILL_FIST_PERCENT, SKILL_WEAPON_PERCENT, SKILL_HEAL_PER_LEVEL } from './profileSkills';
 import { LOCATIONS, TECHNIQUE_MUL, TECHNIQUE_COOLDOWN, POWER_MUL, POWER_PIERCE, POWER_COOLDOWN, COMBO_HITS, COMBO_HIT_MUL, COMBO_COOLDOWN } from './constants';
 import { canEnterDistrict, getDistrict, weaponDamage, equipmentDamage, comboMultiplier, computeDamage, guaranteedCrit, medkitHeal } from './formulas';
 import { BOSSES } from './bosses';
@@ -98,7 +98,7 @@ export const reduceBattle = (state: GameState, action: BattleAction): GameState 
           lastMessage: 'Блок активен до следующего удара босса.' };
       }
       if (skill.id === 'heal') {
-        const healed = Math.min(battle.playerMaxHp - battle.playerHp, medkitHeal(current));
+        const healed = Math.min(battle.playerMaxHp - battle.playerHp, medkitHeal(current) + (current.profileSkills?.heal ?? 0) * SKILL_HEAL_PER_LEVEL);
         const playerHp = battle.playerHp + healed;
         return { ...current, health: Math.min(current.maxHealth, playerHp),
           battle: { ...battle, playerHp, bossEnergy: nextEnergy, turn: battle.turn + 1,
@@ -110,7 +110,8 @@ export const reduceBattle = (state: GameState, action: BattleAction): GameState 
       const luckLevel = current.profileSkills?.luck ?? 0;
       const luckCrit = luckLevel > 0 && Math.random() < luckLevel / 100;
       const weaponBonus = skill.id === 'weapon' ? weaponDamage(current) : 0;
-      const damage = Math.min(battle.bossHp, Math.max(1, Math.round((8 + current.level / 4 + weaponBonus + equipmentDamage(current.equipmentIds)) * fistMultiplier * (luckCrit ? 1.5 : 1))));
+      const weaponMultiplier = skill.id === 'weapon' ? 1 + (current.profileSkills?.weapon ?? 0) * SKILL_WEAPON_PERCENT / 100 : 1;
+      const damage = Math.min(battle.bossHp, Math.max(1, Math.round((8 + current.level / 4 + weaponBonus + equipmentDamage(current.equipmentIds)) * fistMultiplier * weaponMultiplier * (luckCrit ? 1.5 : 1))));
       const updated: BattleState = {
         ...battle, bossHp: battle.bossHp - damage, damageDealt: battle.damageDealt + damage,
         comboStreak: battle.comboStreak + 1, bossEnergy: nextEnergy, turn: battle.turn + 1,

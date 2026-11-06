@@ -292,25 +292,53 @@ test('raid loot awards experience once and older saves start with zero', () => {
   assert.equal(act(state, 'RAID_LOOT').experience, 20);
 });
 
-test('profile skills migrate, charge bullets and respect limits and active battles', () => {
+test('profile abilities preserve legacy levels, charge bullets and respect limits and active battles', async () => {
+  const { SKILL_DEFS } = await vite.ssrLoadModule('/src/game/profileSkills.ts');
+  assert.deepEqual(SKILL_DEFS.map((skill) => skill.id), ['fist', 'weapon', 'block', 'heal']);
   const old = createInitialState();
   delete old.profileSkills;
-  assert.deepEqual(hydrateState(old).profileSkills, { health: 0, fist: 0, luck: 0, block: 0 });
-  let state = { ...createInitialState(), bullets: 500 };
-  state = act(state, 'UPGRADE_PROFILE_SKILL', { skillId: 'health' });
+  assert.deepEqual(hydrateState(old).profileSkills, { fist: 0, weapon: 0, block: 0, heal: 0, health: 0, luck: 0 });
+  const legacy = { ...createInitialState(), bullets: 500, maxHealth: 120, health: 110,
+    profileSkills: { health: 2, fist: 3, luck: 4, block: 1 } };
+  const loaded = hydrateState(legacy);
+  assert.deepEqual(loaded.profileSkills, { fist: 3, weapon: 0, block: 1, heal: 0, health: 2, luck: 4 });
+  assert.equal(loaded.health, 110);
+  assert.equal(loaded.maxHealth, 120);
+  let state = act(loaded, 'UPGRADE_PROFILE_SKILL', { skillId: 'weapon' });
   assert.equal(state.bullets, 450);
-  assert.equal(state.health, 110);
-  assert.equal(state.maxHealth, 110);
-  assert.equal(state.profileSkills.health, 1);
-  assert.equal(hydrateState(state).maxHealth, 110);
+  assert.equal(state.profileSkills.weapon, 1);
+  assert.equal(state.maxHealth, 120);
+  state = act(state, 'UPGRADE_PROFILE_SKILL', { skillId: 'weapon' });
+  assert.equal(state.bullets, 350);
+  assert.equal(state.profileSkills.weapon, 2);
   const started = act(state, 'START_BOSS_FIGHT', { bossId: '1' });
-  assert.equal(started.battle.playerHp, 110);
-  assert.equal(act(started, 'UPGRADE_PROFILE_SKILL', { skillId: 'health' }).bullets, 450);
-  const poor = act({ ...state, bullets: 0 }, 'UPGRADE_PROFILE_SKILL', { skillId: 'health' });
-  assert.equal(poor.profileSkills.health, 1);
-  const maxed = act({ ...state, profileSkills: { ...state.profileSkills, health: 10 } }, 'UPGRADE_PROFILE_SKILL', { skillId: 'health' });
-  assert.equal(maxed.bullets, 450);
-  assert.equal(act(state, 'UPGRADE_PROFILE_SKILL', { skillId: 'invalid' }), state);
+  assert.equal(act(started, 'UPGRADE_PROFILE_SKILL', { skillId: 'heal' }).bullets, 350);
+  const poor = act({ ...state, bullets: 0 }, 'UPGRADE_PROFILE_SKILL', { skillId: 'heal' });
+  assert.equal(poor.profileSkills.heal, 0);
+  const maxed = act({ ...state, profileSkills: { ...state.profileSkills, heal: 10 } }, 'UPGRADE_PROFILE_SKILL', { skillId: 'heal' });
+  assert.equal(maxed.bullets, 350);
+  assert.equal(act(state, 'UPGRADE_PROFILE_SKILL', { skillId: 'health' }), state);
+  assert.equal(act(state, 'UPGRADE_PROFILE_SKILL', { skillId: 'luck' }), state);
+});
+
+test('weapon and healing upgrades affect only their matching boss abilities', () => {
+  const initial = createInitialState();
+  let started = act(initial, 'START_BOSS_FIGHT', { bossId: '2' });
+  started = { ...started, battle: { ...started.battle, bossHp: 10000, bossEnergy: 100, playerHp: 30 } };
+  const now = started.battle.startedAt + 1;
+  const weapon = (state) => act(state, 'BOSS_SKILL', { skillId: 'weapon', now });
+  const heal = (state) => act(state, 'BOSS_SKILL', { skillId: 'heal', now });
+  const trained = { ...started, profileSkills: { ...started.profileSkills, weapon: 5, heal: 5 } };
+  assert.ok(weapon(trained).battle.lastHit.damage > weapon(started).battle.lastHit.damage);
+  const jab = (state) => act(state, 'BOSS_SKILL', { skillId: 'jab', now });
+  assert.equal(jab(trained).battle.lastHit.damage, jab(started).battle.lastHit.damage);
+  assert.equal(heal({ ...started, profileSkills: { ...started.profileSkills, weapon: 5 } }).battle.playerHp, heal(started).battle.playerHp);
+  assert.equal(heal(trained).battle.playerHp - heal(started).battle.playerHp, 25);
+  assert.equal(weapon(trained).battle.bossEnergy, 90);
+  assert.equal(heal(trained).battle.bossEnergy, 50);
+  assert.equal(heal(trained).medkits, started.medkits);
+  const maxedHeal = heal({ ...trained, battle: { ...trained.battle, playerHp: trained.battle.playerMaxHp - 1 } });
+  assert.equal(maxedHeal.battle.playerHp, maxedHeal.battle.playerMaxHp);
 });
 
 test('fist skill increases unarmed boss damage and luck can cause critical hits', () => {
@@ -506,12 +534,12 @@ test('existing profile upgrades and skill levels survive loading and level upgra
   assert.equal(loaded.level, 32);
   assert.equal(loaded.baseStamina, 55);
   assert.equal(loaded.luck, 65);
-  assert.deepEqual(loaded.profileSkills, saved.profileSkills);
+  assert.deepEqual(loaded.profileSkills, { ...saved.profileSkills, weapon: 0, heal: 0 });
   const upgraded = act(loaded, 'UPGRADE_LEVEL');
   assert.equal(upgraded.level, 33);
   assert.equal(upgraded.baseStamina, 55);
   assert.equal(upgraded.luck, 65);
-  assert.deepEqual(upgraded.profileSkills, saved.profileSkills);
+  assert.deepEqual(upgraded.profileSkills, loaded.profileSkills);
   assert.equal(upgraded.bullets, 1000 - (40 + 32 * 15));
 });
 
