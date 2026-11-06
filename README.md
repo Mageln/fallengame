@@ -44,3 +44,13 @@ yarn run deploy
 [Dev портал разработчиков](https://dev.vk.ru/ru)
 [Пример мини приложения](https://dev.vk.ru/ru/mini-apps/examples/shop)
 [Если столкнулись с проблемами](https://github.com/VKCOM/create-vk-mini-app/issues)
+
+## Структура игровой логики
+
+- `src/game/reducer.ts` — общая точка входа действий и восстановление сохранений. Она выполняет общие проверки до передачи действий в специализированные редьюсеры.
+- `src/game/battleReducer.ts` и `battleEngine.ts` — действия и общие правила боя; те же правила собираются для серверного прогресса.
+- `src/game/raidReducer.ts` — действия рейдов, таймеры и получение наград.
+- `src/game/inventoryReducer.ts` — магазин, экипировка и крафт; `reducerShared.ts` содержит общие помощники для редьюсеров.
+- `src/components/FallenCanvas/drawUI.ts` собирает основной интерфейс; отрисовка карты и экранов боссов вынесена в `drawMapRaids.ts`, `drawBossModal.ts` и `drawBossFight.ts`. Общие типы находятся в `canvasTypes.ts`, а анимация боя — в `fightAnimation.ts`.
+
+После изменения общих игровых правил проверяйте и клиент, и серверный движок: сервер собирает игровой редьюсер через `backend/scripts/progress-engine.ts`.
