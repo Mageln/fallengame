@@ -33,7 +33,7 @@ test('draws the character using the image proportions and computed destination',
 
 test('equipped cap is drawn over the head and scales with the character', () => {
   const character = { complete: true, naturalWidth: 402, naturalHeight: 600 };
-  const cap = { complete: true, naturalWidth: 512, naturalHeight: 485 };
+  const cap = { complete: true, naturalWidth: 512, naturalHeight: 253 };
   for (const [width, height] of [[320, 568], [390, 844], [1920, 1080]]) {
     const calls = [];
     const ctx = { drawImage: (...values) => calls.push(values) };
@@ -43,10 +43,10 @@ test('equipped cap is drawn over the head and scales with the character', () => 
     assert.equal(calls[0][0], character);
     assert.equal(calls[1][0], cap);
     const [, x, y, w, h] = calls[1];
-    assert.ok(Math.abs(x - (position.x + position.width * 140 / 402)) < 1e-9);
-    assert.ok(Math.abs(y - (position.y + position.height * 17 / 600)) < 1e-9);
-    assert.ok(Math.abs(w - position.width * 84 / 402) < 1e-9);
-    assert.ok(Math.abs(h - position.height * 42 / 600) < 1e-9);
+    assert.ok(Math.abs(x - (position.x + position.width * 145 / 402)) < 1e-9);
+    assert.ok(Math.abs(y - (position.y + position.height * 23 / 600)) < 1e-9);
+    assert.ok(Math.abs(w - position.width * 74 / 402) < 1e-9);
+    assert.ok(Math.abs(h - position.height * (74 * 253 / 512) / 600) < 1e-9);
     calls.length = 0;
     drawCharacter(ctx, position, character, '#fff', null);
     assert.equal(calls.length, 1);
@@ -57,8 +57,8 @@ test('cap position accounts for transparent margins of the character', async () 
   const { getCapPosition } = await vite.ssrLoadModule('/src/components/FallenCanvas/drawCharacter.ts');
   const visible = { x: 69, y: 21, w: 223, h: 579 };
   const position = { x: 69, y: 21, width: 223, height: 579 };
-  const cap = getCapPosition(position, visible, 402, 600);
-  for (const [value, expected] of [[cap.x, 140], [cap.y, 17], [cap.width, 84], [cap.height, 42]]) {
+  const cap = getCapPosition(position, visible, 402, 600, 512, 253);
+  for (const [value, expected] of [[cap.x, 145], [cap.y, 23], [cap.width, 74], [cap.height, 74 * 253 / 512]]) {
     assert.ok(Math.abs(value - expected) < 1e-9);
   }
 });

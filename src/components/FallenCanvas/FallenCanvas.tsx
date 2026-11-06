@@ -131,7 +131,7 @@ export const FallenCanvas: React.FC<PrisonCanvasProps & {
     const image = new Image();
     image.onload = () => setCapImage(image);
     image.onerror = () => setCapImage(null);
-    image.src = '/characters/survivor-cap.png';
+    image.src = '/characters/survivor-cap-v2.png';
     return () => { image.onload = null; image.onerror = null; };
   }, []);
 

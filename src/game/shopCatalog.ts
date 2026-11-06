@@ -14,7 +14,7 @@ export const SHOP_WEAPONS: ShopWeapon[] = [
   weapon('shop_rifle', 'Автомат рейдера', '🔫', 'firearm', 28, 'epic', { gold: 2400, premium: 150 }),
 ];
 const clothing = (id: string, name: string, icon: string, slot: ShopClothing['slot'], stamina: number, damage: number, luck: number, rarity: InventoryItem['rarity'], price: Price): ShopClothing => ({
-  item: { id, name, icon, rarity, staminaBonus: stamina, damageBonus: damage, luckBonus: luck, costBullets: 0 }, slot, image: id === 'shop_cap' ? '/characters/survivor-cap.png' : `/icon/shop/${id}.svg`, price,
+  item: { id, name, icon, rarity, staminaBonus: stamina, damageBonus: damage, luckBonus: luck, costBullets: 0 }, slot, image: id === 'shop_cap' ? '/characters/survivor-cap-v2.png' : `/icon/shop/${id}.svg`, price,
 });
 export const SHOP_CLOTHING: ShopClothing[] = [
   clothing('shop_cap', 'Кепка разведчика', '🧢', 'head', 8, 0, 12, 'common', { gold: 180, premium: 15 }),

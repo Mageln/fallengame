@@ -41,7 +41,7 @@
 .playerPortrait { width: clamp(75px, 16vw, 130px); height: clamp(78px, 16vw, 135px); display: flex; justify-content: center; overflow: hidden; border: 3px solid #6b4a2f; box-shadow: 0 0 20px #000; }
 .characterSprite { position: relative; height: 100%; aspect-ratio: 402 / 600; }
 .arena .characterImage { display: block; width: 100%; height: 100%; object-fit: contain; border: 0; box-shadow: none; }
-.arena .capOverlay { position: absolute; left: 34.83%; top: 2.83%; width: 20.9%; height: 7%; object-fit: fill; border: 0; box-shadow: none; }
+.arena .capOverlay { position: absolute; left: 36.07%; top: 3.83%; width: 18.41%; height: auto; object-fit: contain; border: 0; box-shadow: none; }
 .arena strong { font-size: 11px; }
 .arena progress, .arenaStatus progress { width: 100%; height: 13px; accent-color: #78a447; }
 .energyLabel { color: #ffda68; font-size: 11px; font-weight: bold; }
@@ -70,5 +70,5 @@
 @keyframes blink { 0%, 92%, 100% { opacity: 1; } 93%, 97% { opacity: .2; } }
 @keyframes rattle { 50% { transform: translateX(2px) rotate(.3deg); } }
 @keyframes impact { from { transform: scale(1.5) translateY(9px); opacity: 0; } to { transform: scale(1) translateY(0); opacity: 1; } }
-@media (max-width: 600px) { .panel { padding: 12px; } .header h2 { font-size: 18px; } .bossCard { flex-wrap: wrap; } .bossCard button { width: 100%; } .arena { grid-template-columns: 1fr 1.3fr 1fr; padding: 6px; gap: 4px; } .arena img { width: 65px; height: 72px; } .playerPortrait { width: 65px; height: 72px; } .arena .characterImage { width: 100%; height: 100%; } .arena .capOverlay { width: 20.9%; height: 7%; } .timer { font-size: 16px; } .skillGrid { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 600px) { .panel { padding: 12px; } .header h2 { font-size: 18px; } .bossCard { flex-wrap: wrap; } .bossCard button { width: 100%; } .arena { grid-template-columns: 1fr 1.3fr 1fr; padding: 6px; gap: 4px; } .arena img { width: 65px; height: 72px; } .playerPortrait { width: 65px; height: 72px; } .arena .characterImage { width: 100%; height: 100%; } .arena .capOverlay { width: 18.41%; height: auto; } .timer { font-size: 16px; } .skillGrid { grid-template-columns: repeat(2, 1fr); } }
 @media (prefers-reduced-motion: reduce) { .backdrop *, .backdrop *::before { animation: none !important; transition: none !important; } }
