@@ -19,7 +19,9 @@ export const BOSS_COUNTER_MS = 8_000;
 // Боевой заряд не связан с обычной энергией для заданий.
 export const BOSS_ENERGY_MAX = 100;
 export const BOSS_ENERGY_PER_HIT = 20;
-export const BOSS_POWER_MULTIPLIER = 3;
+export const BOSS_WEAPON_COST = 10;
+export const BOSS_BLOCK_COST = 20;
+export const BOSS_HEAL_COST = 50;
 export const ROOM_BASE_CHANCE = 0.05;
 export const ROOM_DAMAGE_FACTOR = 0.0005;
 export const ROOM_MAX_CHANCE = 0.5;
@@ -44,14 +46,10 @@ export const nextResetLocal = (now = Date.now()): number => {
 };
 
 export const BOSS_SKILLS = [
-  { id: 'jab', name: 'Прямой', icon: '👊', multiplier: 1, cooldown: 0, ammo: 0 },
-  { id: 'hook', name: 'Хук', icon: '🥊', multiplier: 1.25, cooldown: 1, ammo: 0 },
-  { id: 'uppercut', name: 'Апперкот', icon: '✊', multiplier: 1.5, cooldown: 2, ammo: 0 },
-  { id: 'spin', name: 'Разворот', icon: '🌀', multiplier: 1.7, cooldown: 3, ammo: 0 },
-  { id: 'finisher', name: 'Добивающий', icon: '☠', multiplier: 2.2, cooldown: 4, ammo: 1 },
-  { id: 'flurry', name: 'Серия', icon: '⚡', multiplier: 1.8, cooldown: 3, ammo: 1 },
-  { id: 'guard', name: 'Блок-удар', icon: '🛡', multiplier: 0.8, cooldown: 1, ammo: 0 },
-  { id: 'critical', name: 'Критический', icon: '💥', multiplier: 2.5, cooldown: 5, ammo: 2 },
+  { id: 'jab', name: 'Удар кулаком', icon: '👊', energyCost: 0 },
+  { id: 'weapon', name: 'Удар оружием', icon: '⚔️', energyCost: BOSS_WEAPON_COST },
+  { id: 'block', name: 'Блок', icon: '🛡️', energyCost: BOSS_BLOCK_COST },
+  { id: 'heal', name: 'Исцеление', icon: '💚', energyCost: BOSS_HEAL_COST },
 ] as const;
 export type BossSkillId = typeof BOSS_SKILLS[number]['id'];
 

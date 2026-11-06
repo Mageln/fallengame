@@ -91,15 +91,19 @@ export const BossFightPanel = () => {
       <div className={styles.wallet}><span>❤️ HP {battle.playerHp}/{battle.playerMaxHp}</span><span>⚡ Энергия заданий {state.energy}</span><span>🔫 Пули {state.bullets}</span><span>🎟️ Жетоны {state.zhetons}</span><span>🪙 Премиум {state.premiumGold}</span></div>
       <div className={styles.arena}>
         <div><img src="/pers1.png" alt="Ваш персонаж" /><span className={styles.energyLabel}>⚡ {battle.bossEnergy ?? 0}/{BOSS_ENERGY_MAX}</span><progress className={styles.bossEnergy} max={BOSS_ENERGY_MAX} value={battle.bossEnergy ?? 0} aria-label="Боевая энергия" /><strong>{state.playerName || 'Выживший'}</strong><progress max={battle.playerMaxHp} value={battle.playerHp} aria-label="HP игрока" /></div>
-        <div className={styles.arenaStatus}><span className={styles.timer}>⏱ {remaining(battle.endsAt, now)}</span><span>УРОН: {battle.damageDealt}</span><span>СЕРИЯ ×{battle.comboStreak}</span><span>Комната: {Math.round(chance * 100)}% / 50%</span><progress max={50} value={chance * 100} aria-label="Шанс выпадения комнаты" />{battle.lastHit && <strong key={`${battle.turn}-${battle.lastSkillId}`} className={styles.damage}>−{battle.lastHit.damage}</strong>}</div>
+        <div className={styles.arenaStatus}><span className={styles.timer}>⏱ {remaining(battle.endsAt, now)}</span><span>УРОН: {battle.damageDealt}</span><span>СЕРИЯ ×{battle.comboStreak}</span>{battle.blocking && <span>🛡️ Блок активен</span>}<span>Комната: {Math.round(chance * 100)}% / 50%</span><progress max={50} value={chance * 100} aria-label="Шанс выпадения комнаты" />{battle.lastHit && <strong key={`${battle.turn}-${battle.lastSkillId}`} className={styles.damage}>−{battle.lastHit.damage}</strong>}</div>
         <div><img src="/enemy/avatar-boss.jpg" alt={battle.bossName} /><strong>{battle.bossName}</strong><progress max={battle.bossMaxHp} value={battle.bossHp} aria-label="HP босса" /></div>
       </div>
       {isActive ? <>
-        <button type="button" className={styles.powerAttack} disabled={(battle.bossEnergy ?? 0) < BOSS_ENERGY_MAX} onClick={() => dispatch({ type: 'BOSS_POWER_ATTACK', now: Date.now() })}>💥 СИЛЬНЫЙ УДАР · {battle.bossEnergy ?? 0}/{BOSS_ENERGY_MAX}</button><p className={styles.energyHint}>Каждый удар: +{BOSS_ENERGY_PER_HIT} боевой энергии. Сильный удар расходует весь заряд.</p>
-        {state.bullets === 0 && <p className={styles.notice}>Нет пуль: используйте приём «Прямой» или другие удары с пометкой «Кулак».</p>}
+        <p className={styles.energyHint}>Удар кулаком: +{BOSS_ENERGY_PER_HIT} боевой энергии. Она не связана с энергией заданий.</p>
         <div className={styles.skillGrid}>{BOSS_SKILLS.map((skill) => {
-          const wait = Math.max(0, Math.ceil(((battle.skillReadyAt[skill.id] ?? 0) - now) / 1000));
-          return <button type="button" key={skill.id} disabled={wait > 0 || state.bullets < skill.ammo} title={wait ? `Откат ${wait} с` : skill.ammo ? `Требуется пуль: ${skill.ammo}` : skill.name} onClick={() => dispatch({ type: 'BOSS_SKILL', skillId: skill.id, now: Date.now() })}><span>{skill.icon}</span>{skill.name}<small>{wait ? `${wait} с` : skill.ammo ? `🔫 ${skill.ammo}` : 'Кулак'}</small></button>;
+          const energy = battle.bossEnergy ?? 0;
+          const unavailable = energy < skill.energyCost || (skill.id === 'weapon' && state.weapon.broken) ||
+            (skill.id === 'block' && battle.blocking) || (skill.id === 'heal' && battle.playerHp >= battle.playerMaxHp);
+          return <button type="button" key={skill.id} disabled={unavailable} onClick={() => dispatch({ type: 'BOSS_SKILL', skillId: skill.id, now: Date.now() })}>
+            <span>{skill.icon}</span>{skill.name}{skill.id === 'weapon' && <small>{state.weapon.name}</small>}
+            <small>{skill.id === 'jab' ? `+${BOSS_ENERGY_PER_HIT} ⚡` : `−${skill.energyCost} ⚡`}</small>
+          </button>;
         })}</div><button type="button" className={styles.exit} onClick={close}>ВЫЙТИ · БОЙ ПРОДОЛЖИТСЯ</button>
       </> : <div className={styles.results}><strong className={battle.outcome === 'won' ? styles.success : styles.failure}>{battle.outcome === 'won' ? 'БОСС ПОВЕРЖЕН' : 'БОЙ ЗАВЕРШЁН'}</strong><p>Нанесено урона: {battle.damageDealt} · опыт: +{battle.reward?.experience ?? 0} · пули: +{battle.reward?.bullets ?? 0}</p><p>Шанс комнаты: {Math.round(chance * 100)}% · <b>{battle.reward?.dropped ? 'ВЫПАЛО' : 'НЕ ВЫПАЛО'}</b></p>{battle.reward?.room && <p>🎁 Найдена комната! Заберите её на экране «Комната».</p>}<button type="button" onClick={close}>{battle.outcome === 'won' ? 'ЗАБРАТЬ НАГРАДУ' : 'ЗАКРЫТЬ'}</button></div>}
       <div className={styles.battleLog} role="log" aria-live="polite"><h3>ЖУРНАЛ УРОНА</h3>{battle.log.slice(-4).map((line, index) => <p key={`${index}-${line}`}>{line}</p>)}</div>

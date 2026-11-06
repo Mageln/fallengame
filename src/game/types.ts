@@ -499,7 +499,6 @@ export type GameAction =
   | { type: 'OPEN_BATTLE' }
   | { type: 'BOSS_TICK'; now: number }
   | { type: 'BOSS_SKILL'; skillId: string; now: number }
-  | { type: 'BOSS_POWER_ATTACK'; now: number }
   | { type: 'BUY_BOSS_ATTACK'; bossId: string }
   | { type: 'CLAIM_ROOM' }
   | { type: 'BATTLE_ATTACK'; technique: boolean }

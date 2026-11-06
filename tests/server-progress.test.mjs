@@ -64,8 +64,8 @@ test('client never forwards its combat clock to server', async () => {
   await client.load();
   await client.act({ type: 'BOSS_SKILL', skillId: 'jab', now: 9999999999 });
   await client.act({ type: 'BOSS_TICK', now: 9999999999 });
-  await client.act({ type: 'BOSS_POWER_ATTACK', now: 9999999999 });
-  assert.deepEqual(actions, [{ type: 'BOSS_SKILL', skillId: 'jab' }, { type: 'BOSS_TICK' }, { type: 'BOSS_POWER_ATTACK' }]);
+  await client.act({ type: 'BOSS_SKILL', skillId: 'heal', now: 9999999999 });
+  assert.deepEqual(actions, [{ type: 'BOSS_SKILL', skillId: 'jab' }, { type: 'BOSS_TICK' }, { type: 'BOSS_SKILL', skillId: 'heal' }]);
 });
 
 test('skill upgrade sends only an action and accepts server-confirmed state', async () => {

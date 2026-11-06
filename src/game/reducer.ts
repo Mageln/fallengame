@@ -82,7 +82,7 @@ import {
 } from './formulas';
 import { BOSSES } from './bosses';
 import { getBossAttackEntry, normalizeBossAttacks, resetBossAttacks, setBossAttackEntry } from './bossAttacks';
-import { BOSS_ATTACK_CONFIG, BOSS_COUNTER_MS, BOSS_DURATION_MS, BOSS_ENERGY_MAX, BOSS_ENERGY_PER_HIT, BOSS_POWER_MULTIPLIER, BOSS_SKILLS, DAILY_BOSS_ATTACKS, RAID_DANGER_TASKS, RAID_TASK_GOLD_PRICE, bossAttackPrice, roomDropChance, todayLocal } from './survival';
+import { BOSS_ATTACK_CONFIG, BOSS_COUNTER_MS, BOSS_DURATION_MS, BOSS_ENERGY_MAX, BOSS_ENERGY_PER_HIT, BOSS_SKILLS, DAILY_BOSS_ATTACKS, RAID_DANGER_TASKS, RAID_TASK_GOLD_PRICE, bossAttackPrice, roomDropChance, todayLocal } from './survival';
 import type { ResourceEvent, ResourceSource } from './survival';
 import { advanceClanContracts, clanRating, normalizeClanName, validateClanName, CLAN_EMBLEMS, CLAN_MEMBER_BONUS } from './clans';
 import { BattleState, ClanState, ClanTaskEvent, ClanWarHistoryEntry, ClanWarState, GameAction, GameNotification, GameState } from './types';
@@ -1118,56 +1118,48 @@ export const gameReducer = (state: GameState, action: GameAction): GameState => 
     case 'BOSS_SKILL': {
       if (!Number.isFinite(action.now)) return state;
       const current = advanceBossClock(state, action.now);
-      if (!current.battle || current.battle.source !== 'boss' || current.battle.outcome !== 'fighting') return current;
-      const skill = BOSS_SKILLS.find((entry) => entry.id === action.skillId);
-      if (!skill) return current;
-      const battle = current.battle;
-      if ((battle.skillReadyAt[skill.id] ?? 0) > action.now) return msg(current, `${skill.name}: приём ещё не готов.`);
-      if (current.bullets < skill.ammo) return msg(current, `Для «${skill.name}» нужно ${skill.ammo} пули.`);
-      const fistMultiplier = skill.ammo === 0 ? 1 + (current.profileSkills?.fist ?? 0) * SKILL_FIST_PERCENT / 100 : 1;
-      const luckLevel = current.profileSkills?.luck ?? 0;
-      const luckCrit = skill.id !== 'critical' && luckLevel > 0 && Math.random() < luckLevel / 100;
-      const damage = Math.min(battle.bossHp, Math.max(1, Math.round((8 + current.level / 4 + Math.max(0, weaponDamage(current) - 6) + equipmentDamage(current.equipmentIds)) * skill.multiplier * fistMultiplier * (luckCrit ? 1.5 : 1))));
-      const updated: BattleState = {
-        ...battle,
-        bossHp: battle.bossHp - damage,
-        damageDealt: battle.damageDealt + damage,
-        comboStreak: battle.comboStreak + 1,
-        bossEnergy: Math.min(BOSS_ENERGY_MAX, (battle.bossEnergy ?? 0) + BOSS_ENERGY_PER_HIT),
-        turn: battle.turn + 1,
-        blocking: skill.id === 'guard',
-        lastHit: { damage, crit: skill.id === 'critical' || luckCrit, missed: false },
-        lastSkillId: skill.id,
-        skillReadyAt: { ...battle.skillReadyAt, [skill.id]: action.now + skill.cooldown * 2_000 },
-        log: [...battle.log, `${skill.icon} ${skill.name}: −${damage} HP${luckCrit ? ' (крит)' : ''}`].slice(-15),
-      };
-      const spent = { ...current, bullets: current.bullets - skill.ammo };
-      return updated.bossHp <= 0
-        ? bossKilled(spent, updated)
-        : { ...spent, battle: updated, lastMessage: `${skill.name}: −${damage} HP. Шанс комнаты: ${Math.round(roomDropChance(updated.damageDealt) * 100)}%.` };
-    }
-    case 'BOSS_POWER_ATTACK': {
-      if (!Number.isFinite(action.now)) return state;
-      const current = advanceBossClock(state, action.now);
       const battle = current.battle;
       if (!battle || battle.source !== 'boss' || battle.outcome !== 'fighting') return current;
-      if ((battle.bossEnergy ?? 0) < BOSS_ENERGY_MAX) return msg(current, 'Для сильного удара накопите 100 энергии.');
-      const damage = Math.min(battle.bossHp, Math.max(1, Math.round((8 + current.level / 4 + Math.max(0, weaponDamage(current) - 6) + equipmentDamage(current.equipmentIds)) * BOSS_POWER_MULTIPLIER)));
+      const skill = BOSS_SKILLS.find((entry) => entry.id === action.skillId);
+      if (!skill) return current;
+      const energy = battle.bossEnergy ?? 0;
+      if (energy < skill.energyCost) return msg(current, `Для «${skill.name}» нужно ${skill.energyCost} боевой энергии.`);
+      if (skill.id === 'weapon' && current.weapon.broken) return msg(current, 'Оружие сломано. Почините его в мастерской.');
+      if (skill.id === 'block' && battle.blocking) return msg(current, 'Блок уже активен до следующего удара босса.');
+      if (skill.id === 'heal' && battle.playerHp >= battle.playerMaxHp) return msg(current, 'Здоровье уже полное.');
+
+      const nextEnergy = skill.id === 'jab'
+        ? Math.min(BOSS_ENERGY_MAX, energy + BOSS_ENERGY_PER_HIT)
+        : energy - skill.energyCost;
+      if (skill.id === 'block') {
+        return { ...current, battle: { ...battle, bossEnergy: nextEnergy, blocking: true,
+          turn: battle.turn + 1, lastHit: null, lastSkillId: skill.id,
+          log: [...battle.log, '🛡️ Блок до следующего удара босса.'].slice(-15) },
+          lastMessage: 'Блок активен до следующего удара босса.' };
+      }
+      if (skill.id === 'heal') {
+        const healed = Math.min(battle.playerMaxHp - battle.playerHp, medkitHeal(current));
+        const playerHp = battle.playerHp + healed;
+        return { ...current, health: Math.min(current.maxHealth, playerHp),
+          battle: { ...battle, playerHp, bossEnergy: nextEnergy, turn: battle.turn + 1,
+            lastHit: null, lastSkillId: skill.id,
+            log: [...battle.log, `💚 Исцеление: +${healed} HP`].slice(-15) },
+          lastMessage: `Исцеление: +${healed} HP.` };
+      }
+      const fistMultiplier = skill.id === 'jab' ? 1 + (current.profileSkills?.fist ?? 0) * SKILL_FIST_PERCENT / 100 : 1;
+      const luckLevel = current.profileSkills?.luck ?? 0;
+      const luckCrit = luckLevel > 0 && Math.random() < luckLevel / 100;
+      const weaponBonus = skill.id === 'weapon' ? weaponDamage(current) : 0;
+      const damage = Math.min(battle.bossHp, Math.max(1, Math.round((8 + current.level / 4 + weaponBonus + equipmentDamage(current.equipmentIds)) * fistMultiplier * (luckCrit ? 1.5 : 1))));
       const updated: BattleState = {
-        ...battle,
-        bossEnergy: 0,
-        bossHp: battle.bossHp - damage,
-        damageDealt: battle.damageDealt + damage,
-        comboStreak: battle.comboStreak + 1,
-        turn: battle.turn + 1,
-        blocking: false,
-        lastHit: { damage, crit: false, missed: false },
-        lastSkillId: 'power',
-        log: [...battle.log, `💥 Сильный удар: −${damage} HP`].slice(-15),
+        ...battle, bossHp: battle.bossHp - damage, damageDealt: battle.damageDealt + damage,
+        comboStreak: battle.comboStreak + 1, bossEnergy: nextEnergy, turn: battle.turn + 1,
+        lastHit: { damage, crit: luckCrit, missed: false }, lastSkillId: skill.id,
+        log: [...battle.log, `${skill.icon} ${skill.name}: −${damage} HP${luckCrit ? ' (крит)' : ''}`].slice(-15),
       };
       return updated.bossHp <= 0
         ? bossKilled(current, updated)
-        : { ...current, battle: updated, lastMessage: `Сильный удар: −${damage} HP.` };
+        : { ...current, battle: updated, lastMessage: `${skill.name}: −${damage} HP. Шанс комнаты: ${Math.round(roomDropChance(updated.damageDealt) * 100)}%.` };
     }
     case 'BATTLE_ATTACK': {
       if (!state.battle || state.battle.outcome !== 'fighting') return state;

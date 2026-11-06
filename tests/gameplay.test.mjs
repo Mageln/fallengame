@@ -173,22 +173,52 @@ test('old saves preserve their current room and get safe new defaults', () => {
   assert.equal(act(loaded, 'CHANGE_LOCATION', { locationId: 'location4' }).currentLocation, 'location4');
 });
 
-test('boss energy charges on successful hits and powers a strong attack', () => {
+test('boss has four abilities with separate energy costs and no old skills', () => {
   let state = act(createInitialState(), 'START_BOSS_FIGHT', { bossId: '1' });
-  state = { ...state, battle: { ...state.battle, bossHp: 10000, bossMaxHp: 10000 } };
+  state = { ...state, battle: { ...state.battle, bossHp: 10000, playerHp: state.battle.playerMaxHp - 10 } };
   const now = state.battle.startedAt + 1;
-  assert.equal(state.battle.bossEnergy, 0);
-  const tooEarly = act(state, 'BOSS_POWER_ATTACK', { now });
-  assert.equal(tooEarly.battle.bossHp, state.battle.bossHp);
+  const initialHp = state.battle.bossHp;
+  for (const skillId of ['weapon', 'block', 'heal', 'hook', 'critical']) {
+    const rejected = act(state, 'BOSS_SKILL', { skillId, now });
+    assert.equal(rejected.battle.bossHp, initialHp);
+    assert.equal(rejected.battle.bossEnergy, 0);
+  }
   for (let i = 0; i < 6; i++) state = act(state, 'BOSS_SKILL', { skillId: 'jab', now: now + i });
   assert.equal(state.battle.bossEnergy, 100);
   const hp = state.battle.bossHp;
-  const total = state.battle.damageDealt;
-  state = act(state, 'BOSS_POWER_ATTACK', { now: now + 10 });
-  assert.equal(state.battle.bossEnergy, 0);
-  assert.ok(hp - state.battle.bossHp > 8);
-  assert.equal(state.battle.damageDealt - total, hp - state.battle.bossHp);
-  assert.equal(act(state, 'BOSS_POWER_ATTACK', { now: now + 11 }).battle.bossHp, state.battle.bossHp);
+  const bullets = state.bullets;
+  state = act(state, 'BOSS_SKILL', { skillId: 'weapon', now: now + 10 });
+  assert.equal(state.battle.bossEnergy, 90);
+  assert.ok(state.battle.bossHp < hp);
+  assert.equal(state.bullets, bullets);
+  state = act(state, 'BOSS_SKILL', { skillId: 'block', now: now + 11 });
+  assert.equal(state.battle.bossEnergy, 70);
+  assert.equal(state.battle.blocking, true);
+  assert.equal(act(state, 'BOSS_SKILL', { skillId: 'block', now: now + 12 }).battle.bossEnergy, 70);
+  const damagedHp = state.battle.playerHp;
+  state = act(state, 'BOSS_SKILL', { skillId: 'heal', now: now + 13 });
+  assert.equal(state.battle.bossEnergy, 20);
+  assert.equal(state.battle.playerHp, state.battle.playerMaxHp);
+  assert.ok(state.battle.playerHp > damagedHp);
+  assert.equal(state.battle.blocking, true);
+  const tick = act(state, 'BOSS_TICK', { now: state.battle.startedAt + 8000 });
+  assert.equal(tick.battle.blocking, false);
+  assert.ok(tick.battle.playerHp < state.battle.playerHp);
+  assert.equal(act(state, 'BATTLE_POWER').battle.bossHp, state.battle.bossHp);
+  assert.equal(act(state, 'BOSS_POWER_ATTACK', { now: now + 14 }).battle.bossHp, state.battle.bossHp);
+});
+
+test('boss weapon damage depends on equipped weapon, healing and block do not waste energy', () => {
+  let state = act(createInitialState(), 'START_BOSS_FIGHT', { bossId: '1' });
+  const now = state.battle.startedAt + 1;
+  state = { ...state, battle: { ...state.battle, bossHp: 10000, bossEnergy: 100, playerHp: state.battle.playerMaxHp } };
+  assert.equal(act(state, 'BOSS_SKILL', { skillId: 'heal', now }).battle.bossEnergy, 100);
+  const normal = act(state, 'BOSS_SKILL', { skillId: 'weapon', now });
+  const powerful = act({ ...state, weapon: { ...state.weapon, baseDamage: state.weapon.baseDamage + 20 } }, 'BOSS_SKILL', { skillId: 'weapon', now });
+  assert.ok(powerful.battle.bossHp < normal.battle.bossHp);
+  const broken = act({ ...state, weapon: { ...state.weapon, broken: true } }, 'BOSS_SKILL', { skillId: 'weapon', now });
+  assert.equal(broken.battle.bossEnergy, 100);
+  assert.equal(broken.battle.bossHp, state.battle.bossHp);
 });
 
 test('test mode allows attacking an exhausted boss without consuming or buying attacks', () => {
@@ -358,8 +388,10 @@ test('shop weapons improve boss arena damage', () => {
   state = act(state, 'BUY_SHOP_ITEM', { category: 'weapon', itemId: 'shop_bat', currency: 'gold' });
   const baseline = act(state, 'START_BOSS_FIGHT', { bossId: '2' });
   const upgraded = act(act(state, 'EQUIP_SHOP_WEAPON', { weaponId: 'shop_bat' }), 'START_BOSS_FIGHT', { bossId: '2' });
-  const normal = act(baseline, 'BOSS_SKILL', { skillId: 'jab', now: baseline.battle.startedAt + 1 });
-  const better = act(upgraded, 'BOSS_SKILL', { skillId: 'jab', now: upgraded.battle.startedAt + 1 });
+  const chargedBaseline = act(baseline, 'BOSS_SKILL', { skillId: 'jab', now: baseline.battle.startedAt + 1 });
+  const chargedUpgraded = act(upgraded, 'BOSS_SKILL', { skillId: 'jab', now: upgraded.battle.startedAt + 1 });
+  const normal = act(chargedBaseline, 'BOSS_SKILL', { skillId: 'weapon', now: baseline.battle.startedAt + 2 });
+  const better = act(chargedUpgraded, 'BOSS_SKILL', { skillId: 'weapon', now: upgraded.battle.startedAt + 2 });
   assert.ok(better.battle.lastHit.damage > normal.battle.lastHit.damage);
 });
 

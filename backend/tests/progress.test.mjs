@@ -54,6 +54,11 @@ import { applyCombatAction, advanceCombat } from '../dist/progressCombat.js';
 test('boss actions reject client-provided clock and enforce server attack interval', () => {
   assert.equal(parseProgressAction({ type: 'BOSS_SKILL', skillId: 'jab', now: 9999999999 }), null);
   assert.equal(parseProgressAction({ type: 'BOSS_TICK', now: 9999999999 }), null);
+  assert.equal(parseProgressAction({ type: 'BOSS_POWER_ATTACK' }), null);
+  assert.equal(parseProgressAction({ type: 'BOSS_SKILL', skillId: 'hook' }), null);
+  for (const skillId of ['jab', 'weapon', 'block', 'heal']) {
+    assert.deepEqual(parseProgressAction({ type: 'BOSS_SKILL', skillId }), { type: 'BOSS_SKILL', skillId });
+  }
   const clock = Date.now;
   try {
     Date.now = () => 100000;
@@ -67,6 +72,32 @@ test('boss actions reject client-provided clock and enforce server attack interv
     assert.ok(next.battle.bossHp < hit.battle.bossHp);
     const expired = advanceCombat(next, started.battle.endsAt + 1);
     assert.notEqual(expired.battle.outcome, 'fighting');
+  } finally { Date.now = clock; }
+});
+
+test('server boss abilities enforce energy costs and reject old combat bypasses', () => {
+  const clock = Date.now;
+  try {
+    Date.now = () => 200000;
+    let state = applyCombatAction(createInitialState(), parseProgressAction({ type: 'START_BOSS_FIGHT', bossId: '1' }), Date.now());
+    state = { ...state, battle: { ...state.battle, bossHp: 10000, playerHp: 50 } };
+    const command = (skillId) => parseProgressAction({ type: 'BOSS_SKILL', skillId });
+    const noEnergy = applyCombatAction(state, command('weapon'), 200001);
+    assert.equal(noEnergy.battle.bossHp, state.battle.bossHp);
+    for (let i = 0; i < 4; i++) state = applyCombatAction(state, command('jab'), 200100 + i * 250);
+    assert.equal(state.battle.bossEnergy, 80);
+    const beforeHp = state.battle.bossHp;
+    state = applyCombatAction(state, command('weapon'), 201100);
+    assert.equal(state.battle.bossEnergy, 70);
+    assert.ok(state.battle.bossHp < beforeHp);
+    state = applyCombatAction(state, command('block'), 201350);
+    assert.equal(state.battle.bossEnergy, 50);
+    assert.equal(state.battle.blocking, true);
+    state = applyCombatAction(state, command('heal'), 201600);
+    assert.equal(state.battle.bossEnergy, 0);
+    assert.ok(state.battle.playerHp > 50);
+    const bypass = applyCombatAction(state, parseProgressAction({ type: 'BATTLE_POWER' }), 201850);
+    assert.equal(bypass.battle.bossHp, state.battle.bossHp);
   } finally { Date.now = clock; }
 });
 
