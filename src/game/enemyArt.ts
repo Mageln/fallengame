@@ -14,6 +14,7 @@ const MEDIC = art('arena-medic');
 // существующие сохранения тоже показывали изображение в полный рост.
 const BOSS_ART: Record<string, EnemyArt> = {
   '1': MIKHALYCH, '2': DEPARTMENT, '3': TYUMEN, '4': SOTNIK,
+  zombie: art('zombie'), zombie_brute: art('brute'),
   resident: MIKHALYCH, citizen: MIKHALYCH, angry: MIKHALYCH,
   police: DEPARTMENT, marauder: MIKHALYCH, smuggler: TYUMEN,
   preacher: TYUMEN, aristocrat: SOTNIK, general: SOTNIK, gast: SOTNIK,

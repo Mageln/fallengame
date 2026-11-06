@@ -194,17 +194,40 @@ export const advanceBossClock = (state: GameState, now: number): GameState => {
   const battle = normalizeBattle(state.battle);
   const strikes = Math.max(0, Math.floor((now - battle.lastCounterAt) / BOSS_COUNTER_MS));
   let playerHp = battle.playerHp;
+  let counterLog = battle.log;
   if (strikes > 0) {
-    const perStrike = Math.max(2, Math.floor(bossBaseDamage(battle.bossMaxHp) / 2));
     const reduction = Math.min(0.9, 0.6 + (state.profileSkills?.block ?? 0) * SKILL_BLOCK_PERCENT / 100);
-    playerHp = Math.max(1, playerHp - strikes * perStrike + (battle.blocking ? Math.floor(perStrike * reduction) : 0));
+    const zombie = battle.bossId === 'zombie' || battle.bossId === 'zombie_brute'
+      ? BOSSES.find((boss) => boss.id === battle.bossId) : undefined;
+    if (zombie) {
+      // Время первого удара и номер последнего удара сохраняются в BattleState.
+      // Так одна большая пауза и несколько отдельных тиков дают одинаковый результат.
+      const previous = Math.max(0, Math.floor((battle.lastCounterAt - battle.startedAt) / BOSS_COUNTER_MS));
+      const strongCount = zombie.id === 'zombie_brute'
+        ? Math.floor((previous + strikes) / 3) - Math.floor(previous / 3) : 0;
+      const normalCount = strikes - strongCount;
+      const firstStrong = zombie.id === 'zombie_brute' && (previous + 1) % 3 === 0;
+      const firstDamage = zombie.damage * (firstStrong ? 2 : 1);
+      const blocked = battle.blocking ? Math.floor(firstDamage * reduction) : 0;
+      const damage = normalCount * zombie.damage + strongCount * zombie.damage * 2 - blocked;
+      playerHp = Math.max(1, playerHp - damage);
+      const actualDamage = battle.playerHp - playerHp;
+      const attack = strikes === 1
+        ? (firstStrong ? 'Сильная атака' : 'Обычная атака')
+        : `Атаки: обычных ${normalCount}, сильных ${strongCount}`;
+      counterLog = appendBossLog(battle.log, `${battle.bossName}: ${attack}, −${actualDamage} HP${battle.blocking ? ' (блок)' : ''}.`);
+    } else {
+      const perStrike = Math.max(2, Math.floor(bossBaseDamage(battle.bossMaxHp) / 2));
+      playerHp = Math.max(1, playerHp - strikes * perStrike + (battle.blocking ? Math.floor(perStrike * reduction) : 0));
+      counterLog = appendBossLog(battle.log, `${battle.bossName}: ${strikes} ответных ударов в фоне.`);
+    }
   }
   const next = {
     ...battle,
     playerHp,
     blocking: strikes > 0 ? false : battle.blocking,
     lastCounterAt: battle.lastCounterAt + strikes * BOSS_COUNTER_MS,
-    log: strikes > 0 ? appendBossLog(battle.log, `${battle.bossName}: ${strikes} ответных ударов в фоне.`) : battle.log,
+    log: counterLog,
   };
   return strikes > 0 ? { ...state, battle: next } : state;
 };

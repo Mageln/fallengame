@@ -46,7 +46,7 @@ export const BossHub = ({ onClose }: { onClose: () => void }) => {
       {battle?.source === 'boss' && <button type="button" className={styles.primary} onClick={() => dispatch({ type: 'OPEN_BATTLE' })}>{battle.outcome === 'fighting' ? '↩ ВЕРНУТЬСЯ В ТЕКУЩИЙ БОЙ' : '↩ ОТКРЫТЬ ИТОГИ БОЯ'}</button>}
       {battle && battle.source !== 'boss' && <p className={styles.notice}>Сначала завершите текущий бой на экране игры.</p>}
       <div className={styles.roster}>
-        {BOSSES.filter((boss) => ['1', '2', '3', '4'].includes(boss.id)).map((boss) => {
+        {BOSSES.filter((boss) => ['1', '2', '3', '4', 'zombie', 'zombie_brute'].includes(boss.id)).map((boss) => {
           const entry = entryFor(boss.id);
           const total = boss.dailyLimit + entry.purchased;
           const left = Math.max(0, total - entry.used);

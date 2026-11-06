@@ -14,9 +14,9 @@ test('the second phase activates at exactly half HP', () => {
   }
 });
 
-test('four bosses and three arena opponents have existing portraits and two distinct images', async () => {
+test('six bosses and three arena opponents have existing portraits and two distinct images', async () => {
   const portraits = new Set();
-  for (const art of [...['1', '2', '3', '4'].map(getBossArt), ...['raider', 'guard', 'medic'].map(getArenaArt)]) {
+  for (const art of [...['1', '2', '3', '4', 'zombie', 'zombie_brute'].map(getBossArt), ...['raider', 'guard', 'medic'].map(getArenaArt)]) {
     assert.notEqual(art.normal, art.enraged);
     portraits.add(art.face);
     for (const src of [art.face, art.normal, art.enraged]) {
@@ -24,7 +24,7 @@ test('four bosses and three arena opponents have existing portraits and two dist
       assert.equal(bytes.subarray(1, 4).toString(), 'PNG', src);
     }
   }
-  assert.equal(portraits.size, 6); // Страж использует образ Департамента.
+  assert.equal(portraits.size, 8); // Страж использует образ Департамента.
   assert.equal(getBossArt('constructor').normal, getBossArt('1').normal);
   assert.equal(getArenaArt('constructor').normal, getArenaArt('raider').normal);
 });

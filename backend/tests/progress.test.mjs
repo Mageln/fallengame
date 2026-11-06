@@ -287,3 +287,19 @@ test('server allows boss fights without health or medkits and keeps arena attemp
   assert.equal(state.arena.used, 5);
   assert.equal(state.arena.battle, null);
 });
+
+test('server executes zombie attacks and preserves the brute attack sequence after reload', () => {
+  for (const id of ['zombie', 'zombie_brute']) {
+    const action = parseProgressAction({ type: 'START_BOSS_FIGHT', bossId: id });
+    assert.ok(action);
+    let state = applyCombatAction(createInitialState(), action, Date.now());
+    state = { ...state, battle: { ...state.battle, playerHp: 1000, playerMaxHp: 1000 } };
+    const start = state.battle.startedAt;
+    state = advanceCombat(state, start + 16_000);
+    state = JSON.parse(JSON.stringify(state));
+    state = advanceCombat(state, start + 24_000);
+    assert.equal(state.battle.playerHp, id === 'zombie' ? 976 : 944);
+    assert.match(state.battle.log.at(-1), id === 'zombie' ? /Обычная атака/ : /Сильная атака/);
+    assert.equal(state.battle.outcome, 'fighting');
+  }
+});
