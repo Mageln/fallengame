@@ -1,3 +1,4 @@
+import { ResourceIcon } from '../components/ResourceIcon';
 import { Panel, PanelHeader, Group, Button, Text, Header, Box, Cell } from '@vkontakte/vkui';
 import { Icon28ArrowLeftOutline } from '@vkontakte/icons';
 import { useRouteNavigator } from '@vkontakte/vk-mini-apps-router';
@@ -78,7 +79,7 @@ export const Workshop = ({ id }: Props) => {
             disabled={!state.weapon.broken}
             onClick={() => dispatch({ type: 'REPAIR_WEAPON' })}
           >
-            🔧 Починить ({repairCost} 🔥)
+            🔧 Починить ({repairCost} <ResourceIcon name="matches" />)
           </Button>
         </Box>
       </Group>

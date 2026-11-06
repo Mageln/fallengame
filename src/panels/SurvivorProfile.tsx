@@ -1,3 +1,4 @@
+import { ResourceIcon } from '../components/ResourceIcon';
 import { useEffect, useState } from 'react';
 import { useGame } from '../game/GameContext';
 import { getDistrict, levelUpCost } from '../game/formulas';
@@ -55,7 +56,7 @@ export const SurvivorProfile = ({ onClose, onWorkshop, onBosses, onInventory, on
         </div>
         <article className={styles.upgrade}>
           <div><small>ТЕКУЩИЙ УРОВЕНЬ · {format(state.level)}</small><h3>Уровень персонажа</h3><p>+1 уровень и +3 припасов. Опыт не расходуется.</p></div>
-          <button type="button" disabled={state.bullets < levelUpCost(state.level)} onClick={() => { dispatch({ type: 'UPGRADE_LEVEL' }); setFeedback(state.lastMessage); }}>ПОВЫСИТЬ · {format(levelUpCost(state.level))} 🔫</button>
+          <button type="button" disabled={state.bullets < levelUpCost(state.level)} onClick={() => { dispatch({ type: 'UPGRADE_LEVEL' }); setFeedback(state.lastMessage); }}>ПОВЫСИТЬ · {format(levelUpCost(state.level))} <ResourceIcon name="bullets" /></button>
         </article>
         {feedback !== null && <p className={styles.feedback} role="status">{state.lastMessage === feedback ? 'Ожидаем результат…' : state.lastMessage}</p>}
         <div className={styles.sectionHeading}><div><small>БОЕВАЯ ПОДГОТОВКА</small><h3>ХАРАКТЕРИСТИКИ</h3></div><span>ДАННЫЕ АКТУАЛЬНЫ</span></div>
@@ -78,7 +79,7 @@ export const SurvivorProfile = ({ onClose, onWorkshop, onBosses, onInventory, on
           const maxed = level >= SKILL_MAX_LEVEL;
           return <article className={styles.skill} key={skill.id}>
             <img src={skill.icon} alt="" /><div className={styles.skillInfo}><small>УРОВЕНЬ {level} / {SKILL_MAX_LEVEL}</small><h3>{skill.name}</h3><p>{skill.description}</p><progress value={level} max={SKILL_MAX_LEVEL} aria-label={`Уровень навыка ${skill.name}`} /></div>
-            <button type="button" disabled={maxed || !!state.battle || state.bullets < cost} onClick={() => { dispatch({ type: 'UPGRADE_PROFILE_SKILL', skillId: skill.id }); setFeedback(state.lastMessage); }}>{maxed ? 'МАКСИМУМ' : `УЛУЧШИТЬ · ${format(cost)} 🔫`}</button>
+            <button type="button" disabled={maxed || !!state.battle || state.bullets < cost} onClick={() => { dispatch({ type: 'UPGRADE_PROFILE_SKILL', skillId: skill.id }); setFeedback(state.lastMessage); }}>{maxed ? 'МАКСИМУМ' : <>УЛУЧШИТЬ · {format(cost)} <ResourceIcon name="bullets" /></>}</button>
           </article>;
         })}</div>
         {feedback !== null && <p className={styles.feedback} role="status">{state.lastMessage === feedback ? 'Ожидаем результат…' : state.lastMessage}</p>}

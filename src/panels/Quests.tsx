@@ -1,3 +1,4 @@
+import { ResourceIcon } from '../components/ResourceIcon';
 import { Panel, PanelHeader, Group, Button, Text, Header, Box, Card } from '@vkontakte/vkui';
 import { Icon28ArrowLeftOutline } from '@vkontakte/icons';
 import { useRouteNavigator } from '@vkontakte/vk-mini-apps-router';
@@ -75,10 +76,10 @@ export const Quests = ({ id }: Props) => {
 
               {/* Rewards */}
               <Box style={{ display: 'flex', gap: 12, marginTop: 8, fontSize: 12 }}>
-                {quest.rewardBullets > 0 && <Text>🔫+{quest.rewardBullets}</Text>}
-                {quest.rewardMatches > 0 && <Text>🔥+{quest.rewardMatches}</Text>}
-                {quest.rewardGrenades > 0 && <Text>💣+{quest.rewardGrenades}</Text>}
-                {quest.rewardGold > 0 && <Text>🪙+{quest.rewardGold}</Text>}
+                {quest.rewardBullets > 0 && <Text><ResourceIcon name="bullets" />+{quest.rewardBullets}</Text>}
+                {quest.rewardMatches > 0 && <Text><ResourceIcon name="matches" />+{quest.rewardMatches}</Text>}
+                {quest.rewardGrenades > 0 && <Text><ResourceIcon name="grenades" />+{quest.rewardGrenades}</Text>}
+                {quest.rewardGold > 0 && <Text><ResourceIcon name="supplies" />+{quest.rewardGold}</Text>}
               </Box>
 
               {/* Claim button */}

@@ -1,3 +1,4 @@
+import { ResourceIcon } from '../components/ResourceIcon';
 import { useState, useEffect } from 'react';
 import { Panel, PanelHeader, Group, Button, Text, Header, Box, Cell } from '@vkontakte/vkui';
 import { Icon28ArrowLeftOutline } from '@vkontakte/icons';
@@ -246,7 +247,7 @@ export const Battle = ({ id }: Props) => {
               🔥 Приём (+35%)
             </Button>
             <Button mode="secondary" disabled={state.medkits <= 0} onClick={() => { dispatch({ type: 'BATTLE_HEAL' }); playSound('heal'); }}>
-              💊 Аптечка ({state.medkits})
+              <ResourceIcon name="medkits" /> Аптечка ({state.medkits})
             </Button>
           </Box>
           
@@ -261,7 +262,7 @@ export const Battle = ({ id }: Props) => {
                   disabled={state.grenades < count}
                   onClick={() => { dispatch({ type: 'BATTLE_GRENADES', count }); playSound('grenade'); }}
                 >
-                  💣 x{count} ({count * 12} ур.)
+                  <ResourceIcon name="grenades" /> x{count} ({count * 12} ур.)
                 </Button>
               ))}
             </Box>

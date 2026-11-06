@@ -1,3 +1,4 @@
+import { ResourceIcon } from '../components/ResourceIcon';
 import { RAID_LOOT_EXPERIENCE } from '../game/experience';
 import { Panel, PanelHeader, Group, Button, Text, Header, Box, Cell } from '@vkontakte/vkui';
 import { Icon28ArrowLeftOutline } from '@vkontakte/icons';
@@ -48,7 +49,7 @@ export const Raid = ({ id }: Props) => {
           return (
             <Cell
               key={raid.id}
-              subtitle={`${raid.energy} ⚡ | ⭐+${RAID_LOOT_EXPERIENCE} опыта | 🔥+${raid.matches} 💣+${raid.grenades} 💊+${raid.medkits} ${isHighDrop ? '• Повышенный дроп!' : ''}`}
+              subtitle={<>{raid.energy} <ResourceIcon name="energy" /> | ⭐+{RAID_LOOT_EXPERIENCE} опыта | <ResourceIcon name="matches" />+{raid.matches} <ResourceIcon name="grenades" />+{raid.grenades} <ResourceIcon name="medkits" />+{raid.medkits} {isHighDrop ? '• Повышенный дроп!' : ''}</>}
               after={
                 <Button size="s" onClick={() => dispatch({ type: 'START_RAID', raidId: raid.id })}>
                   Войти
@@ -86,7 +87,7 @@ export const Raid = ({ id }: Props) => {
             </Button>
             {!state.raid.pathClear && state.raid.scouted && (
               <Button mode="secondary" onClick={() => dispatch({ type: 'RAID_BYPASS' })}>
-                🚶 Обойти (10⚡)
+                🚶 Обойти (10 <ResourceIcon name="energy" />)
               </Button>
             )}
             <Button 

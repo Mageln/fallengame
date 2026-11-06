@@ -264,6 +264,8 @@ export const useCanvas = (
       profileData,
       flags,
       {
+        energy: icons.energy || null,
+        premium: icons.premium || null,
         personaz: icons.personaz || null,
         boss: icons.boss || null,
         clans: icons.clans || null,
@@ -436,7 +438,6 @@ export const useCanvas = (
 
   // Рендер когда нужно
   useEffect(() => {
-    if (!needsRenderRef.current) return;
     render();
   }, [render]);
 

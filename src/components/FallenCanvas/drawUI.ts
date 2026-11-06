@@ -509,7 +509,7 @@ const drawTopBar = (
   buttons.push({ x: profileX, y: profileY, width: profileSize, height: profileSize, id: 'go_profile' });
   
   // ===== РЕСУРСЫ (правая часть) =====
-  // Иконки из public/icon/resource: zheton.png, gold.png, spicki.png, bullets.png, energy.png
+  // Иконки ресурсов загружаются вместе с остальными изображениями интерфейса.
 
   const resIconSize = 18;
   const resCenterY = 27;   // единая вертикальная ось для всей капсулы
@@ -604,12 +604,12 @@ const drawTopBar = (
   // Тестовый режим: "+" у каждого ресурса пополняет его через ADD_RESOURCE.
   // Позже здесь будет покупка за донат (открытие магазина вместо бесплатного начисления).
   // Премиум-золото не смешиваем с игровыми припасами — у него свой магазин.
-  drawResource(zhetons, null, '🎟️', '#d8d0c0', 'restore_zhetons');
-  drawResource(spicki, null, '🪵', '#d8d0c0', 'restore_spicki');
-  drawResource(bullets, null, '🔫', '#d8d0c0', 'restore_bullets');
-  drawResource(gold, null, '💰', '#c9a227', 'restore_gold');
-  drawResource(premiumGold, null, '🪙', '#c9a227', 'open_donation_shop');
-  drawResource(`${energy}/${maxEnergy}`, icons.energy, '⚡', '#d8d0c0', 'restore_energy');
+  drawResource(zhetons, icons.zhetons, 'Ж', '#d8d0c0', 'restore_zhetons');
+  drawResource(spicki, icons.spicki, 'С', '#d8d0c0', 'restore_spicki');
+  drawResource(bullets, icons.bullets, 'П', '#d8d0c0', 'restore_bullets');
+  drawResource(gold, icons.gold, 'Р', '#c9a227', 'restore_gold');
+  drawResource(premiumGold, icons.premium, 'З', '#c9a227', 'open_donation_shop');
+  drawResource(`${energy}/${maxEnergy}`, icons.energy, 'Э', '#d8d0c0', 'restore_energy');
 
   // ===== КНОПКА FULLSCREEN (правее ресурсов, на одном уровне) =====
   // currentX указывает на левый край последней капсулы — рисуем кнопку левее
@@ -749,7 +749,8 @@ export const drawUI = (
       profileData,
       true,
       hoveredX,
-      hoveredY
+      hoveredY,
+      icons
     );
   } else if (flags.showBossModal) {
     overlayButtons = [];
@@ -758,7 +759,7 @@ export const drawUI = (
     overlayButtons.push({ x: width / 2 - 60, y: height - 80, width: 120, height: 35, id: 'back_to_main' });
   } else if (flags.showMap) {
     overlayButtons = [];
-    drawMapRaids(ctx, width, height, mapRaids, hoveredX, hoveredY, overlayButtons, mapImage, mapMessage);
+    drawMapRaids(ctx, width, height, mapRaids, hoveredX, hoveredY, overlayButtons, mapImage, mapMessage, icons.energy);
   }
 
   // ===== Верхняя панель (рисуется ПОСЛЕДНЕЙ — видна везде, поверх оверлеев) =====

@@ -1,3 +1,4 @@
+import { ResourceIcon } from '../components/ResourceIcon';
 import { Panel, PanelHeader, Group, Button, Text, Header, Box, Card } from '@vkontakte/vkui';
 import { Icon28ArrowLeftOutline } from '@vkontakte/icons';
 import { useRouteNavigator } from '@vkontakte/vk-mini-apps-router';
@@ -64,8 +65,8 @@ export const Crafting = ({ id }: Props) => {
               </Box>
             );
           })}
-          <Box style={{ background: '#222', padding: '6px 10px', borderRadius: 8 }}>🔥 {state.matches}</Box>
-          <Box style={{ background: '#222', padding: '6px 10px', borderRadius: 8 }}>🎫 {state.zhetons}</Box>
+          <Box style={{ background: '#222', padding: '6px 10px', borderRadius: 8 }}><ResourceIcon name="matches" /> {state.matches}</Box>
+          <Box style={{ background: '#222', padding: '6px 10px', borderRadius: 8 }}><ResourceIcon name="tokens" /> {state.zhetons}</Box>
         </Box>
       </Group>
 
@@ -117,8 +118,8 @@ export const Crafting = ({ id }: Props) => {
                 {recipe.cost.map((cost, i) => {
                   const has = getInventoryCount(cost.itemId);
                   const costItem = INVENTORY_ITEMS.find((ci) => ci.id === cost.itemId);
-                  const name = cost.itemId === 'matches' ? '🔥 спичек'
-                    : cost.itemId === 'zhetons' ? '🎫 жетонов'
+                  const name = cost.itemId === 'matches' ? <><ResourceIcon name="matches" /> спичек</>
+                    : cost.itemId === 'zhetons' ? <><ResourceIcon name="tokens" /> жетонов</>
                     : `${costItem?.icon || ''} ${costItem?.name || cost.itemId}`;
                   return (
                     <Box
@@ -161,7 +162,7 @@ export const Crafting = ({ id }: Props) => {
               disabled={state.zhetons < 5}
               onClick={() => dispatch({ type: 'FORGE_ITEM' })}
             >
-              5 🎫
+              5 <ResourceIcon name="tokens" />
             </Button>
           </Box>
         </Card>

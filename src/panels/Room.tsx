@@ -1,3 +1,4 @@
+import { ResourceIcon, ResourceText } from '../components/ResourceIcon';
 import { useEffect, useState } from 'react';
 import { useGame } from '../game/GameContext';
 import { BACKEND_URL } from '../config/vkConfig';
@@ -166,7 +167,7 @@ export const RoomModal = ({ onClose }: Props) => {
         </header>
 
         <div className={styles.balanceRow}>
-          <span className={styles.capsPill}>🥤 {number(state.caps)} крышек</span>
+          <span className={styles.capsPill}><ResourceIcon name="caps" /> {number(state.caps)} крышек</span>
           {!serverMode && <button
             type="button"
             className={styles.plainButton}
@@ -175,7 +176,7 @@ export const RoomModal = ({ onClose }: Props) => {
           >
             +
           </button>}
-          <button type="button" className={styles.plainButton} onClick={() => setShowTopUp(true)}>🥤 Пополнить</button>
+          <button type="button" className={styles.plainButton} onClick={() => setShowTopUp(true)}><ResourceIcon name="caps" /> Пополнить</button>
           <button type="button" className={styles.plainButton} onClick={() => { setHintRoomId(null); setShowHint(true); }}>? Как получить?</button>
         </div>
 
@@ -183,7 +184,7 @@ export const RoomModal = ({ onClose }: Props) => {
           <strong>ВАШЕ УБЕЖИЩЕ</strong>
           <span>🏠 Комната: {roomName}</span>
           <span>🛏️ Кровать: {state.shelterBed ? 'установлена · +50% к максимуму энергии при покупке' : 'не установлена'}</span>
-          <span>⚡ Генератор: {state.shelterGenerator ? 'работает · восстановление энергии ×2' : 'не установлен'}</span>
+          <span><ResourceIcon name="energy" /> Генератор: {state.shelterGenerator ? 'работает · восстановление энергии ×2' : 'не установлен'}</span>
         </section>
 
         <nav className={styles.tabs} role="tablist" aria-label="Разделы убежища">
@@ -234,12 +235,12 @@ export const RoomModal = ({ onClose }: Props) => {
                         <h4>{item.name}</h4>
                         <p>{item.description}</p>
                       </div>
-                      <span className={`${styles.price} ${!affordable && !owned ? styles.priceLocked : ''}`}>{owned ? 'УСТАНОВЛЕНО' : `🥤 ${item.price}`}</span>
+                      <span className={`${styles.price} ${!affordable && !owned ? styles.priceLocked : ''}`}>{owned ? 'УСТАНОВЛЕНО' : <><ResourceIcon name="caps" /> {item.price}</>}</span>
                     </button>
                   );
                 })}
               </div>
-              {state.lastMessage && <p className={styles.status} role="status">Последнее действие: {state.lastMessage}</p>}
+              {state.lastMessage && <p className={styles.status} role="status">Последнее действие: <ResourceText text={state.lastMessage} /></p>}
             </section>
           )}
 
@@ -259,7 +260,7 @@ export const RoomModal = ({ onClose }: Props) => {
                       ) : (previewSkin.price === 0 || state.ownedSkins.includes(previewSkin.id)) ? (
                         <button type="button" className={styles.accept} onClick={() => applySkin(previewSkin.id)}>ПРИМЕНИТЬ</button>
                       ) : (
-                        <button type="button" className={styles.redButton} onClick={() => buySkin(previewSkin.id)}>КУПИТЬ 🥤 {previewSkin.price}</button>
+                        <button type="button" className={styles.redButton} onClick={() => buySkin(previewSkin.id)}>КУПИТЬ <ResourceIcon name="caps" /> {previewSkin.price}</button>
                       )}
                     </div>
                   </div>
@@ -280,7 +281,7 @@ export const RoomModal = ({ onClose }: Props) => {
                     >
                       <img className={styles.miniSwatch} src={`/${skin.bg}`} alt="" />
                       <span className={styles.skinName}>{skin.name}</span>
-                      <span className={styles.skinStatus}>{applied ? 'Применено' : owned ? 'Куплено' : `🥤 ${skin.price}`}</span>
+                      <span className={styles.skinStatus}>{applied ? 'Применено' : owned ? 'Куплено' : <><ResourceIcon name="caps" /> {skin.price}</>}</span>
                     </button>
                   );
                 })}
@@ -288,7 +289,7 @@ export const RoomModal = ({ onClose }: Props) => {
             </section>
           )}
 
-          {toast && <p className={styles.status} role="status">{toast}</p>}
+          {toast && <p className={styles.status} role="status"><ResourceText text={toast} /></p>}
         </div>
       </section>
 
@@ -299,7 +300,7 @@ export const RoomModal = ({ onClose }: Props) => {
             <p className={styles.paperEyebrow}>ЗАПИСКА № 002 · ТОЛЬКО ДЛЯ СВОИХ</p>
             <h3>📌 Как открыть убежище</h3>
             <ol className={styles.steps}>
-              {steps.map((step) => <li key={step}>{step}</li>)}
+              {steps.map((step) => <li key={step}><ResourceText text={step} /></li>)}
             </ol>
             <p className={styles.warning}>⚠️ За стеной бродят они… не задерживайся.</p>
             <div className={styles.actions}><button type="button" className={styles.redButton} onClick={() => setShowHint(false)}>ПОНЯТНО</button></div>
@@ -317,7 +318,7 @@ export const RoomModal = ({ onClose }: Props) => {
               <p role="status">Покупка пока недоступна: платежи VK ещё не подключены. Списания не будет.</p>
               {catalogError ? <p>Не удалось загрузить каталог.</p> : products === null ? <p>Загрузка каталога…</p> :
                 <div className={styles.packList}>{products.map((product) => <div className={styles.packCard} key={product.id}>
-                  <span>{product.name}</span><strong>🥤 {number(product.amount)}</strong>
+                  <span>{product.name}</span><strong><ResourceIcon name="caps" /> {number(product.amount)}</strong>
                   <span className={styles.packPrice}>{number(product.priceVotes)} голосов VK · недоступно</span>
                 </div>)}</div>}
             </> : <>
@@ -336,7 +337,7 @@ export const RoomModal = ({ onClose }: Props) => {
                   }}
                 >
                   <span>Пакет «{pack.id}»</span>
-                  <strong>🥤 {number(pack.caps + pack.bonus)}</strong>
+                  <strong><ResourceIcon name="caps" /> {number(pack.caps + pack.bonus)}</strong>
                   <span className={styles.packPrice}>₽ {pack.price} · тест</span>
                 </button>
               ))}
@@ -354,10 +355,10 @@ export const RoomModal = ({ onClose }: Props) => {
             <p className={styles.paperEyebrow}>ЗАПИСКА ТОРГОВЦА · СДЕЛКА</p>
             <h3>Подтвердить покупку</h3>
             <div className={styles.confirmLine}>
-              <span className={styles.confirmIcon} aria-hidden="true">{confirmInfo.icon}</span>
+              <span className={styles.confirmIcon} aria-hidden="true">{confirmInfo.icon === '🥤' ? <ResourceIcon name="caps" /> : confirmInfo.icon}</span>
               <div><strong>{confirmInfo.name}</strong><p>{confirmInfo.description}</p></div>
             </div>
-            <p className={styles.paperPrice}>К оплате: 🥤 {confirmInfo.price} · у вас {number(state.caps)}</p>
+            <p className={styles.paperPrice}>К оплате: <ResourceIcon name="caps" /> {confirmInfo.price} · у вас {number(state.caps)}</p>
             <div className={styles.actions}>
               <button type="button" className={styles.redButton} onClick={confirmBuy}>КУПИТЬ</button>
               <button type="button" className={styles.plainButton} onClick={() => setConfirm(null)}>ОТМЕНА</button>
@@ -366,7 +367,7 @@ export const RoomModal = ({ onClose }: Props) => {
         </div>
       )}
 
-      {stamp && <div className={styles.stamp} role="status">{stamp}</div>}
+      {stamp && <div className={styles.stamp} role="status"><ResourceText text={stamp} /></div>}
     </div>
   );
 };

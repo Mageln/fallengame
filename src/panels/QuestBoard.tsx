@@ -1,3 +1,4 @@
+import { ResourceIcon, ResourceText } from '../components/ResourceIcon';
 import { useEffect } from 'react';
 import { useGame } from '../game/GameContext';
 import { DAILY_QUESTS } from '../game/constants';
@@ -26,12 +27,12 @@ export const QuestBoard = ({ onClose }: { onClose: () => void }) => {
           <div className={styles.icon} aria-hidden="true">{ICONS[quest.id]}</div><div className={styles.details}>
             <div className={styles.title}><h3>{quest.name}</h3><span>{item.claimed ? 'ПОЛУЧЕНО' : item.completed ? 'ГОТОВО' : 'В ПРОЦЕССЕ'}</span></div><p>{quest.description}</p>
             <div className={styles.progressText}><span>ПРОГРЕСС</span><strong>{item.progress} / {quest.target}</strong></div><progress value={item.progress} max={quest.target} aria-label={`Прогресс: ${quest.name}`} />
-            <div className={styles.rewards}><small>НАГРАДА:</small>{quest.rewardBullets > 0 && <span>🔫 {quest.rewardBullets}</span>}{quest.rewardMatches > 0 && <span>🔥 {quest.rewardMatches}</span>}{quest.rewardGold > 0 && <span>💰 {quest.rewardGold} припасов</span>}{quest.rewardExperience > 0 && <span>⭐ {quest.rewardExperience} опыта</span>}</div>
+            <div className={styles.rewards}><small>НАГРАДА:</small>{quest.rewardBullets > 0 && <span><ResourceIcon name="bullets" /> {quest.rewardBullets}</span>}{quest.rewardMatches > 0 && <span><ResourceIcon name="matches" /> {quest.rewardMatches}</span>}{quest.rewardGold > 0 && <span><ResourceIcon name="supplies" /> {quest.rewardGold} припасов</span>}{quest.rewardExperience > 0 && <span>⭐ {quest.rewardExperience} опыта</span>}</div>
           </div><button className={styles.claim} type="button" disabled={!item.completed || item.claimed} onClick={() => dispatch({ type: 'CLAIM_QUEST_REWARD', questId: quest.id })}>{item.claimed ? 'ПОЛУЧЕНО' : 'ЗАБРАТЬ'}</button>
         </article>;
       })}</div>
-      <div className={styles.bonus}><div className={styles.bonusIcon}>📦</div><div><small>ОСОБАЯ НАГРАДА</small><h3>ЯЩИК ЗА ВСЕ КОНТРАКТЫ</h3><p>Выполните все шесть заданий: 🔫 100 патронов · 💰 50 припасов · 💊 1 аптечка</p></div><button type="button" disabled={!ready || state.daily.questBonusClaimed} onClick={() => dispatch({ type: 'CLAIM_DAILY_QUEST_BONUS' })}>{state.daily.questBonusClaimed ? 'ПОЛУЧЕНО' : 'ЗАБРАТЬ ЯЩИК'}</button></div>
-      {state.lastMessage && <p className={styles.notice} role="status">{state.lastMessage}</p>}
+      <div className={styles.bonus}><div className={styles.bonusIcon}>📦</div><div><small>ОСОБАЯ НАГРАДА</small><h3>ЯЩИК ЗА ВСЕ КОНТРАКТЫ</h3><p>Выполните все шесть заданий: <ResourceIcon name="bullets" /> 100 патронов · <ResourceIcon name="supplies" /> 50 припасов · <ResourceIcon name="medkits" /> 1 аптечка</p></div><button type="button" disabled={!ready || state.daily.questBonusClaimed} onClick={() => dispatch({ type: 'CLAIM_DAILY_QUEST_BONUS' })}>{state.daily.questBonusClaimed ? 'ПОЛУЧЕНО' : 'ЗАБРАТЬ ЯЩИК'}</button></div>
+      {state.lastMessage && <p className={styles.notice} role="status"><ResourceText text={state.lastMessage} /></p>}
     </section>
   </div>;
 };

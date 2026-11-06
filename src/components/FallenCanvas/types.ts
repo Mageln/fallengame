@@ -79,6 +79,7 @@ export interface GameIcons {
   spicki: HTMLImageElement | null;
   bullets: HTMLImageElement | null;
   gold: HTMLImageElement | null;
+  premium: HTMLImageElement | null;
   zhetons: HTMLImageElement | null;
   plus: HTMLImageElement | null;
   zombie: HTMLImageElement | null;

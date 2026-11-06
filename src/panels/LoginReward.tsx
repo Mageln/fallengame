@@ -1,3 +1,4 @@
+import { ResourceIcon } from '../components/ResourceIcon';
 import { useEffect } from 'react';
 import { useGame } from '../game/GameContext';
 import { LOGIN_REWARDS, loginRewardStatus } from '../game/loginRewards';
@@ -20,11 +21,11 @@ export const LoginReward = ({ onClose }: { onClose: () => void }) => {
       const claimed = status.available ? day < status.day : day <= status.day;
       return <article key={day} className={`${styles.day} ${current ? styles.current : ''} ${claimed ? styles.claimed : ''}`}>
         <small>ДЕНЬ {day}</small><strong>{claimed ? '✓' : day === 7 ? '🎁' : '📦'}</strong>
-        <span>🔫 {reward.bullets}</span>{reward.gold > 0 && <span>💰 {reward.gold}</span>}{reward.matches > 0 && <span>🔥 {reward.matches}</span>}{reward.medkits > 0 && <span>💊 {reward.medkits}</span>}
+        <span><ResourceIcon name="bullets" /> {reward.bullets}</span>{reward.gold > 0 && <span><ResourceIcon name="supplies" /> {reward.gold}</span>}{reward.matches > 0 && <span><ResourceIcon name="matches" /> {reward.matches}</span>}{reward.medkits > 0 && <span><ResourceIcon name="medkits" /> {reward.medkits}</span>}
         {current && <em>{status.available ? 'СЕГОДНЯ' : 'ПОЛУЧЕНО'}</em>}
       </article>;
     })}</div>
     <div className={styles.actions}><p>{status.available ? `День ${status.day} из 7 · после седьмого дня начнётся новая серия` : 'Сегодняшняя награда получена. Следующая — завтра.'}</p><button type="button" disabled={!status.available} onClick={() => { dispatch({ type: 'CLAIM_LOGIN_REWARD' }); onClose(); }}>{status.available ? 'ЗАБРАТЬ НАГРАДУ' : 'ПОЛУЧЕНО ✓'}</button></div>
-    <small className={styles.hint}>Обновление в полночь по времени устройства. 💰 — игровые припасы.</small>
+    <small className={styles.hint}>Обновление в полночь по времени устройства. <ResourceIcon name="supplies" /> — игровые припасы.</small>
   </section>;
 };

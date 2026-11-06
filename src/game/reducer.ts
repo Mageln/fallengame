@@ -667,7 +667,7 @@ export const gameReducer = (state: GameState, action: GameAction): GameState => 
       if (state.clan || state.clanDirectory.some((entry) => entry.members.some((member) => member.id === state.playerId))) {
         return msg(state, 'Вы уже состоите в убежище.');
       }
-      if (state.gold < CLAN_CREATE_GOLD) return msg(state, `Нужно 🪙 ${CLAN_CREATE_GOLD} припасов.`);
+      if (state.gold < CLAN_CREATE_GOLD) return msg(state, `Нужно 💰 ${CLAN_CREATE_GOLD} припасов.`);
       const error = validateClanName(action.name, state.clanDirectory);
       if (error) return msg(state, error);
       if (!CLAN_EMBLEMS.some((entry) => entry.id === action.emblem)) return msg(state, 'Выберите эмблему.');

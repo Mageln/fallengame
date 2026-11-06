@@ -9,7 +9,8 @@ export const drawMapRaids = (
   hoveredY: number,
   buttons: ButtonPosition[],
   mapImage: HTMLImageElement | null = null,
-  message: string = ''
+  message: string = '',
+  energyIcon: HTMLImageElement | null = null
 ) => {
   // Фон карты
   ctx.fillStyle = 'rgba(10, 15, 20, 0.9)';
@@ -186,7 +187,8 @@ export const drawMapRaids = (
       ctx.font = '9px Arial';
       ctx.textAlign = 'left';
       ctx.textBaseline = 'middle';
-      ctx.fillText('⚡', badgeX + 4, badgeY + badgeH / 2 + 1);
+      if (energyIcon?.complete && energyIcon.naturalWidth > 0) ctx.drawImage(energyIcon, badgeX + 3, badgeY + 2, 12, 12);
+      else ctx.fillText('Э', badgeX + 4, badgeY + badgeH / 2 + 1);
 
       // Число
       ctx.fillStyle = '#fff';

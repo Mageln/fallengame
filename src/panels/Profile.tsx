@@ -1,3 +1,4 @@
+import { ResourceIcon } from '../components/ResourceIcon';
 import { Panel, PanelHeader, Group, Button, Text, Header, Cell, Box, Card } from '@vkontakte/vkui';
 import { Icon28ArrowLeftOutline } from '@vkontakte/icons';
 import { useRouteNavigator } from '@vkontakte/vk-mini-apps-router';
@@ -137,7 +138,7 @@ export const Profile = ({ id }: Props) => {
                   <Text style={{ fontSize: 10, opacity: 0.6 }}>{RARITY_NAMES[item.rarity as Rarity]}</Text>
                 </Box>
                 <Button size="s" disabled={owned} onClick={() => dispatch({ type: 'BUY_EQUIPMENT', itemId: item.id })}>
-                  {owned ? '✅' : `${item.costBullets} 🔫`}
+                  {owned ? '✅' : <>{item.costBullets} <ResourceIcon name="bullets" /></>}
                 </Button>
               </Box>
               <Box style={{ display: 'flex', gap: 10, marginTop: 4, fontSize: 11 }}>

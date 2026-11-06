@@ -53,3 +53,23 @@ test('legacy district battle still renders its combat controls', () => {
     assert.ok(buttons.some((button) => button.id === id), id);
   }
 });
+
+test('top bar draws the six resource images, including distinct supplies and premium', () => {
+  const previous = globalThis.HTMLImageElement;
+  globalThis.HTMLImageElement = class { complete = true; naturalWidth = 176; naturalHeight = 176; };
+  try {
+    const icons = Object.fromEntries(['energy', 'premium', 'gold', 'bullets', 'spicki', 'zhetons'].map((name) => [name, new globalThis.HTMLImageElement()]));
+    const images = [];
+    const text = [];
+    const ctx = context();
+    ctx.drawImage = (image) => images.push(image);
+    ctx.fillText = (value) => text.push(value);
+    const buttons = drawUI(ctx, 1000, 700, data, null, {}, icons, 0, -1, -1);
+    for (const [name, image] of Object.entries(icons)) assert.ok(images.includes(image), `${name} icon is drawn`);
+    assert.ok(!text.some((value) => ['🎟️', '🪵', '🔫', '💰', '🪙', '⚡'].includes(value)));
+    assert.ok(buttons.some((button) => button.id === 'open_donation_shop'));
+  } finally {
+    if (previous === undefined) delete globalThis.HTMLImageElement;
+    else globalThis.HTMLImageElement = previous;
+  }
+});
