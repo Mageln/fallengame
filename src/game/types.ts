@@ -405,12 +405,12 @@ export interface ArenaBattle {
   opponentName: string;
   opponentHp: number;
   opponentMaxHp: number;
+  enraged?: boolean; // Фаза сохраняется, даже если противник восстановит HP.
   playerHp: number;
   playerMaxHp: number;
   energy: number;
   fistDamage: number;
   weaponDamage: number;
-  weaponAvailable: boolean;
   healing: number;
   blockReduction: number;
   turn: number;
@@ -535,6 +535,7 @@ export type GameAction =
   | { type: 'BATTLE_HEAL' }
   | { type: 'INVITE_FRIEND' }
   | { type: 'LEAVE_BATTLE' }
+  | { type: 'ABANDON_BOSS' }
   | { type: 'OPEN_MAP_RAID'; raidId: string }
   | { type: 'START_RAID'; raidId: string }
   | { type: 'RAID_SCOUT' }

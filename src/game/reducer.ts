@@ -578,6 +578,7 @@ export const gameReducer = (state: GameState, action: GameAction): GameState => 
     case 'BATTLE_EVADE':
     case 'INVITE_FRIEND':
     case 'LEAVE_BATTLE':
+    case 'ABANDON_BOSS':
       return reduceBattle(state, action);
     case 'OPEN_MAP_RAID':
     case 'START_RAID':

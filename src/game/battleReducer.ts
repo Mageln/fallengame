@@ -8,7 +8,7 @@ import { getBossAttackEntry, resetBossAttacks, setBossAttackEntry } from './boss
 import { BOSS_ATTACK_CONFIG, BOSS_ENERGY_MAX, BOSS_ENERGY_PER_HIT, BOSS_SKILLS, bossAttackPrice, roomDropChance } from './survival';
 import type { BattleState, GameAction, GameState } from './types';
 
-type BattleAction = Extract<GameAction, { type: 'START_BOSS' | 'START_BOSS_FIGHT' | 'START_GAST' | 'OPEN_BATTLE' | 'BOSS_TICK' | 'BUY_BOSS_ATTACK' | 'CLAIM_ROOM' | 'BOSS_SKILL' | 'BATTLE_ATTACK' | 'BATTLE_GRENADES' | 'BATTLE_HEAL' | 'BATTLE_POWER' | 'BATTLE_COMBO' | 'BATTLE_BLOCK' | 'BATTLE_EVADE' | 'INVITE_FRIEND' | 'LEAVE_BATTLE' }>;
+type BattleAction = Extract<GameAction, { type: 'ABANDON_BOSS' | 'START_BOSS' | 'START_BOSS_FIGHT' | 'START_GAST' | 'OPEN_BATTLE' | 'BOSS_TICK' | 'BUY_BOSS_ATTACK' | 'CLAIM_ROOM' | 'BOSS_SKILL' | 'BATTLE_ATTACK' | 'BATTLE_GRENADES' | 'BATTLE_HEAL' | 'BATTLE_POWER' | 'BATTLE_COMBO' | 'BATTLE_BLOCK' | 'BATTLE_EVADE' | 'INVITE_FRIEND' | 'LEAVE_BATTLE' }>;
 
 export const reduceBattle = (state: GameState, action: BattleAction): GameState => {
   switch (action.type) {
@@ -84,7 +84,6 @@ export const reduceBattle = (state: GameState, action: BattleAction): GameState 
       if (!skill) return current;
       const energy = battle.bossEnergy ?? 0;
       if (energy < skill.energyCost) return msg(current, `Для «${skill.name}» нужно ${skill.energyCost} боевой энергии.`);
-      if (skill.id === 'weapon' && current.weapon.broken) return msg(current, 'Оружие сломано. Почините его в мастерской.');
       if (skill.id === 'block' && battle.blocking) return msg(current, 'Блок уже активен до следующего удара босса.');
       if (skill.id === 'heal' && battle.playerHp >= battle.playerMaxHp) return msg(current, 'Здоровье уже полное.');
 
@@ -100,7 +99,7 @@ export const reduceBattle = (state: GameState, action: BattleAction): GameState 
       if (skill.id === 'heal') {
         const healed = Math.min(battle.playerMaxHp - battle.playerHp, medkitHeal(current) + (current.profileSkills?.heal ?? 0) * SKILL_HEAL_PER_LEVEL);
         const playerHp = battle.playerHp + healed;
-        return { ...current, health: Math.min(current.maxHealth, playerHp),
+        return { ...current,
           battle: { ...battle, playerHp, bossEnergy: nextEnergy, turn: battle.turn + 1,
             lastHit: null, lastSkillId: skill.id,
             log: appendBossLog(battle.log, `💚 Исцеление: +${healed} HP`) },
@@ -189,10 +188,9 @@ export const reduceBattle = (state: GameState, action: BattleAction): GameState 
     }
     case 'BATTLE_HEAL': {
       if (!state.battle || state.battle.outcome !== 'fighting') return state;
-      if (state.medkits <= 0) return msg(state, 'Нет аптечек.');
       const battle = normalizeBattle(state.battle);
       if (battle.statuses.stunTurns > 0) return stunnedRound(state, battle);
-      return runRound({ ...state, medkits: state.medkits - 1 }, battle, {
+      return runRound(state, battle, {
         log: [], // текст лечения добавляет runRound
         bossDamage: 0,
         streak: battle.comboStreak,
@@ -299,11 +297,18 @@ export const reduceBattle = (state: GameState, action: BattleAction): GameState 
         lastMessage: 'Позвать друзей: союзник нанёс урон боссу.',
       };
     }
+    case 'ABANDON_BOSS': {
+      const battle = state.battle;
+      if (!battle || battle.source !== 'boss' || battle.outcome !== 'fighting') return state;
+      return { ...state, battle: null, battleVisible: false,
+        woundedBosses: { ...state.woundedBosses, [battle.bossId]: battle.bossHp },
+        lastMessage: `Отступили от ${battle.bossName} (осталось ${battle.bossHp}/${battle.bossMaxHp} HP).` };
+    }
     case 'LEAVE_BATTLE': {
       if (!state.battle) return state;
       const battle = state.battle;
       if (battle.source === 'boss' && battle.outcome === 'fighting') {
-        return { ...state, battleVisible: false, showBossModal: false, lastMessage: 'Вышли из боя. Таймер и атаки босса продолжаются.' };
+        return { ...state, battleVisible: false, showBossModal: false, lastMessage: 'Окно боя закрыто. Вы можете вернуться к боссу.' };
       }
       if (battle.outcome === 'won') {
         const r = battle.reward;

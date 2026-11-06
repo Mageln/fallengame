@@ -53,8 +53,6 @@ export const startBattle = (
   if (state.battle) return { ...state, battleVisible: true, lastMessage: 'Продолжается текущий бой.' };
   if (state.arena?.battle?.outcome === 'fighting') return msg(state, 'Сначала завершите бой на арене.');
   let current = resetBossAttacks(state);
-  if (state.weapon.broken) return msg(current, 'Оружие сломано. Почините его в Мастерской.');
-  if (current.health <= 0) return msg(current, 'Сначала восстановите HP в рейдовых заданиях.');
   if (source === 'boss' && BOSS_ATTACK_CONFIG.timedLimits) {
     const def = BOSSES.find((b) => b.id === bossId);
     const dailyLimit = def?.dailyLimit ?? DAILY_BOSS_ATTACKS;
@@ -64,7 +62,7 @@ export const startBattle = (
     }
     current = setBossAttackEntry(current, bossId, { ...entry, used: entry.used + 1 });
   }
-  const hp = totalStamina(current) + (current.profileSkills?.health ?? 0) * SKILL_HP_PER_LEVEL;
+  const hp = Math.max(1, totalStamina(current) + (current.profileSkills?.health ?? 0) * SKILL_HP_PER_LEVEL);
   const limit = TURN_LIMIT[source];
   const now = Date.now();
   return {
@@ -76,9 +74,9 @@ export const startBattle = (
       bossName,
       bossHp,
       bossMaxHp,
-      playerHp: Math.min(hp, current.health),
+      playerHp: hp,
       playerMaxHp: hp,
-      log: [`Бой: ${bossName}. Лимит — ${limit} ходов.`],
+      log: [`Бой: ${bossName}. Без лимита ходов.`],
       friends: [],
       source,
       shakeTimer: 0,
@@ -169,7 +167,7 @@ export const bossKilled = (state: GameState, battle: BattleState): GameState => 
     ...state,
     lastRoomRoll: roll,
     pendingRoomDrop: dropped ? roll : state.pendingRoomDrop,
-    health: Math.max(0, Math.min(state.maxHealth, battle.playerHp)),
+    health: state.health,
     battle: {
       ...battle,
       bossHp: 0,
@@ -191,28 +189,15 @@ export const bossKilled = (state: GameState, battle: BattleState): GameState => 
   };
 };
 
-const playerDefeated = (state: GameState, battle: BattleState): GameState => ({
-  ...state,
-  health: 0,
-  battle: {
-    ...battle,
-    outcome: 'lost',
-    endedAt: Date.now(),
-    log: battle.source === 'boss' ? appendBossLog(battle.log, 'Вы выбыли из боя.') : [...battle.log, 'Вы выбыли из боя.'],
-  },
-  lastMessage: 'Вы выбыли из боя. Нужны аптечки и выносливость.',
-});
-
 export const advanceBossClock = (state: GameState, now: number): GameState => {
   if (!state.battle || state.battle.source !== 'boss' || state.battle.outcome !== 'fighting') return state;
   const battle = normalizeBattle(state.battle);
-  const until = Math.min(now, battle.endsAt);
-  const strikes = Math.max(0, Math.floor((until - battle.lastCounterAt) / BOSS_COUNTER_MS));
+  const strikes = Math.max(0, Math.floor((now - battle.lastCounterAt) / BOSS_COUNTER_MS));
   let playerHp = battle.playerHp;
   if (strikes > 0) {
     const perStrike = Math.max(2, Math.floor(bossBaseDamage(battle.bossMaxHp) / 2));
     const reduction = Math.min(0.9, 0.6 + (state.profileSkills?.block ?? 0) * SKILL_BLOCK_PERCENT / 100);
-    playerHp = Math.max(0, playerHp - strikes * perStrike + (battle.blocking ? Math.floor(perStrike * reduction) : 0));
+    playerHp = Math.max(1, playerHp - strikes * perStrike + (battle.blocking ? Math.floor(perStrike * reduction) : 0));
   }
   const next = {
     ...battle,
@@ -221,14 +206,7 @@ export const advanceBossClock = (state: GameState, now: number): GameState => {
     lastCounterAt: battle.lastCounterAt + strikes * BOSS_COUNTER_MS,
     log: strikes > 0 ? appendBossLog(battle.log, `${battle.bossName}: ${strikes} ответных ударов в фоне.`) : battle.log,
   };
-  if (playerHp <= 0) return playerDefeated(state, next);
-  if (now >= battle.endsAt) return {
-    ...state,
-    health: Math.min(state.maxHealth, playerHp),
-    battle: { ...next, outcome: 'lost', endedAt: battle.endsAt, log: appendBossLog(next.log, 'Время вышло. Босс ушёл в темноту.') },
-    lastMessage: 'Время боя вышло. Урон боссу сохранён.',
-  };
-  return strikes > 0 ? { ...state, health: Math.min(state.maxHealth, playerHp), battle: next } : state;
+  return strikes > 0 ? { ...state, battle: next } : state;
 };
 
 interface RoundOptions {
@@ -271,7 +249,7 @@ export const runRound = (state: GameState, battle: BattleState, opts: RoundOptio
     enraged,
   });
 
-  let playerHp = Math.max(0, battle.playerHp - incoming.damage);
+  let playerHp = Math.max(1, battle.playerHp - incoming.damage);
   if (incoming.evaded) {
     log.push(`${battle.bossName} мажет — вы ушли от удара`);
   } else {
@@ -284,7 +262,7 @@ export const runRound = (state: GameState, battle: BattleState, opts: RoundOptio
   if (opts.heal && opts.heal > 0) {
     const before = playerHp;
     playerHp = Math.min(battle.playerMaxHp, playerHp + opts.heal);
-    log.push(`Аптечка: +${playerHp - before} HP`);
+    log.push(`Исцеление: +${playerHp - before} HP`);
   }
   if (opts.curePoison && statuses.poisonTurns > 0) {
     statuses.poisonTurns = 0;
@@ -310,7 +288,7 @@ export const runRound = (state: GameState, battle: BattleState, opts: RoundOptio
 
   // 4) Яд доедает в конце раунда
   if (statuses.poisonTurns > 0) {
-    playerHp = Math.max(0, playerHp - statuses.poisonDamage);
+    playerHp = Math.max(1, playerHp - statuses.poisonDamage);
     statuses.poisonTurns -= 1;
     log.push(`Яд: −${statuses.poisonDamage} HP`);
   }
@@ -327,9 +305,6 @@ export const runRound = (state: GameState, battle: BattleState, opts: RoundOptio
     }
   }
 
-  // 6) Поражение игрока
-  if (playerHp <= 0) return playerDefeated(state, { ...battle, bossHp: bossHpAfter, damageDealt: battle.damageDealt + battle.bossHp - bossHpAfter, playerHp: 0, log });
-
   // 7) Конец раунда: таймеры вниз, ход вперёд
   (Object.keys(cooldowns) as CooldownKey[]).forEach((key) => {
     cooldowns[key] = Math.max(0, cooldowns[key] - 1);
@@ -337,22 +312,9 @@ export const runRound = (state: GameState, battle: BattleState, opts: RoundOptio
   if (statuses.aimDebuffTurns > 0) statuses.aimDebuffTurns -= 1;
 
   const turn = battle.turn + 1;
-  if (turn > battle.turnLimit) {
-    return {
-      ...state,
-      battle: null,
-      battleVisible: false,
-      health: Math.min(state.maxHealth, playerHp),
-      woundedBosses: battle.source === 'boss'
-        ? { ...state.woundedBosses, [battle.bossId]: bossHpAfter }
-        : state.woundedBosses,
-      lastMessage: `${battle.bossName} уходит в темноту. Лимит ${battle.turnLimit} ходов исчерпан — бой не завершён.`,
-    };
-  }
 
   return {
     ...state,
-    health: Math.min(state.maxHealth, playerHp),
     battle: {
       ...battle,
       bossHp: bossHpAfter,

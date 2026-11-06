@@ -20,7 +20,7 @@
 .roster { display: grid; gap: 12px; }
 .bossCard { display: flex; align-items: center; gap: 12px; padding: 12px; background: linear-gradient(115deg, #38281e, #201e1a); border: 1px solid #665037; }
 .bossPortrait { flex: 0 0 82px; height: 82px; overflow: hidden; border: 3px solid #6b4a2f; }
-.bossPortrait img { width: 100%; height: 100%; object-fit: cover; }
+.bossPortrait img { width: 100%; height: 100%; object-fit: cover; object-position: center top; }
 .bossInfo { flex: 1; min-width: 0; }
 .bossInfo h3 { margin: 0; color: #c9a227; font-family: Stencil, Impact, sans-serif; }
 .bossInfo p { font-size: 12px; line-height: 1.4; margin: 6px 0; }
@@ -72,3 +72,10 @@
 @keyframes impact { from { transform: scale(1.5) translateY(9px); opacity: 0; } to { transform: scale(1) translateY(0); opacity: 1; } }
 @media (max-width: 600px) { .panel { padding: 12px; } .header h2 { font-size: 18px; } .bossCard { flex-wrap: wrap; } .bossCard button { width: 100%; } .arena { grid-template-columns: 1fr 1.3fr 1fr; padding: 6px; gap: 4px; } .arena img { width: 65px; height: 72px; } .playerPortrait { width: 65px; height: 72px; } .arena .characterImage { width: 100%; height: 100%; } .arena .capOverlay { width: 18.41%; height: auto; } .timer { font-size: 16px; } .skillGrid { grid-template-columns: repeat(2, 1fr); } }
 @media (prefers-reduced-motion: reduce) { .backdrop *, .backdrop *::before { animation: none !important; transition: none !important; } }
+
+/* В бою показываем противника целиком, без обрезки и растягивания. */
+.enemyStage { display: flex; align-items: end; justify-content: center; width: 100%; height: clamp(155px, 30vw, 285px); background: radial-gradient(ellipse at bottom, rgba(193,134,79,.2), transparent 70%); }
+.enemyStage.enraged { background: radial-gradient(ellipse at bottom, rgba(220,47,22,.48), transparent 72%); }
+.arena .enemyFull { display: block; width: 100%; max-width: 220px; height: 100%; object-fit: contain; object-position: center bottom; border: 0; box-shadow: none; }
+.rageBadge { color: #ff6a44; font-weight: bold; letter-spacing: .06em; text-shadow: 0 0 10px #b22c12; }
+@media (max-width: 600px) { .enemyStage { height: clamp(145px, 42vw, 200px); } .arena .enemyFull { width: 100%; height: 100%; } }

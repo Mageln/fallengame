@@ -1,3 +1,4 @@
+import { isEnraged } from '../../game/enemyArt';
 import type { BossFight, ButtonPosition } from './canvasTypes';
 import { fitFont, getInitials, getRoomName } from './bossCanvasUtils';
 
@@ -130,6 +131,20 @@ const drawFightButton = (
   buttons.push({ x, y, width: w, height: h, id });
 };
 
+// Учитываем зоны заголовка и кнопок: спрайт целиком виден между ними.
+export const getEnemySpriteBounds = (width: number, height: number, imageWidth: number, imageHeight: number) => {
+  const s = Math.max(0.8, Math.min(1.3, Math.min(width, height) / 700));
+  const pad = Math.round(16 * s);
+  const top = Math.min(height, pad + 92 * s);
+  const bottom = Math.max(top, height - pad - (3 * 44 + 2 * 10 + 20 + 24) * s);
+  const availableWidth = Math.max(0, width - 2 * pad);
+  const availableHeight = Math.max(0, bottom - top);
+  const scale = imageWidth > 0 && imageHeight > 0 ? Math.min(availableWidth / imageWidth, availableHeight / imageHeight) : 0;
+  const w = imageWidth * scale;
+  const h = imageHeight * scale;
+  return { x: (width - w) / 2, y: top + (availableHeight - h) / 2, width: w, height: h };
+};
+
 export const drawBossFight = (
   ctx: CanvasRenderingContext2D,
   width: number,
@@ -165,14 +180,8 @@ export const drawBossFight = (
   ctx.translate(-width / 2, -height / 2);
 
   if (bossImage && bossImage.complete && bossImage.naturalWidth > 0) {
-    // Босс растянут на весь экран (cover по центру)
-    const imgRatio = bossImage.naturalWidth / bossImage.naturalHeight;
-    const boxRatio = width / height;
-    let dw = width;
-    let dh = height;
-    if (imgRatio > boxRatio) dw = height * imgRatio;
-    else dh = width / imgRatio;
-    ctx.drawImage(bossImage, (width - dw) / 2, (height - dh) / 2, dw, dh);
+    const bounds = getEnemySpriteBounds(width, height, bossImage.naturalWidth, bossImage.naturalHeight);
+    ctx.drawImage(bossImage, bounds.x, bounds.y, bounds.width, bounds.height);
   } else {
     // Запасной вариант, если картинка не загрузилась
     const size = Math.min(width, height) * 0.65;
@@ -242,6 +251,13 @@ export const drawBossFight = (
   const barH = Math.round(20 * s);
   drawHpBar(ctx, uiX, pad + Math.round(36 * s), uiW, barH, fight.bossHp, fight.bossMaxHp, 'БОСС');
 
+  if (isEnraged(fight.bossHp, fight.bossMaxHp)) {
+    ctx.fillStyle = '#ff6a44';
+    ctx.font = `bold ${Math.round(13 * s)}px Arial`;
+    ctx.textAlign = 'right';
+    ctx.fillText('ЯРОСТЬ', uiX + uiW - 4, pad + Math.round(36 * s) + barH + Math.round(16 * s));
+  }
+
   // Урон по боссу — всплывает по центру экрана (крит — оранжевый, 3-й этап)
   if (fight.lastDamage > 0 && now - fight.bossHitAt < 800) {
     const p = (now - fight.bossHitAt) / 800;
@@ -278,12 +294,12 @@ export const drawBossFight = (
   const gridY = height - pad - gridH;
 
   // Счётчик ходов — под полосой здоровья босса
-  if (fight.turn && fight.turnLimit) {
+  if (fight.turn) {
     ctx.textAlign = 'center';
     ctx.fillStyle = 'rgba(255,255,255,0.75)';
     ctx.font = `bold ${Math.round(13 * s)}px Arial`;
     ctx.fillText(
-      `ХОД ${fight.turn} / ${fight.turnLimit}`,
+      `ХОД ${fight.turn}`,
       width / 2,
       pad + Math.round(36 * s) + barH + Math.round(16 * s)
     );
@@ -325,7 +341,6 @@ export const drawBossFight = (
 
   if (fight.outcome === 'fighting') {
     const cd = fight.cooldowns ?? { technique: 0, power: 0, combo: 0, evade: 0 };
-    const medkits = fight.medkits ?? 0;
     const grenades = fight.grenades ?? 0;
 
     const RED = { active: 'rgba(200, 40, 40, 0.95)', idle: 'rgba(140, 20, 20, 0.9)', border: '#ff5555', text: '#ffffff' };
@@ -350,7 +365,7 @@ export const drawBossFight = (
       { id: 'fight_combo', label: 'Серия', sub: cdLabel(cd.combo, '3 удара'), color: ORANGE, disabled: cd.combo > 0 },
       { id: 'fight_block', label: 'Блок', sub: 'входящий ×0.4', color: BLUE },
       { id: 'fight_evade', label: 'Уклон', sub: cdLabel(cd.evade, 'игнор удара'), color: BLUE, disabled: cd.evade > 0 },
-      { id: 'fight_heal', label: 'Аптечка', sub: `есть ${medkits}`, color: GREEN, disabled: medkits <= 0 },
+      { id: 'fight_heal', label: 'Лечение', sub: 'без аптечки', color: GREEN },
       { id: 'fight_grenade', label: 'Граната', sub: `есть ${grenades}`, color: GREEN, disabled: grenades <= 0 },
       { id: 'fight_leave', label: 'Отступить', sub: 'сохранить урон', color: GRAY },
     ];

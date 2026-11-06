@@ -68,6 +68,8 @@ test('top bar draws the six resource images, including distinct supplies and pre
     for (const [name, image] of Object.entries(icons)) assert.ok(images.includes(image), `${name} icon is drawn`);
     assert.ok(!text.some((value) => ['🎟️', '🪵', '🔫', '💰', '🪙', '⚡'].includes(value)));
     assert.ok(buttons.some((button) => button.id === 'open_donation_shop'));
+  assert.ok(buttons.some((button) => button.id === 'notifications'));
+  assert.ok(!buttons.some((button) => button.id === 'toggle_fullscreen'));
   } finally {
     if (previous === undefined) delete globalThis.HTMLImageElement;
     else globalThis.HTMLImageElement = previous;

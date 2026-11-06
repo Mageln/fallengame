@@ -71,7 +71,12 @@ test('boss actions reject client-provided clock and enforce server attack interv
     const next = applyCombatAction(tooFast, parseProgressAction({ type: 'BOSS_SKILL', skillId: 'jab' }), 100350);
     assert.ok(next.battle.bossHp < hit.battle.bossHp);
     const expired = advanceCombat(next, started.battle.endsAt + 1);
-    assert.notEqual(expired.battle.outcome, 'fighting');
+    assert.equal(expired.battle.outcome, 'fighting');
+    assert.ok(expired.battle.playerHp >= 1);
+    assert.deepEqual(parseProgressAction({ type: 'ABANDON_BOSS' }), { type: 'ABANDON_BOSS' });
+    const abandoned = applyCombatAction(expired, parseProgressAction({ type: 'ABANDON_BOSS' }), started.battle.endsAt + 2);
+    assert.equal(abandoned.battle, null);
+    assert.equal(abandoned.woundedBosses['1'], expired.battle.bossHp);
   } finally { Date.now = clock; }
 });
 
@@ -261,4 +266,24 @@ test('server arena validates commands and grants a win only once', () => {
   state = act(state, { type: 'CLOSE_ARENA_BATTLE' });
   state = act(state, { type: 'START_ARENA', opponentId: 'bogus' });
   assert.equal(state.arena.used, 1);
+});
+
+test('server allows boss fights without health or medkits and keeps arena attempt limit', () => {
+  const initial = { ...createInitialState(), health: 0, medkits: 0 };
+  const startBoss = parseProgressAction({ type: 'START_BOSS_FIGHT', bossId: '1' });
+  let state = applyCombatAction(initial, startBoss, Date.now());
+  assert.equal(state.battle.playerHp, state.battle.playerMaxHp);
+  state = advanceCombat(state, state.battle.startedAt + 86_400_000);
+  assert.equal(state.battle.outcome, 'fighting');
+  assert.equal(state.battle.playerHp, 1);
+  assert.equal(state.health, 0);
+  state = applyCombatAction(state, parseProgressAction({ type: 'ABANDON_BOSS' }), Date.now());
+  for (let i = 0; i < 5; i++) {
+    state = applyCombatAction(state, parseProgressAction({ type: 'START_ARENA', opponentId: 'raider' }), Date.now());
+    assert.equal(state.arena.used, i + 1);
+    state = applyCombatAction(state, parseProgressAction({ type: 'CLOSE_ARENA_BATTLE' }), Date.now());
+  }
+  state = applyCombatAction(state, parseProgressAction({ type: 'START_ARENA', opponentId: 'raider' }), Date.now());
+  assert.equal(state.arena.used, 5);
+  assert.equal(state.arena.battle, null);
 });

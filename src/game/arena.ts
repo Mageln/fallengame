@@ -1,10 +1,10 @@
+import { isEnraged } from './enemyArt';
 import { equipmentDamage, medkitHeal, totalStamina, weaponDamage } from './formulas';
 import { SKILL_BLOCK_PERCENT, SKILL_FIST_PERCENT, SKILL_HEAL_PER_LEVEL, SKILL_HP_PER_LEVEL, SKILL_WEAPON_PERCENT } from './profileSkills';
 import { BOSS_ENERGY_MAX, BOSS_ENERGY_PER_HIT, BOSS_SKILLS, todayUtc } from './survival';
 import type { ArenaBattle, ArenaProgress, GameAction, GameState } from './types';
 
 export const ARENA_DAILY_LIMIT = 5;
-export const ARENA_TURN_LIMIT = 40;
 export const ARENA_OPPONENTS = [
   { id: 'raider', name: 'Ржавый Рейдер', description: 'Атакует сильнее каждый третий ход.', gold: 20, bullets: 25, hpMultiplier: 0.9 },
   { id: 'guard', name: 'Железный Страж', description: 'Каждый третий ход снижает получаемый урон.', gold: 30, bullets: 35, hpMultiplier: 1 },
@@ -31,7 +31,6 @@ export const reduceArena = (state: GameState, action: ArenaAction, now = Date.no
       playerHp: maxHp, playerMaxHp: maxHp, energy: 0,
       fistDamage: Math.max(1, Math.round(fistBase * (1 + (state.profileSkills?.fist ?? 0) * SKILL_FIST_PERCENT / 100))),
       weaponDamage: Math.max(1, Math.round(baseAttack * (1 + (state.profileSkills?.weapon ?? 0) * SKILL_WEAPON_PERCENT / 100))),
-      weaponAvailable: !state.weapon.broken,
       healing: medkitHeal(state) + (state.profileSkills?.heal ?? 0) * SKILL_HEAL_PER_LEVEL,
       blockReduction: Math.min(0.8, 0.5 + (state.profileSkills?.block ?? 0) * SKILL_BLOCK_PERCENT / 100),
       turn: 1, outcome: 'fighting', reward: null,
@@ -49,7 +48,6 @@ export const reduceArena = (state: GameState, action: ArenaAction, now = Date.no
   const opponent = ARENA_OPPONENTS.find((entry) => entry.id === battle.opponentId);
   if (!skill || !opponent) return state;
   if (battle.energy < skill.energyCost) return { ...state, lastMessage: `Для действия нужно ${skill.energyCost} боевой энергии.` };
-  if (skill.id === 'weapon' && !battle.weaponAvailable) return { ...state, lastMessage: 'Оружие сломано. Почините его в мастерской.' };
   if (skill.id === 'heal' && battle.playerHp >= battle.playerMaxHp) return { ...state, lastMessage: 'Здоровье уже полное.' };
   let energy = skill.id === 'jab' ? Math.min(BOSS_ENERGY_MAX, battle.energy + BOSS_ENERGY_PER_HIT) : battle.energy - skill.energyCost;
   let playerHp = battle.playerHp;
@@ -67,10 +65,12 @@ export const reduceArena = (state: GameState, action: ArenaAction, now = Date.no
     opponentHp -= damage;
     log.push(`${skill.icon} ${skill.name}: −${damage} HP${guarded ? ' (противник блокирует)' : ''}.`);
   }
+  const enraged = !!battle.enraged || isEnraged(opponentHp, battle.opponentMaxHp);
+  if (enraged && !battle.enraged) log.push(`🔥 ${opponent.name} переходит в ярость!`);
   if (opponentHp <= 0) {
     const reward = { gold: opponent.gold, bullets: opponent.bullets };
     return { ...state, gold: state.gold + reward.gold, bullets: state.bullets + reward.bullets,
-      arena: { ...arena, battle: { ...battle, playerHp, opponentHp: 0, energy, outcome: 'won', reward, log: [...log, 'Победа! Награда получена.'].slice(-80) } },
+      arena: { ...arena, battle: { ...battle, playerHp, opponentHp: 0, energy, enraged, outcome: 'won', reward, log: [...log, 'Победа! Награда получена.'].slice(-80) } },
       lastMessage: `Победа на арене: +${reward.gold} припасов, +${reward.bullets} патронов.` };
   }
   if (opponent.id === 'medic' && battle.turn % 3 === 0) {
@@ -81,11 +81,9 @@ export const reduceArena = (state: GameState, action: ArenaAction, now = Date.no
   const heavy = opponent.id === 'raider' && battle.turn % 3 === 0;
   const reduction = skill.id === 'block' ? battle.blockReduction : 0;
   const incoming = Math.max(1, Math.round(battle.playerMaxHp * 0.055 * (heavy ? 1.6 : 1) * (1 - reduction)));
-  playerHp = Math.max(0, playerHp - incoming);
+  playerHp = Math.max(1, playerHp - incoming);
   log.push(`☠ ${opponent.name}: −${incoming} HP${heavy ? ' (сильный удар)' : ''}.`);
-  const lost = playerHp === 0 || battle.turn >= ARENA_TURN_LIMIT;
-  if (lost) log.push(playerHp === 0 ? 'Поражение на арене.' : 'Лимит ходов исчерпан. Поражение.');
   energy = Math.max(0, energy);
-  return { ...state, arena: { ...arena, battle: { ...battle, playerHp, opponentHp, energy, turn: battle.turn + 1,
-    outcome: lost ? 'lost' : 'fighting', log: log.slice(-80) } }, lastMessage: lost ? 'Бой на арене проигран.' : `${skill.name}: ход завершён.` };
+  return { ...state, arena: { ...arena, battle: { ...battle, playerHp, opponentHp, energy, enraged, turn: battle.turn + 1,
+    outcome: 'fighting', log: log.slice(-80) } }, lastMessage: `${skill.name}: ход завершён.` };
 };

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import styles from "../../style/PrisonCanvas/PrisonCanvas.module.scss";
 import { PrisonCanvasProps } from "./types";
 import { useCanvas } from "./useCanvas";
@@ -10,6 +10,7 @@ import { FAKE_BOSSES } from "./bosses";
 import { RaidModal } from "../../panels/RaidModal";
 import { ClanModal } from "../../panels/Clan";
 import { RoomModal } from "../../panels/Room";
+import { getBossArt, isEnraged } from '../../game/enemyArt';
 import { Arena } from "../../panels/Arena";
 import { StoreModal } from "../../panels/Store";
 import { BossFightPanel, BossHub, PremiumShop } from "../../panels/Boss";
@@ -218,13 +219,21 @@ export const FallenCanvas: React.FC<PrisonCanvasProps & {
     panelImg.src = '/upperbackground.png';
   }, []);
 
-  // Загружаем спрайт босса для окна боя
+  // Для боя района выбираем фазу по HP. Сброс и очистка обработчиков не
+  // позволяют опоздавшей загрузке первой фазы заменить уже новую картинку.
+  const canvasBattle = state.battle?.source !== 'boss' ? state.battle : null;
+  const canvasBossArt = canvasBattle ? getBossArt(canvasBattle.bossId) : null;
+  const canvasBossSrc = canvasBattle && canvasBossArt
+    ? (isEnraged(canvasBattle.bossHp, canvasBattle.bossMaxHp) ? canvasBossArt.enraged : canvasBossArt.normal) : null;
   useEffect(() => {
-    const bossImg = new Image();
-    bossImg.onload = () => setBossImage(bossImg);
-    bossImg.onerror = () => setBossImage(null);
-    bossImg.src = '/enemy/zombi1.jpg';
-  }, []);
+    setBossImage(null);
+    if (!canvasBossSrc) return;
+    const image = new Image();
+    image.onload = () => setBossImage(image);
+    image.onerror = () => setBossImage(null);
+    image.src = canvasBossSrc;
+    return () => { image.onload = null; image.onerror = null; };
+  }, [canvasBossSrc]);
 
   // Загружаем аватар пользователя
   const [avatarImage, setAvatarImage] = useState<HTMLImageElement | null>(null);
@@ -254,15 +263,9 @@ export const FallenCanvas: React.FC<PrisonCanvasProps & {
   const handleRestoreGold = useCallback(() => dispatch({ type: 'ADD_RESOURCE', resource: 'gold', amount: 10 }), [dispatch]);
   const handleRestoreZhetons = useCallback(() => dispatch({ type: 'ADD_RESOURCE', resource: 'zhetons', amount: 10 }), [dispatch]);
 
-  // Кнопка fullscreen (теперь рисуется на канвасе, правее ресурсов)
-  const toggleFullscreenRef = useRef<(() => void) | null>(null);
-  const handleToggleFullscreen = useCallback(() => {
-    toggleFullscreenRef.current?.();
-  }, []);
-
   const lockedRoomsRemain = getNextLockedRoom(state.unlockedRooms) !== null;
 
-  const { canvasRef, handleCanvasClick, handleMouseMove, handleMouseLeave, handleWheel, toggleFullscreen } = useCanvas(
+  const { canvasRef, handleCanvasClick, handleMouseMove, handleMouseLeave, handleWheel } = useCanvas(
     backgroundImage,
     characterImage,
     icons,
@@ -295,7 +298,6 @@ export const FallenCanvas: React.FC<PrisonCanvasProps & {
     handleRestoreBullets,
     handleRestoreGold,
     handleRestoreZhetons,
-    handleToggleFullscreen,
     onRaidClick,       // клик по рейду на карте районов
     handleBossAttack,  // "Атаковать"/"В бой" в окне боссов
     handleFightAttack, // "Удар" в окне боя
@@ -331,7 +333,6 @@ export const FallenCanvas: React.FC<PrisonCanvasProps & {
     mapImage,
     topBarImage,
     bossImage,
-    false, // fullscreen
     lastMessage, // сообщение о последнем действии (показывается на карте районов)
     unreadNotifications, // бейдж непрочитанных уведомлений в верхней панели
     onNotificationsClick, // клик по колокольчику
@@ -345,9 +346,6 @@ export const FallenCanvas: React.FC<PrisonCanvasProps & {
     () => setShowStore(true),
     state.equipmentIds.includes('shop_cap') ? capImage : null
   );
-
-  // Связываем ref с реальной функцией fullscreen из useCanvas
-  toggleFullscreenRef.current = toggleFullscreen;
 
   return (
     <div className={styles.canvasWrapper}>

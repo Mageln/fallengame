@@ -41,7 +41,6 @@ export const useCanvas = (
   onRestoreBullets?: () => void,
   onRestoreGold?: () => void,
   onRestoreZhetons?: () => void,
-  onToggleFullscreen?: () => void,
   // Клик по рейду на карте (id рейда передаётся аргументом)
   onMapRaidClick?: (raidId: string) => void,
   // Атака босса из окна боссов (id босса)
@@ -80,7 +79,6 @@ export const useCanvas = (
   mapImage: HTMLImageElement | null = null,
   topBarImage: HTMLImageElement | null = null,
   bossImage: HTMLImageElement | null = null,
-  fullscreen: boolean = false,
   mapMessage: string = '',
   unreadNotifications: number = 0,
   onNotificationsClick?: () => void,
@@ -130,7 +128,6 @@ export const useCanvas = (
     onRestoreBullets,
     onRestoreGold,
     onRestoreZhetons,
-    onToggleFullscreen,
     onMapRaidClick,
     onBossAttack,
     onFightAttack,
@@ -175,8 +172,7 @@ export const useCanvas = (
       onRestoreBullets,
       onRestoreGold,
       onRestoreZhetons,
-      onToggleFullscreen,
-      onMapRaidClick,
+        onMapRaidClick,
       onBossAttack,
       onFightAttack,
       onFightLeave,
@@ -207,7 +203,7 @@ export const useCanvas = (
     onProfileClick, onBattleClick, onBossModalClose, onCloseMap,
     onOpenBossModal, onCloseProfile, onBackToMain, onGoDistrict,
     onRestoreEnergy, onRestoreSpicki, onRestoreBullets, onRestoreGold, onRestoreZhetons,
-    onToggleFullscreen, onMapRaidClick, onBossAttack, onFightAttack, onFightLeave,
+    onMapRaidClick, onBossAttack, onFightAttack, onFightLeave,
     onFightTechnique, onFightPower, onFightCombo, onFightBlock, onFightEvade,
     onFightHeal, onFightGrenade, onOpenRoomModal, onSelectRoom,
     onClanClick, onInventoryClick, onQuestsClick, onCraftingClick,
@@ -304,7 +300,7 @@ export const useCanvas = (
 
     buttonPositionsRef.current = buttons;
     needsRenderRef.current = false;
-  }, [backgroundImage, characterImage, capImage, icons, energy, maxEnergy, authority, spicki, bullets, gold, premiumGold, zhetons, tasks, appearanceColor, currentLocation, carLevel, level, districtName, playerName, avatarImage, showProfile, showBossModal, showMap, showRoomModal, unlockedRooms, battle, profileData, bosses, medkits, grenades, mapRaids, mapImage, topBarImage, bossImage, fullscreen, mapMessage, unreadNotifications, lockedRoomsRemain]);
+  }, [backgroundImage, characterImage, capImage, icons, energy, maxEnergy, authority, spicki, bullets, gold, premiumGold, zhetons, tasks, appearanceColor, currentLocation, carLevel, level, districtName, playerName, avatarImage, showProfile, showBossModal, showMap, showRoomModal, unlockedRooms, battle, profileData, bosses, medkits, grenades, mapRaids, mapImage, topBarImage, bossImage, mapMessage, unreadNotifications, lockedRoomsRemain]);
 
   // Всегда актуальная версия render для обработчика кликов
   renderRef.current = render;
@@ -504,7 +500,6 @@ export const useCanvas = (
         if (btn.id === 'restore_gold') { cb.onRestoreGold?.(); return; }
         if (btn.id === 'restore_zhetons') { cb.onRestoreZhetons?.(); return; }
         if (btn.id === 'restore_energy') { cb.onRestoreEnergy?.(); return; }
-        if (btn.id === 'toggle_fullscreen') { cb.onToggleFullscreen?.(); return; }
         if (btn.id === 'notifications') { cb.onNotificationsClick?.(); return; }
         if (btn.id === 'open_donation_shop') { cb.onDonationClick?.(); return; }
         if (btn.id === 'carousel_up' || btn.id === 'carousel_down') {
@@ -607,20 +602,11 @@ export const useCanvas = (
     if (!showBossModal) bossScrollRef.current = 0;
   }, [showBossModal]);
 
-  const toggleFullscreen = useCallback(() => {
-    if (!document.fullscreenElement) {
-      canvasRef.current?.requestFullscreen().catch(() => {});
-    } else {
-      document.exitFullscreen().catch(() => {});
-    }
-  }, []);
-
   return {
     canvasRef,
     handleCanvasClick,
     handleMouseMove,
     handleMouseLeave,
     handleWheel,
-    toggleFullscreen,
   };
 };

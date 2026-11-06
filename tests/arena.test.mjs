@@ -48,7 +48,7 @@ test('skills cost energy, block, heal, and each successful action triggers a cou
   assert.ok(state.arena.battle.playerHp > beforeHeal);
 });
 
-test('victory rewards once, defeat and retreat pay nothing, and normal HP is unchanged', () => {
+test('victory rewards once, retreat pays nothing, and normal HP is unchanged', () => {
   let state = createInitialState();
   const initial = state;
   state = start(state);
@@ -66,8 +66,13 @@ test('victory rewards once, defeat and retreat pay nothing, and normal HP is unc
   let losing = start(initial);
   losing = { ...losing, arena: { ...losing.arena, battle: { ...losing.arena.battle, playerHp: 1 } } };
   losing = skill(losing, 'jab');
-  assert.equal(losing.arena.battle.outcome, 'lost');
+  assert.equal(losing.arena.battle.outcome, 'fighting');
+  assert.equal(losing.arena.battle.playerHp, 1);
   assert.equal(losing.gold, initial.gold);
+  losing = { ...losing, arena: { ...losing.arena, battle: { ...losing.arena.battle, turn: 50 } } };
+  losing = skill(losing, 'jab');
+  assert.equal(losing.arena.battle.outcome, 'fighting');
+  assert.equal(losing.arena.battle.turn, 51);
 });
 
 test('existing battles block arena and ongoing arena blocks starting other battles', () => {
@@ -92,4 +97,31 @@ test('opponent traits act on every third turn and character stats are snapshotte
   let medic = start(createInitialState(), 'medic');
   medic = skill(skill(skill(medic, 'jab'), 'jab'), 'jab');
   assert.ok(medic.arena.battle.log.some((entry) => entry.includes('Противник восстановил')));
+});
+
+test('arena requires neither health nor medkits and allows broken weapons', () => {
+  const initial = createInitialState();
+  let state = start({ ...initial, health: 0, medkits: 0, weapon: { ...initial.weapon, broken: true } });
+  assert.equal(state.arena.battle.playerHp, state.arena.battle.playerMaxHp);
+  state = skill(state, 'jab');
+  const before = state.arena.battle.opponentHp;
+  state = skill(state, 'weapon');
+  assert.ok(state.arena.battle.opponentHp < before);
+  assert.equal(state.health, 0);
+  assert.equal(state.medkits, 0);
+});
+
+test('arena enemy stays enraged after crossing half HP even if a medic heals back above half', () => {
+  let state = start(createInitialState(), 'medic');
+  state = { ...state, arena: { ...state.arena, battle: { ...state.arena.battle,
+    opponentMaxHp: 100, opponentHp: 51, turn: 3, fistDamage: 1 } } };
+  state = skill(state, 'jab');
+  assert.equal(state.arena.battle.opponentHp, 54);
+  assert.equal(state.arena.battle.enraged, true);
+  assert.ok(state.arena.battle.log.some((line) => line.includes('ярость')));
+  state = hydrateState(JSON.parse(JSON.stringify(state)));
+  assert.equal(state.arena.battle.enraged, true);
+  state = skill(state, 'jab');
+  assert.equal(state.arena.battle.enraged, true);
+  assert.equal(state.arena.battle.log.filter((line) => line.includes('ярость')).length, 1);
 });

@@ -611,56 +611,9 @@ const drawTopBar = (
   drawResource(premiumGold, icons.premium, 'З', '#c9a227', 'open_donation_shop');
   drawResource(`${energy}/${maxEnergy}`, icons.energy, 'Э', '#d8d0c0', 'restore_energy');
 
-  // ===== КНОПКА FULLSCREEN (правее ресурсов, на одном уровне) =====
-  // currentX указывает на левый край последней капсулы — рисуем кнопку левее
-  const fsBtnSize = 26;
-  const fsBtnX = currentX - fsBtnSize - 4;
-  const fsBtnY = resCenterY - fsBtnSize / 2;
-  const isFsHovered = hoveredX > fsBtnX && hoveredX < fsBtnX + fsBtnSize &&
-                      hoveredY > fsBtnY && hoveredY < fsBtnY + fsBtnSize;
-
-  if (isFsHovered) {
-    ctx.shadowColor = '#fff';
-    ctx.shadowBlur = 8;
-  }
-  ctx.fillStyle = isFsHovered ? 'rgba(255, 255, 255, 0.25)' : 'rgba(0, 0, 0, 0.55)';
-  ctx.beginPath();
-  ctx.roundRect(fsBtnX, fsBtnY, fsBtnSize, fsBtnSize, 8);
-  ctx.fill();
-  ctx.shadowBlur = 0;
-  ctx.strokeStyle = isFsHovered ? '#fff' : 'rgba(255, 255, 255, 0.4)';
-  ctx.lineWidth = 1;
-  ctx.stroke();
-
-  // Иконка fullscreen (уголки)
-  ctx.strokeStyle = isFsHovered ? '#fff' : 'rgba(255, 255, 255, 0.8)';
-  ctx.lineWidth = 2;
-  const m = 7; // отступ уголков от края кнопки
-  const c = 5; // длина уголка
-  // Верхний левый угол
-  ctx.beginPath();
-  ctx.moveTo(fsBtnX + m, fsBtnY + m + c);
-  ctx.lineTo(fsBtnX + m, fsBtnY + m);
-  ctx.lineTo(fsBtnX + m + c, fsBtnY + m);
-  // Верхний правый угол
-  ctx.moveTo(fsBtnX + fsBtnSize - m - c, fsBtnY + m);
-  ctx.lineTo(fsBtnX + fsBtnSize - m, fsBtnY + m);
-  ctx.lineTo(fsBtnX + fsBtnSize - m, fsBtnY + m + c);
-  // Нижний правый угол
-  ctx.moveTo(fsBtnX + fsBtnSize - m, fsBtnY + fsBtnSize - m - c);
-  ctx.lineTo(fsBtnX + fsBtnSize - m, fsBtnY + fsBtnSize - m);
-  ctx.lineTo(fsBtnX + fsBtnSize - m - c, fsBtnY + fsBtnSize - m);
-  // Нижний левый угол
-  ctx.moveTo(fsBtnX + m + c, fsBtnY + fsBtnSize - m);
-  ctx.lineTo(fsBtnX + m, fsBtnY + fsBtnSize - m);
-  ctx.lineTo(fsBtnX + m, fsBtnY + fsBtnSize - m - c);
-  ctx.stroke();
-
-  buttons.push({ x: fsBtnX, y: fsBtnY, width: fsBtnSize, height: fsBtnSize, id: 'toggle_fullscreen' });
-
-  // ===== КНОПКА УВЕДОМЛЕНИЙ (левее fullscreen) =====
+  // ===== КНОПКА УВЕДОМЛЕНИЙ =====
   const notifSize = 26;
-  const notifX = fsBtnX - notifSize - 6;
+  const notifX = currentX - notifSize - 4;
   const notifY = resCenterY - notifSize / 2;
   const isNotifHovered = hoveredX > notifX && hoveredX < notifX + notifSize &&
                          hoveredY > notifY && hoveredY < notifY + notifSize;

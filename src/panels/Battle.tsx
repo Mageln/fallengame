@@ -246,8 +246,8 @@ export const Battle = ({ id }: Props) => {
             <Button mode="secondary" onClick={() => { dispatch({ type: 'BATTLE_ATTACK', technique: true }); playSound('hit'); }}>
               🔥 Приём (+35%)
             </Button>
-            <Button mode="secondary" disabled={state.medkits <= 0} onClick={() => { dispatch({ type: 'BATTLE_HEAL' }); playSound('heal'); }}>
-              <ResourceIcon name="medkits" /> Аптечка ({state.medkits})
+            <Button mode="secondary" onClick={() => { dispatch({ type: 'BATTLE_HEAL' }); playSound('heal'); }}>
+              <ResourceIcon name="medkits" /> Лечение (без аптечки)
             </Button>
           </Box>
           

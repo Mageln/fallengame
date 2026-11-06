@@ -80,9 +80,10 @@ test('leaving a boss battle does not pause the boss; returning resumes it', () =
   assert.equal(state.battleVisible, true);
   assert.equal(state.battle.bossMaxHp, 250);
   state = act(state, 'BOSS_TICK', { now: start + BOSS_DURATION_MS + 1 });
-  assert.equal(state.battle.outcome, 'lost');
+  assert.equal(state.battle.outcome, 'fighting');
+  assert.equal(state.battle.playerHp, 1);
   const hp = state.battle.bossHp;
-  state = act(state, 'LEAVE_BATTLE');
+  state = act(state, 'ABANDON_BOSS');
   assert.equal(state.woundedBosses['2'], hp);
   assert.equal(state.battle, null);
 });
@@ -217,8 +218,9 @@ test('boss weapon damage depends on equipped weapon, healing and block do not wa
   const powerful = act({ ...state, weapon: { ...state.weapon, baseDamage: state.weapon.baseDamage + 20 } }, 'BOSS_SKILL', { skillId: 'weapon', now });
   assert.ok(powerful.battle.bossHp < normal.battle.bossHp);
   const broken = act({ ...state, weapon: { ...state.weapon, broken: true } }, 'BOSS_SKILL', { skillId: 'weapon', now });
-  assert.equal(broken.battle.bossEnergy, 100);
-  assert.equal(broken.battle.bossHp, state.battle.bossHp);
+  assert.equal(broken.battle.bossEnergy, 90);
+  assert.ok(broken.battle.bossHp < state.battle.bossHp);
+  assert.ok(broken.battle.bossHp > normal.battle.bossHp);
 });
 
 test('test mode allows attacking an exhausted boss without consuming or buying attacks', () => {
@@ -232,26 +234,29 @@ test('test mode allows attacking an exhausted boss without consuming or buying a
   assert.equal(state.bossAttacks, before);
 });
 
-test('boss battles report health and weapon restrictions without consuming attacks', () => {
+test('boss fights start at full battle HP without health, medkits or a working weapon', () => {
   const initial = createInitialState();
-  const injured = { ...initial, health: 0 };
-  const noHealth = act(injured, 'START_BOSS_FIGHT', { bossId: '1' });
-  assert.equal(noHealth.battle, null);
-  assert.match(noHealth.lastMessage, /восстановите HP/i);
-  assert.deepEqual(noHealth.bossAttacks, injured.bossAttacks);
-
-  const broken = { ...initial, weapon: { ...initial.weapon, broken: true } };
-  const noWeapon = act(broken, 'START_BOSS_FIGHT', { bossId: '1' });
-  assert.equal(noWeapon.battle, null);
-  assert.match(noWeapon.lastMessage, /Оружие сломано/i);
-  assert.deepEqual(noWeapon.bossAttacks, broken.bossAttacks);
+  const injured = { ...initial, health: 0, medkits: 0, weapon: { ...initial.weapon, broken: true } };
+  let state = act(injured, 'START_BOSS_FIGHT', { bossId: '1' });
+  assert.ok(state.battle);
+  assert.equal(state.battle.playerHp, state.battle.playerMaxHp);
+  assert.equal(state.health, 0);
+  assert.equal(state.medkits, 0);
+  state = act(state, 'BOSS_TICK', { now: state.battle.startedAt + 24 * 60 * 60 * 1000 });
+  assert.equal(state.battle.outcome, 'fighting');
+  assert.equal(state.battle.playerHp, 1);
+  const before = state.battle.bossHp;
+  state = act(state, 'BOSS_SKILL', { skillId: 'jab', now: state.battle.lastCounterAt + 1 });
+  assert.ok(state.battle.bossHp < before);
+  assert.equal(state.health, 0);
 });
 
-test('finished hidden boss battle can be reopened and closed before another attack', () => {
+test('finished hidden boss victory can be reopened and claimed', () => {
   let state = act(createInitialState(), 'START_BOSS_FIGHT', { bossId: '1' });
   state = act(state, 'LEAVE_BATTLE');
-  state = act(state, 'BOSS_TICK', { now: state.battle.endsAt + 1 });
-  assert.equal(state.battle.outcome, 'lost');
+  state = { ...state, battle: { ...state.battle, bossHp: 1 } };
+  state = act(state, 'BOSS_SKILL', { skillId: 'jab', now: state.battle.startedAt + 1 });
+  assert.equal(state.battle.outcome, 'won');
   assert.equal(state.battleVisible, false);
   state = act(state, 'OPEN_BATTLE');
   assert.equal(state.battleVisible, true);
@@ -623,4 +628,24 @@ test('buying the cap equips it, replaces other headgear, and survives loading', 
   assert.ok(state.equipmentIds.includes('shop_cap'));
   const duplicate = act(state, 'BUY_SHOP_ITEM', { category: 'clothing', itemId: 'shop_cap', currency: 'gold' });
   assert.equal(duplicate.gold, state.gold);
+});
+
+test('district boss battle needs no health, medkits or working weapon and has no knockout or turn limit', () => {
+  const initial = { ...createInitialState(), health: 0, medkits: 0, weapon: { ...createInitialState().weapon, broken: true } };
+  let state = act(initial, 'START_BOSS', { districtId: 'southgate' });
+  assert.equal(state.battle.source, 'district');
+  assert.equal(state.battle.playerHp, state.battle.playerMaxHp);
+  state = { ...state, battle: { ...state.battle, playerHp: 1, turn: 99, bossHp: 5000, bossMaxHp: 5000 } };
+  state = act(state, 'BATTLE_HEAL');
+  assert.ok(state.battle);
+  assert.equal(state.battle.outcome, 'fighting');
+  assert.ok(state.battle.playerHp >= 1);
+  assert.equal(state.battle.turn, 100);
+  assert.equal(state.health, 0);
+  assert.equal(state.medkits, 0);
+  state = { ...state, battle: { ...state.battle, playerHp: 1, statuses: { ...state.battle.statuses, poisonTurns: 1, poisonDamage: 1000 } } };
+  state = act(state, 'BATTLE_ATTACK', { technique: false });
+  assert.ok(state.battle);
+  assert.equal(state.battle.outcome, 'fighting');
+  assert.ok(state.battle.playerHp >= 1);
 });
