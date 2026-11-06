@@ -226,3 +226,17 @@ test('server combat applies fist, luck and block skill effects', () => {
     assert.ok(strongBlock.battle.playerHp > plainBlock.battle.playerHp);
   } finally { Math.random = random; }
 });
+
+test('server purchases and equips the cap without duplicating or replacing balance', () => {
+  let state = { ...createInitialState(), gold: 1000 };
+  const buy = (itemId) => parseProgressAction({ type: 'BUY_SHOP_ITEM', category: 'clothing', currency: 'gold', itemId });
+  const equip = (slotIndex) => parseProgressAction({ type: 'EQUIP_ITEM', slotIndex });
+  state = applyCombatAction(state, buy('shop_helmet'), Date.now());
+  state = applyCombatAction(state, equip(0), Date.now());
+  state = applyCombatAction(state, buy('shop_cap'), Date.now());
+  assert.equal(state.gold, 170);
+  assert.deepEqual(state.equipmentIds, ['shop_cap']);
+  assert.equal(state.inventory[0].equipped, false);
+  assert.equal(state.inventory[1].equipped, true);
+  assert.equal(applyCombatAction(state, buy('shop_cap'), Date.now()).gold, 170);
+});

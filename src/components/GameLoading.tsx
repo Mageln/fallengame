@@ -2,7 +2,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 
 // Изображения из папки public, которые используются в игре.
 const GAME_IMAGES = [
-  '/1.png', '/background.jpg', '/pers1.png', '/upperbackground.png', '/logo.svg',
+  '/1.png', '/background.jpg', '/pers1.png', '/characters/survivor-cap.png', '/upperbackground.png', '/logo.svg',
   '/bossRoom/FonLoot.jpg', '/bossRoom/fonIconBoss.jpg', '/bossRoom/fonWinnera.jpg',
   '/enemy/avatar-boss.jpg', '/enemy/boss1.jpg', '/enemy/zombi.jpg', '/enemy/zombi1.jpg',
   '/icon/arena.jpg', '/icon/boss.jpg', '/icon/clans.jpg', '/icon/clans.png',

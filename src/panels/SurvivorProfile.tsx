@@ -43,7 +43,7 @@ export const SurvivorProfile = ({ onClose, onWorkshop, onBosses, onInventory, on
       </div>
       {tab === 'file' ? <div className={styles.content} role="tabpanel">
         <div className={styles.hero}>
-          <div className={styles.portrait}><span className={styles.portraitLabel}>ЛИЧНОЕ ДЕЛО / 01</span><img src={vkUser?.photo_200 || "/pers1.png"} alt={vkUser?.photo_200 ? "Аватар VK" : "Персонаж выжившего"} /><span className={styles.portraitFooter}>ПОСЛЕДНИЙ РУБЕЖ</span></div>
+          <div className={styles.portrait}><span className={styles.portraitLabel}>ЛИЧНОЕ ДЕЛО / 01</span>{vkUser?.photo_200 ? <img src={vkUser.photo_200} alt="Аватар VK" /> : <span className={styles.characterPortrait}><img className={styles.characterImage} src="/pers1.png" alt="Персонаж выжившего" />{state.equipmentIds.includes('shop_cap') && <img className={styles.capOverlay} src="/characters/survivor-cap.png" alt="" />}</span>}<span className={styles.portraitFooter}>ПОСЛЕДНИЙ РУБЕЖ</span></div>
           <div className={styles.identity}>
             <span className={styles.sectionLabel}>● СТАТУС: ВЫЖИВШИЙ</span><h3>{name}</h3>
             <div className={styles.tags}><span>УРОВЕНЬ {format(state.level)}</span><span>★ {format(state.experience)} ОПЫТА</span></div>

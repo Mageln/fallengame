@@ -1,5 +1,5 @@
 import { Position } from './types';
-import { getVisibleBounds } from './iconBounds';
+import { getVisibleBounds, type IconBounds } from './iconBounds';
 
 // Центрируем видимую фигуру и ставим её над нижней панелью на любом экране.
 export const getCharacterPosition = (width: number, height: number, aspect = 402 / 600): Position => {
@@ -13,11 +13,21 @@ export const getCharacterPosition = (width: number, height: number, aspect = 402
   return { x: (w - characterWidth) / 2, y: bottom - characterHeight, width: characterWidth, height: characterHeight };
 };
 
+// Координаты кепки заданы в пропорциях оригинального pers1.png (402×600).
+// Преобразуем их через те же видимые границы, что и при отрисовке персонажа.
+export const getCapPosition = (position: Position, visible: IconBounds, imageWidth: number, imageHeight: number): Position => ({
+  x: position.x + (imageWidth * (140 / 402) - visible.x) / visible.w * position.width,
+  y: position.y + (imageHeight * (17 / 600) - visible.y) / visible.h * position.height,
+  width: imageWidth * (84 / 402) / visible.w * position.width,
+  height: imageHeight * (42 / 600) / visible.h * position.height,
+});
+
 export const drawCharacter = (
   ctx: CanvasRenderingContext2D,
   position: Position,
   characterImage: HTMLImageElement | null,
-  appearanceColor = '#d4a574'
+  appearanceColor = '#d4a574',
+  capImage: HTMLImageElement | null = null
 ) => {
   if (characterImage && characterImage.complete && characterImage.naturalWidth > 0 && characterImage.naturalHeight > 0) {
     const visible = getVisibleBounds(characterImage);
@@ -29,6 +39,10 @@ export const drawCharacter = (
       position.width,
       position.height
     );
+    if (capImage?.complete && capImage.naturalWidth > 0 && capImage.naturalHeight > 0) {
+      const cap = getCapPosition(position, visible, characterImage.naturalWidth, characterImage.naturalHeight);
+      ctx.drawImage(capImage, cap.x, cap.y, cap.width, cap.height);
+    }
   } else {
     // Запасной силуэт занимает тот же прямоугольник, что и спрайт.
     ctx.save();
@@ -43,5 +57,8 @@ export const drawCharacter = (
     ctx.fillRect(25, 108, 20, 52);
     ctx.fillRect(55, 108, 20, 52);
     ctx.restore();
+    if (capImage?.complete && capImage.naturalWidth > 0 && capImage.naturalHeight > 0) {
+      ctx.drawImage(capImage, position.x + position.width * 0.32, position.y, position.width * 0.36, position.height * 0.13);
+    }
   }
 };

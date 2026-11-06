@@ -116,6 +116,7 @@ export const FallenCanvas: React.FC<PrisonCanvasProps & {
 }) => {
   const { dispatch, state } = useGame();
   const [backgroundImage, setBackgroundImage] = useState<HTMLImageElement | null>(null);
+  const [capImage, setCapImage] = useState<HTMLImageElement | null>(null);
   const [characterImage, setCharacterImage] = useState<HTMLImageElement | null>(null);
   const [mapImage, setMapImage] = useState<HTMLImageElement | null>(null);
   const [topBarImage, setTopBarImage] = useState<HTMLImageElement | null>(null);
@@ -125,6 +126,14 @@ export const FallenCanvas: React.FC<PrisonCanvasProps & {
   const [showPremiumShop, setShowPremiumShop] = useState(false);
   const [showStore, setShowStore] = useState(false);
   const [showFriends, setShowFriends] = useState(false);
+
+  useEffect(() => {
+    const image = new Image();
+    image.onload = () => setCapImage(image);
+    image.onerror = () => setCapImage(null);
+    image.src = '/characters/survivor-cap.png';
+    return () => { image.onload = null; image.onerror = null; };
+  }, []);
 
   // "Атаковать"/"В бой" — запускает бой через reducer (state.battle)
   const handleBossAttack = useCallback(
@@ -332,7 +341,8 @@ export const FallenCanvas: React.FC<PrisonCanvasProps & {
     lockedRoomsRemain,
     state.premiumGold,
     () => setShowPremiumShop(true),
-    () => setShowStore(true)
+    () => setShowStore(true),
+    state.equipmentIds.includes('shop_cap') ? capImage : null
   );
 
   // Связываем ref с реальной функцией fullscreen из useCanvas

@@ -91,7 +91,8 @@ export const useCanvas = (
   lockedRoomsRemain: boolean = false,
   premiumGold: number = 0,
   onDonationClick?: () => void,
-  onGoCloth?: () => void
+  onGoCloth?: () => void,
+  capImage: HTMLImageElement | null = null
 ) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const hoveredRef = useRef({ x: 0, y: 0 });
@@ -247,7 +248,7 @@ export const useCanvas = (
     const bounds = characterImage && characterImage.complete && characterImage.naturalWidth > 0 && characterImage.naturalHeight > 0
       ? getVisibleBounds(characterImage) : null;
     const characterPosition = getCharacterPosition(w, h, bounds ? bounds.w / bounds.h : undefined);
-    drawCharacter(ctx, characterPosition, characterImage, appearanceColor);
+    drawCharacter(ctx, characterPosition, characterImage, appearanceColor, capImage);
     
     updateParticles();
     drawParticles(ctx);
@@ -301,7 +302,7 @@ export const useCanvas = (
 
     buttonPositionsRef.current = buttons;
     needsRenderRef.current = false;
-  }, [backgroundImage, characterImage, icons, energy, maxEnergy, authority, spicki, bullets, gold, premiumGold, zhetons, tasks, appearanceColor, currentLocation, carLevel, level, districtName, playerName, avatarImage, showProfile, showBossModal, showMap, showRoomModal, unlockedRooms, battle, profileData, bosses, medkits, grenades, mapRaids, mapImage, topBarImage, bossImage, fullscreen, mapMessage, unreadNotifications, lockedRoomsRemain]);
+  }, [backgroundImage, characterImage, capImage, icons, energy, maxEnergy, authority, spicki, bullets, gold, premiumGold, zhetons, tasks, appearanceColor, currentLocation, carLevel, level, districtName, playerName, avatarImage, showProfile, showBossModal, showMap, showRoomModal, unlockedRooms, battle, profileData, bosses, medkits, grenades, mapRaids, mapImage, topBarImage, bossImage, fullscreen, mapMessage, unreadNotifications, lockedRoomsRemain]);
 
   // Всегда актуальная версия render для обработчика кликов
   renderRef.current = render;
@@ -428,6 +429,10 @@ export const useCanvas = (
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
   }, [showMap, mapRaids]);
+
+  // A newly loaded, equipped, or removed cap must redraw even when no other
+  // canvas data has changed (the canvas otherwise stays on its previous frame).
+  useEffect(() => { needsRenderRef.current = true; }, [capImage]);
 
   // Рендер когда нужно
   useEffect(() => {

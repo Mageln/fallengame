@@ -20,13 +20,16 @@ export const reduceInventory = (state: GameState, action: InventoryAction): Game
       const cost = entry.price[action.currency];
       const balance = action.currency === 'gold' ? state.gold : state.premiumGold;
       if (balance < cost) return msg(state, action.currency === 'gold' ? 'Не хватает игровых припасов.' : 'Не хватает премиум-золота.');
+      const autoEquipCap = clothing?.item.id === 'shop_cap';
+      const replacedHeadIds = autoEquipCap ? state.equipmentIds.filter((id) => clothingSlot(id) === 'head') : [];
       return {
         ...state,
         gold: state.gold - (action.currency === 'gold' ? cost : 0),
         premiumGold: state.premiumGold - (action.currency === 'premium' ? cost : 0),
         storedWeapons: weapon ? [...state.storedWeapons, { ...weapon.weapon, mods: [] }] : state.storedWeapons,
-        inventory: clothing ? [...state.inventory, { itemId: clothing.item.id, equipped: false }] : state.inventory,
-        lastMessage: `${weapon?.weapon.name ?? clothing?.item.name} куплен. ${weapon ? 'Выберите «Взять» в магазине.' : 'Наденьте предмет в магазине или инвентаре.'}`,
+        inventory: clothing ? [...state.inventory.map((slot) => replacedHeadIds.includes(slot.itemId) ? { ...slot, equipped: false } : slot), { itemId: clothing.item.id, equipped: !!autoEquipCap }] : state.inventory,
+        equipmentIds: autoEquipCap ? [...state.equipmentIds.filter((id) => !replacedHeadIds.includes(id)), clothing.item.id] : state.equipmentIds,
+        lastMessage: `${weapon?.weapon.name ?? clothing?.item.name} куплен. ${weapon ? 'Выберите «Взять» в магазине.' : autoEquipCap ? 'Кепка надета.' : 'Наденьте предмет в магазине или инвентаре.'}`,
       };
     }
     case 'EQUIP_SHOP_WEAPON': {
