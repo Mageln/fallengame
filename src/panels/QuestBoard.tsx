@@ -2,7 +2,8 @@ import { ResourceIcon, ResourceText } from '../components/ResourceIcon';
 import { QuestIcon, QuestChestIcon } from '../components/QuestIcon';
 import { useEffect } from 'react';
 import { useGame } from '../game/GameContext';
-import { DAILY_QUESTS } from '../game/constants';
+import { DAILY_QUESTS, DISTRICT_TASKS } from '../game/constants';
+import { getDistrict } from '../game/formulas';
 import styles from '../style/QuestBoard.module.scss';
 
 
@@ -18,6 +19,14 @@ export const QuestBoard = ({ onClose }: { onClose: () => void }) => {
   return <div className={styles.backdrop} onClick={onClose}>
     <section className={styles.panel} role="dialog" aria-modal="true" aria-labelledby="quest-title" onClick={(event) => event.stopPropagation()}>
       <header className={styles.header}><span className={styles.lamp} aria-hidden="true" /><div><small>РАЦИЯ · ДОСКА КОНТРАКТОВ</small><h2 id="quest-title">ЗАДАНИЯ ВЫЖИВШЕГО</h2><p>Каждый день — новый шанс подготовиться к выходу.</p></div><button type="button" onClick={onClose} aria-label="Закрыть задания">✕</button></header>
+      <section className={styles.districtTasks} aria-label="Задания района">
+        <div><small>ВЫЛАЗКИ · {getDistrict(state.currentDistrict)?.name ?? 'РАЙОН'}</small><h3>ЗАДАНИЯ РАЙОНА</h3><p>Расходуют энергию и дают жетон.</p></div>
+        {(DISTRICT_TASKS[state.currentDistrict] ?? DISTRICT_TASKS.southgate).map((task, index) => <button key={task.id} type="button"
+          data-tutorial-target={index === 0 ? 'district-task' : undefined}
+          disabled={state.energy < task.cost} onClick={() => dispatch({ type: 'DO_TASK', taskId: task.id })}>
+          <span>{task.name}</span><span><ResourceIcon name="energy" /> {task.cost} · <ResourceIcon name="tokens" /> +1</span>
+        </button>)}
+      </section>
       <div className={styles.overview}><div><small>СЕГОДНЯШНИЕ КОНТРАКТЫ</small><strong>{done} / {DAILY_QUESTS.length} ВЫПОЛНЕНО</strong></div><div><small>ОБНОВЛЕНИЕ</small><strong>В ПОЛНОЧЬ ПО ВРЕМЕНИ УСТРОЙСТВА</strong></div></div>
       <progress className={styles.totalProgress} value={done} max={DAILY_QUESTS.length} aria-label="Выполненные задания" />
       <div className={styles.list}>{DAILY_QUESTS.map((quest) => {

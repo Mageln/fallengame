@@ -56,7 +56,7 @@ export const BossHub = ({ onClose }: { onClose: () => void }) => {
             <div className={styles.bossPortrait}><img src={getBossArt(boss.id).face} alt={`Портрет: ${boss.name}`} /></div><div className={styles.bossInfo}><h3>{boss.name}</h3><p>{boss.description}</p><span>☠ {boss.hp} HP · ⭐ {bossExperience(boss.hp)} опыта · <ResourceIcon name="bullets" /> пули при победе · 🎁 комната </span><span>{BOSS_ATTACK_CONFIG.timedLimits ? <>⚔ Нападения: {left}/{total} · докупка <ResourceIcon name="caps" /> {price}</> : '⚔ Нападения без ограничений'}</span></div>
             {exhausted
               ? <button type="button" disabled={!!state.battle} title={state.battle ? 'Сначала завершите текущий бой' : undefined} onClick={() => setBuyBossId(boss.id)}><ResourceIcon name="caps" /> КУПИТЬ АТАКУ · {price}</button>
-              : <button type="button" disabled={!!state.battle} title={state.battle ? 'Сначала завершите текущий бой' : undefined} onClick={() => dispatch({ type: 'START_BOSS_FIGHT', bossId: boss.id })}>НАПАСТЬ{BOSS_ATTACK_CONFIG.timedLimits ? ` · ${left}/${total}` : ''}</button>}
+              : <button type="button" data-tutorial-target={`boss-${boss.id}`} disabled={!!state.battle} title={state.battle ? 'Сначала завершите текущий бой' : undefined} onClick={() => dispatch({ type: 'START_BOSS_FIGHT', bossId: boss.id })}>НАПАСТЬ{BOSS_ATTACK_CONFIG.timedLimits ? ` · ${left}/${total}` : ''}</button>}
           </article>;
         })}
       </div>
@@ -96,7 +96,7 @@ export const BossFightPanel = () => {
       <div className={styles.arena}>
         <div><div className={styles.playerPortrait}><div className={styles.characterSprite}><img className={styles.characterImage} src="/pers1.png" alt="Ваш персонаж" />{state.equipmentIds.includes('shop_cap') && <img className={styles.capOverlay} src="/characters/survivor-cap-v2.png" alt="" />}</div></div><span className={styles.energyLabel}><ResourceIcon name="energy" /> {battle.bossEnergy ?? 0}/{BOSS_ENERGY_MAX}</span><progress className={styles.bossEnergy} max={BOSS_ENERGY_MAX} value={battle.bossEnergy ?? 0} aria-label="Боевая энергия" /><strong>{state.playerName || 'Выживший'}</strong><progress max={battle.playerMaxHp} value={battle.playerHp} aria-label="HP игрока" /></div>
         <div className={styles.arenaStatus}><span className={styles.timer}>БЕЗ ЛИМИТА ВРЕМЕНИ</span>{enraged && <strong className={styles.rageBadge} role="status">🔥 ЯРОСТЬ</strong>}<span>УРОН: {battle.damageDealt}</span><span>СЕРИЯ ×{battle.comboStreak}</span>{battle.blocking && <span>🛡️ Блок активен</span>}<span>Комната: {Math.round(chance * 100)}% / 50%</span><progress max={50} value={chance * 100} aria-label="Шанс выпадения комнаты" />{battle.lastHit && <strong key={`${battle.turn}-${battle.lastSkillId}`} className={styles.damage}>−{battle.lastHit.damage}</strong>}</div>
-        <div><div className={`${styles.enemyStage} ${enraged ? styles.enraged : ''}`}><img className={styles.enemyFull} src={enraged ? bossArt.enraged : bossArt.normal} alt={`${battle.bossName}, ${enraged ? 'фаза ярости' : 'обычная фаза'}`} /></div><strong>{battle.bossName}</strong><progress max={battle.bossMaxHp} value={battle.bossHp} aria-label="HP босса" /></div>
+        <div><div data-tutorial-target="boss-rage" className={`${styles.enemyStage} ${enraged ? styles.enraged : ''}`}><img className={styles.enemyFull} src={enraged ? bossArt.enraged : bossArt.normal} alt={`${battle.bossName}, ${enraged ? 'фаза ярости' : 'обычная фаза'}`} /></div><strong>{battle.bossName}</strong><progress max={battle.bossMaxHp} value={battle.bossHp} aria-label="HP босса" /></div>
       </div>
       {isActive ? <>
         <p className={styles.energyHint}>Без выбытия по HP и без аптечек. Удар кулаком: +{BOSS_ENERGY_PER_HIT} боевой энергии для приёмов.</p>
@@ -104,7 +104,7 @@ export const BossFightPanel = () => {
           const energy = battle.bossEnergy ?? 0;
           const unavailable = energy < skill.energyCost ||
             (skill.id === 'block' && battle.blocking) || (skill.id === 'heal' && battle.playerHp >= battle.playerMaxHp);
-          return <button type="button" key={skill.id} disabled={unavailable} onClick={() => dispatch({ type: 'BOSS_SKILL', skillId: skill.id, now: Date.now() })}>
+          return <button type="button" data-tutorial-target={`boss-skill-${skill.id}`} key={skill.id} disabled={unavailable} onClick={() => dispatch({ type: 'BOSS_SKILL', skillId: skill.id, now: Date.now() })}>
             <span>{skill.icon}</span>{skill.name}{skill.id === 'weapon' && <small>{state.weapon.name}</small>}
             <small>{skill.id === 'jab' ? `+${BOSS_ENERGY_PER_HIT}` : `−${skill.energyCost}`} <ResourceIcon name="energy" /></small>
           </button>;

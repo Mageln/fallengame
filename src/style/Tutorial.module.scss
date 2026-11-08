@@ -25,3 +25,15 @@
 .actions { display: flex; justify-content: flex-end; margin-top: 12px; }
 .skip { background: transparent; color: #bdb3a0; border: 1px solid #6c5841; padding: 8px; }
 @media (max-width: 600px) { .panel { padding: 13px; }.header h2 { font-size: 19px; }.practice { padding: 10px; }.controls { gap: 6px; } }
+/* Показываем настоящую область интерфейса, а клики перехватываем учебной кнопкой. */
+.backdrop.locating { display: block; padding: 0; background: rgba(8,8,7,.64); }
+.guidePanel { position: fixed; z-index: 2; left: 0; right: 0; margin: auto; bottom: max(12px, env(safe-area-inset-bottom)); width: min(460px, calc(100vw - 24px)); padding: 12px; border: 2px ridge #b0844d; background: #211f19; color: #eee1c9; box-shadow: 0 8px 30px #000b; font: 12px/1.4 'Courier New', monospace; }
+.backdrop.locating.hasTarget { background: transparent; }
+.guidePanel.guideTop { top: max(12px, env(safe-area-inset-top)); bottom: auto; }
+.guidePanel small { color: #e0bb66; font-size: 10px; }
+.guidePanel h2 { font: bold 18px Stencil, Impact, sans-serif; margin: 5px 0; }
+.guidePanel p { margin: 6px 0; }
+.guidePanel button { cursor: pointer; font: bold 10px 'Courier New', monospace; }
+.guidePanel button:focus-visible { outline: 2px solid #f6c961; outline-offset: 2px; }
+.guidePanel .next { margin-right: 8px; padding: 8px; }
+.guidePanel .spotlight { position: fixed; z-index: -1; padding: 0; border: 3px solid #ffe18a; border-radius: 9px; background: rgba(255,220,120,.14); box-shadow: 0 0 0 4px #d39b3b88, 0 0 22px 7px #ffa83199, 0 0 0 9999px rgba(8,8,7,.75); transform: none; }

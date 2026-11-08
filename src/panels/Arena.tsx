@@ -33,7 +33,7 @@ export const Arena = ({ onClose }: { onClose: () => void }) => {
         {state.battle && <p className={styles.notice}>Сначала завершите текущий бой.</p>}
         <div className={styles.roster}>{ARENA_OPPONENTS.map((opponent) => <article className={styles.bossCard} key={opponent.id}>
           <div className={styles.bossPortrait}><img src={getArenaArt(opponent.id).face} alt={`Портрет: ${opponent.name}`} /></div><div className={styles.bossInfo}><h3>{opponent.name}</h3><p>{opponent.description}</p><span>Награда за победу: <ResourceIcon name="supplies" /> {opponent.gold} припасов · <ResourceIcon name="bullets" /> {opponent.bullets} патронов</span></div>
-          <button type="button" disabled={attempts === 0 || !!state.battle} onClick={() => dispatch({ type: 'START_ARENA', opponentId: opponent.id })}>В БОЙ</button>
+          <button type="button" data-tutorial-target={`arena-${opponent.id}`} disabled={attempts === 0 || !!state.battle} onClick={() => dispatch({ type: 'START_ARENA', opponentId: opponent.id })}>В БОЙ</button>
         </article>)}</div>
       </> : <>
         <div className={styles.arena}>

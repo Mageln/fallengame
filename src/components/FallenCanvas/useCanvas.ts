@@ -1,3 +1,5 @@
+import { tutorialCarouselOffset } from './tutorialTargets';
+import type { TutorialCanvas } from './tutorialTargets';
 import { useRef, useEffect, useCallback } from 'react';
 import type { BattleState } from '../../game/types';
 import { GameIcons, Task } from './types';
@@ -299,6 +301,15 @@ export const useCanvas = (
     );
 
     buttonPositionsRef.current = buttons;
+    const guideCanvas = canvas as TutorialCanvas;
+    guideCanvas.tutorialButtons = buttons;
+    guideCanvas.revealTutorialButton = (id) => {
+      const offset = tutorialCarouselOffset(id);
+      if (offset !== undefined && carouselOffsetRef.current !== offset) {
+        carouselOffsetRef.current = offset;
+        renderRef.current();
+      }
+    };
     needsRenderRef.current = false;
   }, [backgroundImage, characterImage, capImage, icons, energy, maxEnergy, authority, spicki, bullets, gold, premiumGold, zhetons, tasks, appearanceColor, currentLocation, carLevel, level, districtName, playerName, avatarImage, showProfile, showBossModal, showMap, showRoomModal, unlockedRooms, battle, profileData, bosses, medkits, grenades, mapRaids, mapImage, topBarImage, bossImage, mapMessage, unreadNotifications, lockedRoomsRemain]);
 

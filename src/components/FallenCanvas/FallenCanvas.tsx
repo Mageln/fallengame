@@ -351,6 +351,7 @@ export const FallenCanvas: React.FC<PrisonCanvasProps & {
     <div className={styles.canvasWrapper}>
       <canvas
         ref={canvasRef}
+        data-tutorial-canvas="true"
         className={styles.canvas}
         onClick={handleCanvasClick}
         onMouseMove={handleMouseMove}

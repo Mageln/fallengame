@@ -38,7 +38,7 @@ interface GameContextValue {
 
 const serverMode = import.meta.env.VITE_SERVER_PROGRESS === 'true';
 
-const GameContext = createContext<GameContextValue | null>(null);
+export const GameContext = createContext<GameContextValue | null>(null);
 
 export const GameProvider = ({ children }: { children: ReactNode }) => {
   const [state, dispatchLocal] = useReducer(

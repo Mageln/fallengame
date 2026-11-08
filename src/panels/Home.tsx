@@ -11,7 +11,13 @@ import { SurvivorProfile } from './SurvivorProfile';
 import { QuestBoard } from './QuestBoard';
 import { LoginReward } from './LoginReward';
 import { Tutorial } from './Tutorial';
-import { tutorialIsActive } from '../game/tutorial';
+import { TutorialBattlePreview } from './TutorialBattlePreview';
+import { TUTORIAL_STEPS, tutorialIsActive, tutorialViewStep } from '../game/tutorial';
+import { BossHub } from './Boss';
+import { Arena } from './Arena';
+import { StoreModal } from './Store';
+import { RoomModal } from './Room';
+import { ClanModal } from './Clan';
 import { loginRewardStatus } from '../game/loginRewards';
 import loginStyles from '../style/LoginReward.module.scss';
 
@@ -32,6 +38,23 @@ export const Home = ({ id }: HomeProps) => {
   const [loginChecked, setLoginChecked] = useState(false);
   const tutorialActive = !isLoading && tutorialIsActive(state.tutorialVersion, state.tutorialStep);
   const gameLayer = useRef<HTMLDivElement>(null);
+  const [tutorialPreview, setTutorialPreview] = useState('');
+  const [tutorialMap, setTutorialMap] = useState(false);
+  const tutorialId = tutorialActive ? TUTORIAL_STEPS[tutorialViewStep(state.tutorialVersion, state.tutorialStep)]?.id : undefined;
+  useEffect(() => {
+    setTutorialPreview(tutorialId === 'daily' ? 'daily' : ['fist', 'weapon', 'fist-block', 'block', 'fist-heal-1', 'fist-heal-2', 'heal', 'rage'].includes(tutorialId ?? '') ? 'battle' : '');
+    setTutorialMap(false);
+    setShowProfile(tutorialId === 'skills' || tutorialId === 'car');
+    setShowQuests(false);
+  }, [tutorialId]);
+  const showTutorialPreview = (id: string) => {
+    if (id === 'profile' || id === 'equipment' || id === 'workshop') setShowProfile(true);
+    if (id === 'skills') document.querySelector<HTMLButtonElement>('[data-tutorial-target="profile-skills"]')?.click();
+    if (id === 'map' || id === 'raid-start' || id === 'raid-claim') setTutorialMap(true);
+    if (id === 'quests' || id === 'task') setShowQuests(true);
+    if (id === 'boss') setTutorialPreview('boss');
+    if (['arena', 'store', 'shelter', 'social', 'clan'].includes(id)) setTutorialPreview(id);
+  };
   useLayoutEffect(() => {
     if (gameLayer.current) gameLayer.current.inert = tutorialActive;
   }, [tutorialActive]);
@@ -125,7 +148,7 @@ export const Home = ({ id }: HomeProps) => {
           // TODO: открыть арену
         }}
         onGoDistrict={() => dispatch({ type: 'TOGGLE_MAP' })}
-        showMap={state.showMap}
+        showMap={state.showMap || tutorialMap}
         mapRaids={state.mapRaids}
         onRaidClick={handleRaidClick}
         notifications={state.notifications}
@@ -168,8 +191,17 @@ export const Home = ({ id }: HomeProps) => {
       {showRoomGallery && (
         <RoomGallery onClose={() => setShowRoomGallery(false)} />
       )}
+      {tutorialActive && tutorialPreview === 'daily' && <LoginReward onClose={() => {}} />}
+      {tutorialActive && tutorialPreview === 'battle' && tutorialId && <div data-tutorial-preview="battle"><TutorialBattlePreview stepId={tutorialId} /></div>}
+      {tutorialActive && tutorialPreview === 'boss' && <div data-tutorial-preview="boss"><BossHub onClose={() => {}} /></div>}
+      {tutorialActive && tutorialPreview === 'arena' && <Arena onClose={() => {}} />}
+      {tutorialActive && tutorialPreview === 'store' && <StoreModal onClose={() => {}} />}
+      {tutorialActive && tutorialPreview === 'shelter' && <RoomModal onClose={() => {}} />}
+      {tutorialActive && tutorialPreview === 'social' && <FriendsPanel onClose={() => {}} />}
+      {tutorialActive && tutorialPreview === 'clan' && <ClanModal onClose={() => {}} />}
       </div>
       {tutorialActive && <Tutorial version={state.tutorialVersion} step={state.tutorialStep}
+        onLocate={showTutorialPreview}
         onPractice={(stepId) => dispatch({ type: 'TUTORIAL_PRACTICE', stepId })}
         onSkip={() => dispatch({ type: 'SKIP_TUTORIAL' })} />}
     </div>

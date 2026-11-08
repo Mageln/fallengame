@@ -41,7 +41,7 @@ export const SurvivorProfile = ({ onClose, onWorkshop, onBosses, onInventory, on
       </header>
       <div className={styles.tabs} role="tablist" aria-label="Разделы профиля">
         <button type="button" role="tab" aria-selected={tab === 'file'} className={tab === 'file' ? styles.activeTab : ''} onClick={() => setTab('file')}>ЛИЧНОЕ ДЕЛО</button>
-        <button type="button" role="tab" aria-selected={tab === 'skills'} className={tab === 'skills' ? styles.activeTab : ''} onClick={() => { setFeedback(null); setTab('skills'); }}>НАВЫКИ</button>
+        <button type="button" data-tutorial-target="profile-skills" role="tab" aria-selected={tab === 'skills'} className={tab === 'skills' ? styles.activeTab : ''} onClick={() => { setFeedback(null); setTab('skills'); }}>НАВЫКИ</button>
       </div>
       {tab === 'file' ? <div className={styles.content} role="tabpanel">
         <div className={styles.hero}>
@@ -61,7 +61,7 @@ export const SurvivorProfile = ({ onClose, onWorkshop, onBosses, onInventory, on
         </article>
         <article className={styles.upgrade}>
           <div><small>АВТОМОБИЛЬ · УРОВЕНЬ {format(state.carLevel)}</small><h3>Машина выжившего</h3><p>Улучшайте машину, чтобы открывать новые районы.</p></div>
-          <button type="button" disabled={state.energy < carCost.energy || state.matches < carCost.matches} onClick={() => { dispatch({ type: 'UPGRADE_CAR' }); setFeedback(state.lastMessage); }}>УЛУЧШИТЬ · {format(carCost.energy)} <ResourceIcon name="energy" /> · {format(carCost.matches)} <ResourceIcon name="matches" /></button>
+          <button type="button" data-tutorial-target="profile-car" disabled={state.energy < carCost.energy || state.matches < carCost.matches} onClick={() => { dispatch({ type: 'UPGRADE_CAR' }); setFeedback(state.lastMessage); }}>УЛУЧШИТЬ · {format(carCost.energy)} <ResourceIcon name="energy" /> · {format(carCost.matches)} <ResourceIcon name="matches" /></button>
         </article>
         {feedback !== null && <p className={styles.feedback} role="status">{state.lastMessage === feedback ? 'Ожидаем результат…' : state.lastMessage}</p>}
         <div className={styles.sectionHeading}><div><small>БОЕВАЯ ПОДГОТОВКА</small><h3>ХАРАКТЕРИСТИКИ</h3></div><span>ДАННЫЕ АКТУАЛЬНЫ</span></div>
@@ -70,9 +70,9 @@ export const SurvivorProfile = ({ onClose, onWorkshop, onBosses, onInventory, on
         </div>
         <div className={styles.gear}>
           <div><small>СНАРЯЖЕНИЕ / ОСНОВНОЕ ОРУЖИЕ</small><h3>{state.weapon.icon} {state.weapon.name} <span>+{state.weapon.level}</span></h3><p className={state.weapon.broken ? styles.broken : ''}>{state.weapon.broken ? '⚠ ОРУЖИЕ СЛОМАНО' : `Прочность: ${format(state.weapon.durability)} / ${format(state.weapon.maxDurability)}`}</p><progress value={Math.min(state.weapon.durability, durabilityMax)} max={durabilityMax} aria-label="Прочность оружия" /></div>
-          <button type="button" onClick={() => go(onWorkshop)}>МАСТЕРСКАЯ ↗</button>
+          <button type="button" data-tutorial-target="profile-workshop" onClick={() => go(onWorkshop)}>МАСТЕРСКАЯ ↗</button>
         </div>
-        <div className={styles.links}><button type="button" onClick={() => go(onInventory)}>▣ ИНВЕНТАРЬ</button><button type="button" onClick={() => go(onBosses)}>⚔ БОССЫ</button><button type="button" onClick={() => go(onClan)}>☠ КЛАН</button></div>
+        <div className={styles.links}><button type="button" data-tutorial-target="profile-inventory" onClick={() => go(onInventory)}>▣ ИНВЕНТАРЬ</button><button type="button" onClick={() => go(onBosses)}>⚔ БОССЫ</button><button type="button" onClick={() => go(onClan)}>☠ КЛАН</button></div>
       </div> : <div className={styles.content} role="tabpanel">
         <div className={styles.sectionHeading}><div><small>ЛИЧНЫЕ УМЕНИЯ</small><h3>НАВЫКИ ВЫЖИВШЕГО</h3></div><span>ПАТРОНЫ: {format(state.bullets)}</span></div>
         <p className={styles.caption}>Постоянные улучшения за патроны. Каждый навык можно улучшить до {SKILL_MAX_LEVEL} уровня; цена следующего уровня растёт.</p>
@@ -84,7 +84,7 @@ export const SurvivorProfile = ({ onClose, onWorkshop, onBosses, onInventory, on
           const maxed = level >= SKILL_MAX_LEVEL;
           return <article className={styles.skill} key={skill.id}>
             <img src={skill.icon} alt="" /><div className={styles.skillInfo}><small>УРОВЕНЬ {level} / {SKILL_MAX_LEVEL}</small><h3>{skill.name}</h3><p>{skill.description}</p><progress value={level} max={SKILL_MAX_LEVEL} aria-label={`Уровень навыка ${skill.name}`} /></div>
-            <button type="button" disabled={maxed || !!state.battle || state.bullets < cost} onClick={() => { dispatch({ type: 'UPGRADE_PROFILE_SKILL', skillId: skill.id }); setFeedback(state.lastMessage); }}>{maxed ? 'МАКСИМУМ' : <>УЛУЧШИТЬ · {format(cost)} <ResourceIcon name="bullets" /></>}</button>
+            <button type="button" data-tutorial-target={`profile-skill-${skill.id}`} disabled={maxed || !!state.battle || state.bullets < cost} onClick={() => { dispatch({ type: 'UPGRADE_PROFILE_SKILL', skillId: skill.id }); setFeedback(state.lastMessage); }}>{maxed ? 'МАКСИМУМ' : <>УЛУЧШИТЬ · {format(cost)} <ResourceIcon name="bullets" /></>}</button>
           </article>;
         })}</div>
         {feedback !== null && <p className={styles.feedback} role="status">{state.lastMessage === feedback ? 'Ожидаем результат…' : state.lastMessage}</p>}

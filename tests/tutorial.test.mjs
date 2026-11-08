@@ -11,9 +11,10 @@ const { createInitialState } = await vite.ssrLoadModule('/src/game/initialState.
 const { gameReducer, hydrateState } = await vite.ssrLoadModule('/src/game/reducer.ts');
 const { TUTORIAL_STEPS, TUTORIAL_VERSION, tutorialIsActive, tutorialViewStep } = await vite.ssrLoadModule('/src/game/tutorial.ts');
 const { Tutorial } = await vite.ssrLoadModule('/src/panels/Tutorial.tsx');
+const { TUTORIAL_TARGETS, canvasTargetRect, tutorialCarouselOffset } = await vite.ssrLoadModule('/src/components/FallenCanvas/tutorialTargets.ts');
 const { carUpgradeCost } = await vite.ssrLoadModule('/src/game/formulas.ts');
 const noop = () => {};
-const props = { version: TUTORIAL_VERSION, step: 0, onPractice: noop, onSkip: noop };
+const props = { version: TUTORIAL_VERSION, step: 0, onLocate: noop, onPractice: noop, onSkip: noop };
 const practice = (state, stepId) => gameReducer(state, { type: 'TUTORIAL_PRACTICE', stepId });
 
 test('new players see training; legacy and already finished profiles do not restart', () => {
@@ -72,10 +73,15 @@ test('centered dialog exposes only the current exercise and disables other contr
     const html = renderToStaticMarkup(React.createElement(Tutorial, { ...props, step: i }));
     assert.match(html, /role="dialog"/);
     assert.match(html, /aria-modal="true"/);
-    assert.ok(html.includes(step.button));
-    assert.match(html, /НЕ ВЛИЯЕТ НА ИГРУ/);
+    if (TUTORIAL_TARGETS[step.id]) {
+      assert.ok(html.includes(TUTORIAL_TARGETS[step.id].label));
+      assert.match(html, /Нажмите на подсвеченное место/);
+    } else {
+      assert.ok(html.includes(step.button));
+      assert.match(html, /НЕ ВЛИЯЕТ НА ИГРУ/);
+      assert.equal((html.match(/ disabled=""/g) ?? []).length, step.disabled?.length ?? 0);
+    }
     assert.match(html, /ПРОПУСТИТЬ ТРЕНИРОВКУ/);
-    assert.equal((html.match(/ disabled=""/g) ?? []).length, step.disabled?.length ?? 0);
   }
   assert.equal(renderToStaticMarkup(React.createElement(Tutorial, { ...props, step: -1 })), '');
   const css = await readFile('src/style/Tutorial.module.scss', 'utf8');
@@ -109,4 +115,32 @@ test('training combat costs match the live rules and arena attempts', async () =
   assert.match(step('block').button, /−20/);
   assert.match(step('heal').button, /−50/);
   assert.match(step('arena').instruction, /5 нападений/);
+});
+
+
+test('guide translates real canvas hitboxes and reveals carousel items', () => {
+  const canvas = { getBoundingClientRect: () => ({ left: 15, top: 30, width: 320, height: 600 }),
+    tutorialButtons: [{ id: 'go_profile', x: 5, y: 8, width: 70, height: 40 }] };
+  assert.deepEqual(canvasTargetRect(canvas, 'go_profile'), { left: 20, top: 38, width: 70, height: 40 });
+  assert.equal(canvasTargetRect(canvas, 'missing'), null);
+  assert.equal(tutorialCarouselOffset('go_cloth'), 2);
+  assert.equal(tutorialCarouselOffset('go_komnata'), 3);
+  assert.equal(tutorialCarouselOffset('go_boss'), 0);
+});
+
+test('training battle renders the real combat controls without touching player state', async () => {
+  const { GameContext } = await vite.ssrLoadModule('/src/game/GameContext.tsx');
+  const { TutorialBattlePreview } = await vite.ssrLoadModule('/src/panels/TutorialBattlePreview.tsx');
+  const state = createInitialState();
+  const before = JSON.stringify(state);
+  let calls = 0;
+  const value = { state, dispatch: () => calls++, derived: {}, vkUser: null, isLoading: false, serverMode: false };
+  for (const id of ['fist', 'weapon', 'block', 'heal', 'rage']) {
+    const html = renderToStaticMarkup(React.createElement(GameContext.Provider, { value }, React.createElement(TutorialBattlePreview, { stepId: id })));
+    assert.match(html, /data-tutorial-target="boss-skill-jab"/);
+    assert.match(html, /data-tutorial-target="boss-skill-heal"/);
+    if (id === 'rage') assert.match(html, /фаза ярости/);
+  }
+  assert.equal(JSON.stringify(state), before);
+  assert.equal(calls, 0);
 });

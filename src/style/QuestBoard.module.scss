@@ -11,3 +11,9 @@
 .icon img { width: 100%; height: 100%; padding: 3px; object-fit: contain; }
 .bonusIcon { flex: 0 0 68px; width: 68px; height: 68px; }
 .bonusIcon img { display: block; width: 100%; height: 100%; object-fit: contain; }
+
+.districtTasks { margin-top: 15px; padding: 12px; display: grid; gap: 7px; border: 1px solid #665038; background: #29251e; }
+.districtTasks small { color: #c9a227; font-size: 10px; letter-spacing: .1em; }
+.districtTasks h3 { margin: 4px 0; font-size: 14px; color: #e0c181; }
+.districtTasks p { margin: 4px 0 7px; font-size: 11px; color: #b4aa98; }
+.districtTasks button { display: flex; align-items: center; justify-content: space-between; gap: 8px; border: 1px solid #735838; background: #382d22; color: #e8d7bd; padding: 9px; font-size: 11px; text-align: left; }
