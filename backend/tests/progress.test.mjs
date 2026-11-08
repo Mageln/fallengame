@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { parseProgressAction } from '../dist/progressAction.js';
-import { createInitialState, gameReducer, applyDailyReset } from '../dist/generated/game.js';
+import { createInitialState, gameReducer, applyDailyReset, TUTORIAL_STEPS } from '../dist/generated/game.js';
 
 test('server allows only explicitly reviewed actions and rejects injected fields', () => {
   assert.deepEqual(parseProgressAction({ type: 'SET_APPEARANCE', appearance: 3 }), { type: 'SET_APPEARANCE', appearance: 3 });
@@ -304,15 +304,36 @@ test('server executes zombie attacks and preserves the brute attack sequence aft
   }
 });
 
-test('tutorial can be started, advanced and skipped as server-owned progress', () => {
+test('tutorial practice is server-owned, validated and cannot be restarted after completion', () => {
   let state = createInitialState();
-  for (const type of ['NEXT_TUTORIAL', 'SKIP_TUTORIAL', 'START_TUTORIAL']) {
-    const command = parseProgressAction({ type });
-    assert.deepEqual(command, { type });
-    state = applyCombatAction(state, command, Date.now());
-    if (type === 'NEXT_TUTORIAL') assert.equal(state.tutorialStep, 1);
-    if (type === 'SKIP_TUTORIAL') assert.equal(state.tutorialStep, -1);
-    if (type === 'START_TUTORIAL') assert.equal(state.tutorialStep, 0);
+  const act = (action) => { const parsed = parseProgressAction(action); assert.ok(parsed); state = applyCombatAction(state, parsed, Date.now()); };
+  assert.equal(parseProgressAction({ type: 'TUTORIAL_PRACTICE', stepId: 'wrong' }), null);
+  act({ type: 'TUTORIAL_PRACTICE', stepId: 'profile' });
+  assert.equal(state.tutorialStep, 0);
+  act({ type: 'NEXT_TUTORIAL' });
+  assert.equal(state.tutorialStep, 0);
+  act({ type: 'TUTORIAL_PRACTICE', stepId: 'intro' });
+  assert.equal(state.tutorialStep, 1);
+  act({ type: 'TUTORIAL_PRACTICE', stepId: 'intro' });
+  assert.equal(state.tutorialStep, 1);
+  act({ type: 'SKIP_TUTORIAL' });
+  assert.equal(state.tutorialStep, -1);
+  act({ type: 'START_TUTORIAL' });
+  assert.equal(state.tutorialStep, -1);
+  assert.equal(parseProgressAction({ type: 'TUTORIAL_PRACTICE', stepId: 'intro', tutorialStep: 5 }), null);
+});
+
+
+test('server completes every practice step without granting or spending resources', () => {
+  let state = createInitialState();
+  const before = { bullets: state.bullets, gold: state.gold, matches: state.matches, energy: state.energy };
+  for (const step of TUTORIAL_STEPS) {
+    const action = parseProgressAction({ type: 'TUTORIAL_PRACTICE', stepId: step.id });
+    assert.ok(action, step.id);
+    state = applyCombatAction(state, action, Date.now());
   }
-  assert.equal(parseProgressAction({ type: 'START_TUTORIAL', tutorialStep: 5 }), null);
+  assert.equal(state.tutorialStep, -1);
+  assert.deepEqual({ bullets: state.bullets, gold: state.gold, matches: state.matches, energy: state.energy }, before);
+  state = applyCombatAction(state, parseProgressAction({ type: 'START_TUTORIAL' }), Date.now());
+  assert.equal(state.tutorialStep, -1);
 });

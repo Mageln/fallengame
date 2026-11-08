@@ -189,7 +189,7 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
       <p>{isLoading ? 'Загружаем серверное сохранение…' : serverError || 'Серверное сохранение недоступно.'}</p>
       {!isLoading && <button type="button" onClick={() => void loadServer()}>Повторить загрузку</button>}
     </div> : children}
-    {serverMode && serverReady && <aside style={{ position: 'fixed', zIndex: 100000, bottom: 0, left: 0, right: 0, padding: 8, background: '#392c1b', color: 'white', fontSize: 13 }} role="status">
+    {serverMode && serverReady && <aside style={{ position: 'fixed', zIndex: serverError ? 100002 : 100000, bottom: 0, left: 0, right: 0, padding: 8, background: '#392c1b', color: 'white', fontSize: 13 }} role="status">
       Тестовый серверный режим: общие кланы и реальные платежи пока недоступны.
       {serverError && <> {serverError}</>} <button type="button" onClick={() => void loadServer()}>Обновить с сервера</button>
     </aside>}

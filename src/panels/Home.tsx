@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { FallenCanvas } from '../components/FallenCanvas/FallenCanvas';
 import { useGame } from '../game/GameContext';
 import { DISTRICT_TASKS } from '../game/constants';
@@ -11,7 +11,7 @@ import { SurvivorProfile } from './SurvivorProfile';
 import { QuestBoard } from './QuestBoard';
 import { LoginReward } from './LoginReward';
 import { Tutorial } from './Tutorial';
-import type { TutorialDestination } from '../game/tutorial';
+import { tutorialIsActive } from '../game/tutorial';
 import { loginRewardStatus } from '../game/loginRewards';
 import loginStyles from '../style/LoginReward.module.scss';
 
@@ -30,14 +30,18 @@ export const Home = ({ id }: HomeProps) => {
   const [showQuests, setShowQuests] = useState(false);
   const [showLoginReward, setShowLoginReward] = useState(false);
   const [loginChecked, setLoginChecked] = useState(false);
-  const [tutorialMinimized, setTutorialMinimized] = useState(false);
+  const tutorialActive = !isLoading && tutorialIsActive(state.tutorialVersion, state.tutorialStep);
+  const gameLayer = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    if (gameLayer.current) gameLayer.current.inert = tutorialActive;
+  }, [tutorialActive]);
 
   // Открываем окно только после загрузки сохранения пользователя.
   useEffect(() => {
-    if (isLoading || loginChecked) return;
+    if (isLoading || loginChecked || tutorialActive) return;
     setLoginChecked(true);
     if (loginRewardStatus(state.loginRewards).available) setShowLoginReward(true);
-  }, [isLoading, loginChecked, state.loginRewards]);
+  }, [isLoading, loginChecked, state.loginRewards, tutorialActive]);
 
   // Просто закрыть профиль
   const closeProfileOnly = () => {
@@ -62,16 +66,6 @@ export const Home = ({ id }: HomeProps) => {
     return () => clearInterval(interval);
   }, [hasRunningRaids, dispatch]);
 
-  const openTutorialDestination = (destination: TutorialDestination) => {
-    switch (destination) {
-      case 'profile': setShowProfile(true); break;
-      case 'tasks': setTutorialMinimized(true); break;
-      case 'map': if (!state.showMap) dispatch({ type: 'TOGGLE_MAP' }); break;
-      case 'bosses': dispatch({ type: state.battle?.source === 'boss' ? 'OPEN_BATTLE' : 'TOGGLE_BOSS_MODAL' }); break;
-      case 'quests': setShowQuests(true); break;
-    }
-  };
-
   const unreadNotifications = state.notifications.filter((n) => !n.read).length;
 
   // Обработчики для рейдов
@@ -81,6 +75,7 @@ export const Home = ({ id }: HomeProps) => {
 
   return (
     <div id={id} style={{ width: '100vw', height: '100dvh', overflow: 'hidden', position: 'relative' }}>
+      <div ref={gameLayer} aria-hidden={tutorialActive || undefined} style={{ width: '100%', height: '100%' }}>
       <FallenCanvas
         onTaskComplete={(taskId) => dispatch({ type: 'DO_TASK', taskId })}
         onResourceClick={() => {}}
@@ -161,14 +156,7 @@ export const Home = ({ id }: HomeProps) => {
       {showLoginReward && <LoginReward onClose={() => setShowLoginReward(false)} />}
       {!isLoading && loginChecked && !showLoginReward && loginRewardStatus(state.loginRewards).available && <button type="button" className={loginStyles.reopen} onClick={() => setShowLoginReward(true)}>🎁 Награда за вход</button>}
       {showQuests && <QuestBoard onClose={() => setShowQuests(false)} />}
-      {!isLoading && loginChecked && !showLoginReward && !showProfile && !showQuests && !showFriends && !showRoomGallery &&
-        !state.showMap && !state.showBossModal && !state.showRaidModal && !state.showClanModal && !state.battleVisible &&
-        <Tutorial version={state.tutorialVersion} step={state.tutorialStep} minimized={tutorialMinimized}
-          onStart={() => { setTutorialMinimized(false); dispatch({ type: 'START_TUTORIAL' }); }}
-          onNext={() => dispatch({ type: 'NEXT_TUTORIAL' })}
-          onSkip={() => dispatch({ type: 'SKIP_TUTORIAL' })}
-          onMinimize={() => setTutorialMinimized(true)} onResume={() => setTutorialMinimized(false)}
-          onDestination={openTutorialDestination} />}
+
 
 
       {/* Панель друзей */}
@@ -180,6 +168,10 @@ export const Home = ({ id }: HomeProps) => {
       {showRoomGallery && (
         <RoomGallery onClose={() => setShowRoomGallery(false)} />
       )}
+      </div>
+      {tutorialActive && <Tutorial version={state.tutorialVersion} step={state.tutorialStep}
+        onPractice={(stepId) => dispatch({ type: 'TUTORIAL_PRACTICE', stepId })}
+        onSkip={() => dispatch({ type: 'SKIP_TUTORIAL' })} />}
     </div>
   );
 };

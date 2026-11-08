@@ -1,4 +1,4 @@
-import { BOSS_SKILLS, SKILL_DEFS } from './generated/game.js';
+import { BOSS_SKILLS, SKILL_DEFS, TUTORIAL_STEPS } from './generated/game.js';
 
 // A request is a command, never a state snapshot or a client-provided timestamp.
 // Actions are admitted only after their reducer implementation has been reviewed.
@@ -33,6 +33,10 @@ export const parseProgressAction = (value: unknown): Record<string, unknown> | n
   if (keys === 'appearance,type' && action.type === 'SET_APPEARANCE' &&
       Number.isInteger(action.appearance) && Number(action.appearance) >= 0 && Number(action.appearance) <= 5) {
     return { type: action.type, appearance: action.appearance };
+  }
+  if (action.type === 'TUTORIAL_PRACTICE' && keys === 'stepId,type' &&
+      typeof action.stepId === 'string' && TUTORIAL_STEPS.some((step) => step.id === action.stepId)) {
+    return { type: action.type, stepId: action.stepId };
   }
   if ((action.type === 'BOSS_SKILL' || action.type === 'ARENA_SKILL') && keys === 'skillId,type' &&
       typeof action.skillId === 'string' && BOSS_SKILLS.some((skill) => skill.id === action.skillId)) {

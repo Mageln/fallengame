@@ -505,6 +505,7 @@ export type GameAction =
   | { type: 'SET_APPEARANCE'; appearance: AppearanceId }
   | { type: 'START_TUTORIAL' }
   | { type: 'NEXT_TUTORIAL' }
+  | { type: 'TUTORIAL_PRACTICE'; stepId: string }
   | { type: 'SKIP_TUTORIAL' }
   | { type: 'RESTORE_ENERGY_TICK' }
   | { type: 'UPGRADE_PROFILE_SKILL'; skillId: ProfileSkillId }

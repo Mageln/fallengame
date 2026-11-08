@@ -1,4 +1,4 @@
-import { TUTORIAL_VERSION, tutorialIsActive } from './tutorial';
+import { TUTORIAL_STEPS, TUTORIAL_VERSION, tutorialIsActive, tutorialViewStep } from './tutorial';
 import { reduceArena } from './arena';
 import { reduceRaid } from './raidReducer';
 import { reduceBattle } from './battleReducer';
@@ -24,7 +24,6 @@ import { CLAN_CREATE_GOLD,
   SHOP,
   SHELTER_ITEMS,
   getRoomSkin,
-  TUTORIAL,
   WEAPON_MAX_LEVEL,
   DAILY_QUESTS,
   normalizeWeapon,
@@ -367,18 +366,21 @@ export const gameReducer = (state: GameState, action: GameAction): GameState => 
       return { ...state, lastMessage: '' };
     case 'SET_APPEARANCE':
       return { ...state, appearance: action.appearance };
+    // Повторно запускать пройденное или пропущенное обучение нельзя.
     case 'START_TUTORIAL':
-      return { ...state, tutorialVersion: TUTORIAL_VERSION, tutorialStep: 0 };
-    case 'NEXT_TUTORIAL': {
+    case 'NEXT_TUTORIAL':
+      return state;
+    case 'TUTORIAL_PRACTICE': {
       if (!tutorialIsActive(state.tutorialVersion, state.tutorialStep)) return state;
-      const next = state.tutorialStep + 1;
-      if (next >= TUTORIAL.length) {
-        return { ...state, tutorialStep: -1, lastMessage: 'Обучение завершено. Качайте машину и открывайте районы.' };
-      }
-      return { ...state, tutorialStep: next, lastMessage: TUTORIAL[next] };
+      const step = tutorialViewStep(state.tutorialVersion, state.tutorialStep);
+      if (TUTORIAL_STEPS[step]?.id !== action.stepId) return state;
+      const next = step + 1;
+      return { ...state, tutorialVersion: TUTORIAL_VERSION, tutorialStep: next < TUTORIAL_STEPS.length ? next : -1,
+        lastMessage: next < TUTORIAL_STEPS.length ? state.lastMessage : 'Тренировка завершена. Добро пожаловать в Эргейт.' };
     }
     case 'SKIP_TUTORIAL':
-      return { ...state, tutorialVersion: TUTORIAL_VERSION, tutorialStep: -1 };
+      return tutorialIsActive(state.tutorialVersion, state.tutorialStep)
+        ? { ...state, tutorialVersion: TUTORIAL_VERSION, tutorialStep: -1 } : state;
     case 'RESTORE_ENERGY_TICK':
       if (state.energy >= state.maxEnergy) return state;
       return { ...state, energy: Math.min(state.maxEnergy, state.energy + 1) };

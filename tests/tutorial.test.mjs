@@ -1,6 +1,7 @@
 import { test, after } from 'node:test';
 import assert from 'node:assert/strict';
 import React from 'react';
+import { readFile } from 'node:fs/promises';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { createServer } from 'vite';
 
@@ -8,60 +9,83 @@ const vite = await createServer({ server: { middlewareMode: true, hmr: false }, 
 after(() => vite.close());
 const { createInitialState } = await vite.ssrLoadModule('/src/game/initialState.ts');
 const { gameReducer, hydrateState } = await vite.ssrLoadModule('/src/game/reducer.ts');
-const { TUTORIAL_STEPS, TUTORIAL_VERSION, tutorialIsActive } = await vite.ssrLoadModule('/src/game/tutorial.ts');
+const { TUTORIAL_STEPS, TUTORIAL_VERSION, tutorialIsActive, tutorialViewStep } = await vite.ssrLoadModule('/src/game/tutorial.ts');
 const { Tutorial } = await vite.ssrLoadModule('/src/panels/Tutorial.tsx');
 const { carUpgradeCost } = await vite.ssrLoadModule('/src/game/formulas.ts');
-
 const noop = () => {};
-const props = { version: TUTORIAL_VERSION, step: 0, minimized: false, onStart: noop, onNext: noop, onSkip: noop, onMinimize: noop, onResume: noop, onDestination: noop };
+const props = { version: TUTORIAL_VERSION, step: 0, onPractice: noop, onSkip: noop };
+const practice = (state, stepId) => gameReducer(state, { type: 'TUTORIAL_PRACTICE', stepId });
 
-test('fresh players start the story, legacy saves stay quiet and can start it explicitly', () => {
+test('new players see training; legacy and already finished profiles do not restart', () => {
   const fresh = createInitialState();
   assert.ok(tutorialIsActive(fresh.tutorialVersion, fresh.tutorialStep));
   const { tutorialVersion, ...old } = fresh;
   assert.equal(tutorialVersion, TUTORIAL_VERSION);
   const loaded = hydrateState(old);
-  assert.equal(loaded.tutorialVersion, undefined);
   assert.equal(tutorialIsActive(loaded.tutorialVersion, loaded.tutorialStep), false);
-  assert.equal(gameReducer(loaded, { type: 'NEXT_TUTORIAL' }).tutorialStep, loaded.tutorialStep);
-  const started = gameReducer(loaded, { type: 'START_TUTORIAL' });
-  assert.equal(started.tutorialVersion, TUTORIAL_VERSION);
-  assert.equal(started.tutorialStep, 0);
-  assert.equal(started.bullets, loaded.bullets);
-  assert.equal(started.experience, loaded.experience);
+  assert.equal(gameReducer(loaded, { type: 'START_TUTORIAL' }).tutorialVersion, undefined);
+  for (const version of [1, TUTORIAL_VERSION]) {
+    let completed = { ...fresh, tutorialVersion: version, tutorialStep: -1 };
+    completed = gameReducer(completed, { type: 'START_TUTORIAL' });
+    assert.equal(completed.tutorialStep, -1);
+    assert.equal(tutorialIsActive(completed.tutorialVersion, completed.tutorialStep), false);
+  }
 });
 
-test('progress, skipping, reload and explicit replay do not award items or restart silently', () => {
+test('practice requires exactly the current action, never spends or grants real resources', () => {
   let state = createInitialState();
-  const before = { bullets: state.bullets, gold: state.gold, energy: state.energy, experience: state.experience };
-  state = gameReducer(state, { type: 'NEXT_TUTORIAL' });
+  const before = { bullets: state.bullets, gold: state.gold, energy: state.energy, matches: state.matches, experience: state.experience, carLevel: state.carLevel };
+  const ids = TUTORIAL_STEPS.map((step) => step.id);
+  assert.equal(new Set(ids).size, ids.length);
+  for (let i = 0; i < TUTORIAL_STEPS.length; i++) {
+    assert.equal(practice(state, 'wrong-step').tutorialStep, i);
+    assert.equal(gameReducer(state, { type: 'NEXT_TUTORIAL' }).tutorialStep, i);
+    state = practice(state, TUTORIAL_STEPS[i].id);
+    assert.equal(state.tutorialStep, i === TUTORIAL_STEPS.length - 1 ? -1 : i + 1);
+    for (const [key, value] of Object.entries(before)) assert.equal(state[key], value);
+    if (i < TUTORIAL_STEPS.length - 1) assert.equal(practice(state, TUTORIAL_STEPS[i].id).tutorialStep, i + 1);
+  }
+  state = hydrateState(JSON.parse(JSON.stringify(state)));
+  assert.equal(tutorialIsActive(state.tutorialVersion, state.tutorialStep), false);
+  assert.equal(gameReducer(state, { type: 'START_TUTORIAL' }).tutorialStep, -1);
+  assert.equal(practice(state, 'intro').tutorialStep, -1);
+});
+
+test('skip is permanent and unfinished version one migrates safely on practice', () => {
+  let state = practice(createInitialState(), 'intro');
   state = hydrateState(JSON.parse(JSON.stringify(state)));
   assert.equal(state.tutorialStep, 1);
-  assert.ok(tutorialIsActive(state.tutorialVersion, state.tutorialStep));
   state = gameReducer(state, { type: 'SKIP_TUTORIAL' });
-  state = hydrateState(JSON.parse(JSON.stringify(state)));
   assert.equal(tutorialIsActive(state.tutorialVersion, state.tutorialStep), false);
-  assert.equal(gameReducer(state, { type: 'NEXT_TUTORIAL' }).tutorialStep, -1);
-  for (const [key, value] of Object.entries(before)) assert.equal(state[key], value);
-  state = gameReducer(state, { type: 'START_TUTORIAL' });
-  for (let i = 0; i < TUTORIAL_STEPS.length; i++) state = gameReducer(state, { type: 'NEXT_TUTORIAL' });
-  assert.equal(state.tutorialStep, -1);
-  assert.equal(tutorialIsActive(state.tutorialVersion, state.tutorialStep), false);
+  assert.equal(gameReducer(state, { type: 'START_TUTORIAL' }).tutorialStep, -1);
+  const old = { ...createInitialState(), tutorialVersion: 1, tutorialStep: 5 };
+  assert.equal(tutorialViewStep(old.tutorialVersion, old.tutorialStep), 0);
+  assert.equal(practice(old, 'raid-start').tutorialStep, 5);
+  const upgraded = practice(old, 'intro');
+  assert.equal(upgraded.tutorialVersion, TUTORIAL_VERSION);
+  assert.equal(upgraded.tutorialStep, 1);
 });
 
-test('the story and guidance render, preserve access to skip and map destinations', () => {
-  const intro = renderToStaticMarkup(React.createElement(Tutorial, props));
-  assert.match(intro, /Эргейт/);
-  assert.match(intro, /ПРОПУСТИТЬ ОБУЧЕНИЕ/);
-  assert.doesNotMatch(intro, /aria-modal/);
-  assert.match(renderToStaticMarkup(React.createElement(Tutorial, { ...props, minimized: true })), /ПРОДОЛЖИТЬ ОБУЧЕНИЕ/);
-  assert.match(renderToStaticMarkup(React.createElement(Tutorial, { ...props, version: undefined })), /ИСТОРИЯ И ОБУЧЕНИЕ/);
-  assert.match(renderToStaticMarkup(React.createElement(Tutorial, { ...props, step: 6 })), /ЗАВЕРШИТЬ/);
-  const destinations = TUTORIAL_STEPS.flatMap((step) => step.destination ? [step.destination] : []);
-  assert.deepEqual(destinations, ['profile', 'tasks', 'profile', 'map', 'bosses', 'quests']);
+test('centered dialog exposes only the current exercise and disables other controls', async () => {
+  for (let i = 0; i < TUTORIAL_STEPS.length; i++) {
+    const step = TUTORIAL_STEPS[i];
+    const html = renderToStaticMarkup(React.createElement(Tutorial, { ...props, step: i }));
+    assert.match(html, /role="dialog"/);
+    assert.match(html, /aria-modal="true"/);
+    assert.ok(html.includes(step.button));
+    assert.match(html, /НЕ ВЛИЯЕТ НА ИГРУ/);
+    assert.match(html, /ПРОПУСТИТЬ ТРЕНИРОВКУ/);
+    assert.equal((html.match(/ disabled=""/g) ?? []).length, step.disabled?.length ?? 0);
+  }
+  assert.equal(renderToStaticMarkup(React.createElement(Tutorial, { ...props, step: -1 })), '');
+  const css = await readFile('src/style/Tutorial.module.scss', 'utf8');
+  assert.match(css, /place-items:\s*center/);
+  const home = await readFile('src/panels/Home.tsx', 'utf8');
+  assert.match(home, /gameLayer\.current\.inert = tutorialActive/);
+  assert.match(home, /aria-hidden=\{tutorialActive \|\| undefined\}/);
 });
 
-test('car upgrade exposed by training consumes correct resources and updates daily quest', () => {
+test('car upgrade remains available and spends its normal resources', () => {
   let state = createInitialState();
   const cost = carUpgradeCost(state.carLevel);
   state = { ...state, energy: cost.energy, matches: cost.matches };
@@ -69,31 +93,20 @@ test('car upgrade exposed by training consumes correct resources and updates dai
   assert.equal(next.carLevel, state.carLevel + 1);
   assert.equal(next.energy, 0);
   assert.equal(next.matches, 0);
-  assert.equal(next.daily.quests.find((q) => q.questId === 'q4').completed, true);
 });
 
-test('guide buttons forward each destination and can minimize or resume', () => {
-  const visited = [];
-  const findButton = (node, label) => {
-    if (!node || typeof node !== 'object') return undefined;
-    if (node.type === 'button' && node.props.children === label) return node;
-    for (const child of React.Children.toArray(node.props?.children)) {
-      const found = findButton(child, label);
-      if (found) return found;
-    }
-    return undefined;
-  };
-  for (let index = 0; index < TUTORIAL_STEPS.length; index++) {
-    const step = TUTORIAL_STEPS[index];
-    if (!step.destination) continue;
-    const tree = Tutorial({ ...props, step: index, onDestination: (destination) => visited.push(destination) });
-    const button = findButton(tree, step.button);
-    assert.ok(button, step.button);
-    button.props.onClick();
-    assert.equal(visited.at(-1), step.destination);
-  }
-  let resumed = false;
-  const collapsed = Tutorial({ ...props, minimized: true, onResume: () => { resumed = true; } });
-  collapsed.props.onClick();
-  assert.equal(resumed, true);
+test('training combat costs match the live rules and arena attempts', async () => {
+  const { BOSS_ENERGY_PER_HIT, BOSS_SKILLS } = await vite.ssrLoadModule('/src/game/survival.ts');
+  const { ARENA_DAILY_LIMIT } = await vite.ssrLoadModule('/src/game/arena.ts');
+  const step = (id) => TUTORIAL_STEPS.find((item) => item.id === id);
+  assert.equal(BOSS_ENERGY_PER_HIT, 20);
+  assert.equal(BOSS_SKILLS.find((skill) => skill.id === 'weapon').energyCost, 10);
+  assert.equal(BOSS_SKILLS.find((skill) => skill.id === 'block').energyCost, 20);
+  assert.equal(BOSS_SKILLS.find((skill) => skill.id === 'heal').energyCost, 50);
+  assert.equal(ARENA_DAILY_LIMIT, 5);
+  assert.match(step('fist').button, /\+20/);
+  assert.match(step('weapon').button, /−10/);
+  assert.match(step('block').button, /−20/);
+  assert.match(step('heal').button, /−50/);
+  assert.match(step('arena').instruction, /5 нападений/);
 });

@@ -4,3 +4,4 @@ export function applyDailyReset(state: Record<string, unknown>): Record<string, 
 export const ENERGY_TICK_MS: number;
 export const SKILL_DEFS: ReadonlyArray<{ id: string }>;
 export const BOSS_SKILLS: ReadonlyArray<{ id: string }>;
+export const TUTORIAL_STEPS: ReadonlyArray<{ id: string }>;
