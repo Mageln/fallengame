@@ -303,3 +303,16 @@ test('server executes zombie attacks and preserves the brute attack sequence aft
     assert.equal(state.battle.outcome, 'fighting');
   }
 });
+
+test('tutorial can be started, advanced and skipped as server-owned progress', () => {
+  let state = createInitialState();
+  for (const type of ['NEXT_TUTORIAL', 'SKIP_TUTORIAL', 'START_TUTORIAL']) {
+    const command = parseProgressAction({ type });
+    assert.deepEqual(command, { type });
+    state = applyCombatAction(state, command, Date.now());
+    if (type === 'NEXT_TUTORIAL') assert.equal(state.tutorialStep, 1);
+    if (type === 'SKIP_TUTORIAL') assert.equal(state.tutorialStep, -1);
+    if (type === 'START_TUTORIAL') assert.equal(state.tutorialStep, 0);
+  }
+  assert.equal(parseProgressAction({ type: 'START_TUTORIAL', tutorialStep: 5 }), null);
+});

@@ -1,3 +1,4 @@
+import { TUTORIAL_VERSION } from './tutorial';
 import { TUTORIAL, DAILY_QUESTS, STARTER_WEAPON, DEFAULT_STATS } from './constants';
 import { dateKey, weekKey } from './formulas';
 import { todayLocal } from './survival';
@@ -7,6 +8,7 @@ import { emptyProfileSkills } from './profileSkills';
 export const createInitialState = (): GameState => ({
   appearance: 0,
   tutorialStep: 0,
+  tutorialVersion: TUTORIAL_VERSION,
   energy: 0,
   maxEnergy: 100,
   // Начальные ресурсы у всех пользователей равны 0

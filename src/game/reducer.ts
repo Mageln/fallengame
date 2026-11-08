@@ -1,3 +1,4 @@
+import { TUTORIAL_VERSION, tutorialIsActive } from './tutorial';
 import { reduceArena } from './arena';
 import { reduceRaid } from './raidReducer';
 import { reduceBattle } from './battleReducer';
@@ -366,7 +367,10 @@ export const gameReducer = (state: GameState, action: GameAction): GameState => 
       return { ...state, lastMessage: '' };
     case 'SET_APPEARANCE':
       return { ...state, appearance: action.appearance };
+    case 'START_TUTORIAL':
+      return { ...state, tutorialVersion: TUTORIAL_VERSION, tutorialStep: 0 };
     case 'NEXT_TUTORIAL': {
+      if (!tutorialIsActive(state.tutorialVersion, state.tutorialStep)) return state;
       const next = state.tutorialStep + 1;
       if (next >= TUTORIAL.length) {
         return { ...state, tutorialStep: -1, lastMessage: 'Обучение завершено. Качайте машину и открывайте районы.' };
@@ -374,7 +378,7 @@ export const gameReducer = (state: GameState, action: GameAction): GameState => 
       return { ...state, tutorialStep: next, lastMessage: TUTORIAL[next] };
     }
     case 'SKIP_TUTORIAL':
-      return { ...state, tutorialStep: -1 };
+      return { ...state, tutorialVersion: TUTORIAL_VERSION, tutorialStep: -1 };
     case 'RESTORE_ENERGY_TICK':
       if (state.energy >= state.maxEnergy) return state;
       return { ...state, energy: Math.min(state.maxEnergy, state.energy + 1) };

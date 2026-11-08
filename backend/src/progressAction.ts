@@ -3,7 +3,7 @@ import { BOSS_SKILLS, SKILL_DEFS } from './generated/game.js';
 // A request is a command, never a state snapshot or a client-provided timestamp.
 // Actions are admitted only after their reducer implementation has been reviewed.
 const noArguments = new Set([
-  'NEXT_TUTORIAL', 'SKIP_TUTORIAL', 'CLAIM_DAILY', 'CLAIM_LOGIN_REWARD',
+  'START_TUTORIAL', 'NEXT_TUTORIAL', 'SKIP_TUTORIAL', 'CLAIM_DAILY', 'CLAIM_LOGIN_REWARD',
   'CLAIM_DAILY_QUEST_BONUS', 'UPGRADE_LEVEL', 'UPGRADE_STAMINA', 'UPGRADE_LUCK',
   'UPGRADE_CAR', 'UPGRADE_WEAPON', 'UPGRADE_WEAPON_UPGRADE', 'REPAIR_WEAPON',
   'TOGGLE_SOUND', 'CLEAR_MESSAGE', 'TOGGLE_MAP', 'TOGGLE_BOSS_MODAL', 'TOGGLE_CLAN_MODAL',

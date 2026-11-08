@@ -1,3 +1,4 @@
+import { TUTORIAL_STEPS } from './tutorial';
 import { SHOP_CLOTHING } from './shopCatalog';
 import { InventoryItem, DailyQuest, Rarity, Weapon, WeaponMod, WeaponType, Zombie, ShelterItem, ShelterItemId, RoomSkin } from './types';
 
@@ -257,15 +258,7 @@ export const DAILY_QUESTS: DailyQuest[] = [
   { id: 'q6', name: 'Охотник', description: 'Победите 3 боссов и заберите награды', type: 'kill_boss', target: 3, rewardBullets: 100, rewardMatches: 0, rewardGrenades: 0, rewardGold: 0, rewardExperience: 100 },
 ];
 
-export const TUTORIAL = [
-  'Эргейт оцеплен стеной. Выживите и развивайтесь.',
-  'Откройте профиль слева вверху — там внешность, уровень, выносливость и удача.',
-  'Стартовое оружие и патроны выданы. Не тратьте энергию впустую.',
-  'Качайте автомобиль первым: без него районы не откроются. Нортед — с 50 уровня машины.',
-  'Мастерская справа внизу: заточка, модернизация и ремонт оружия. Максимум заточки — 10.',
-  'Инвентарь (кнопка внизу) — новые предметы с редкостью. Крафт — создавайте лучшее снаряжение.',
-  'Ежедневные квесты — выполняйте задания за бонусы. Не забывайте про рацию!',
-];
+export const TUTORIAL = TUTORIAL_STEPS.map((step) => step.instruction);
 
 export const DISTRICT_TASKS: Record<string, { id: string; name: string; icon: string; cost: number; bullets: number; matches: number }[]> = {
   southgate: [

@@ -1,7 +1,7 @@
 import { ResourceIcon } from '../components/ResourceIcon';
 import { useEffect, useState } from 'react';
 import { useGame } from '../game/GameContext';
-import { getDistrict, levelUpCost } from '../game/formulas';
+import { carUpgradeCost, getDistrict, levelUpCost } from '../game/formulas';
 import { LOCATIONS } from '../game/constants';
 import styles from '../style/SurvivorProfile.module.scss';
 import { SKILL_DEFS, SKILL_MAX_LEVEL, skillCost } from '../game/profileSkills';
@@ -29,6 +29,7 @@ export const SurvivorProfile = ({ onClose, onWorkshop, onBosses, onInventory, on
   const name = [vkUser?.first_name, vkUser?.last_name].filter(Boolean).join(' ') || state.playerName || 'Выживший';
   const room = LOCATIONS.find((item) => item.id === state.currentLocation)?.name ?? 'Неизвестно';
   const district = getDistrict(state.currentDistrict)?.name ?? 'Неизвестно';
+  const carCost = carUpgradeCost(state.carLevel);
   const durabilityMax = Math.max(1, state.weapon.maxDurability);
   const go = (callback: () => void) => { onClose(); callback(); };
 
@@ -57,6 +58,10 @@ export const SurvivorProfile = ({ onClose, onWorkshop, onBosses, onInventory, on
         <article className={styles.upgrade}>
           <div><small>ТЕКУЩИЙ УРОВЕНЬ · {format(state.level)}</small><h3>Уровень персонажа</h3><p>+1 уровень и +3 припасов. Опыт не расходуется.</p></div>
           <button type="button" disabled={state.bullets < levelUpCost(state.level)} onClick={() => { dispatch({ type: 'UPGRADE_LEVEL' }); setFeedback(state.lastMessage); }}>ПОВЫСИТЬ · {format(levelUpCost(state.level))} <ResourceIcon name="bullets" /></button>
+        </article>
+        <article className={styles.upgrade}>
+          <div><small>АВТОМОБИЛЬ · УРОВЕНЬ {format(state.carLevel)}</small><h3>Машина выжившего</h3><p>Улучшайте машину, чтобы открывать новые районы.</p></div>
+          <button type="button" disabled={state.energy < carCost.energy || state.matches < carCost.matches} onClick={() => { dispatch({ type: 'UPGRADE_CAR' }); setFeedback(state.lastMessage); }}>УЛУЧШИТЬ · {format(carCost.energy)} <ResourceIcon name="energy" /> · {format(carCost.matches)} <ResourceIcon name="matches" /></button>
         </article>
         {feedback !== null && <p className={styles.feedback} role="status">{state.lastMessage === feedback ? 'Ожидаем результат…' : state.lastMessage}</p>}
         <div className={styles.sectionHeading}><div><small>БОЕВАЯ ПОДГОТОВКА</small><h3>ХАРАКТЕРИСТИКИ</h3></div><span>ДАННЫЕ АКТУАЛЬНЫ</span></div>

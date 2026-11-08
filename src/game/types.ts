@@ -423,6 +423,7 @@ export interface ArenaProgress { date: string; used: number; battle: ArenaBattle
 export interface GameState {
   appearance: AppearanceId;
   tutorialStep: number;
+  tutorialVersion?: number; // Отсутствует в старых сохранениях: не запускать обучение автоматически.
   energy: number;
   maxEnergy: number;
   bullets: number;
@@ -502,6 +503,7 @@ export type GameAction =
   | { type: 'ARENA_SKILL'; skillId: string }
   | { type: 'CLOSE_ARENA_BATTLE' }
   | { type: 'SET_APPEARANCE'; appearance: AppearanceId }
+  | { type: 'START_TUTORIAL' }
   | { type: 'NEXT_TUTORIAL' }
   | { type: 'SKIP_TUTORIAL' }
   | { type: 'RESTORE_ENERGY_TICK' }

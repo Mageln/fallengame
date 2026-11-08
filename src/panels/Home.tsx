@@ -10,6 +10,8 @@ import { FriendsPanel } from './Friends';
 import { SurvivorProfile } from './SurvivorProfile';
 import { QuestBoard } from './QuestBoard';
 import { LoginReward } from './LoginReward';
+import { Tutorial } from './Tutorial';
+import type { TutorialDestination } from '../game/tutorial';
 import { loginRewardStatus } from '../game/loginRewards';
 import loginStyles from '../style/LoginReward.module.scss';
 
@@ -28,6 +30,7 @@ export const Home = ({ id }: HomeProps) => {
   const [showQuests, setShowQuests] = useState(false);
   const [showLoginReward, setShowLoginReward] = useState(false);
   const [loginChecked, setLoginChecked] = useState(false);
+  const [tutorialMinimized, setTutorialMinimized] = useState(false);
 
   // Открываем окно только после загрузки сохранения пользователя.
   useEffect(() => {
@@ -58,6 +61,16 @@ export const Home = ({ id }: HomeProps) => {
     const interval = setInterval(() => dispatch({ type: 'CHECK_RAIDS' }), 1000);
     return () => clearInterval(interval);
   }, [hasRunningRaids, dispatch]);
+
+  const openTutorialDestination = (destination: TutorialDestination) => {
+    switch (destination) {
+      case 'profile': setShowProfile(true); break;
+      case 'tasks': setTutorialMinimized(true); break;
+      case 'map': if (!state.showMap) dispatch({ type: 'TOGGLE_MAP' }); break;
+      case 'bosses': dispatch({ type: state.battle?.source === 'boss' ? 'OPEN_BATTLE' : 'TOGGLE_BOSS_MODAL' }); break;
+      case 'quests': setShowQuests(true); break;
+    }
+  };
 
   const unreadNotifications = state.notifications.filter((n) => !n.read).length;
 
@@ -148,6 +161,15 @@ export const Home = ({ id }: HomeProps) => {
       {showLoginReward && <LoginReward onClose={() => setShowLoginReward(false)} />}
       {!isLoading && loginChecked && !showLoginReward && loginRewardStatus(state.loginRewards).available && <button type="button" className={loginStyles.reopen} onClick={() => setShowLoginReward(true)}>🎁 Награда за вход</button>}
       {showQuests && <QuestBoard onClose={() => setShowQuests(false)} />}
+      {!isLoading && loginChecked && !showLoginReward && !showProfile && !showQuests && !showFriends && !showRoomGallery &&
+        !state.showMap && !state.showBossModal && !state.showRaidModal && !state.showClanModal && !state.battleVisible &&
+        <Tutorial version={state.tutorialVersion} step={state.tutorialStep} minimized={tutorialMinimized}
+          onStart={() => { setTutorialMinimized(false); dispatch({ type: 'START_TUTORIAL' }); }}
+          onNext={() => dispatch({ type: 'NEXT_TUTORIAL' })}
+          onSkip={() => dispatch({ type: 'SKIP_TUTORIAL' })}
+          onMinimize={() => setTutorialMinimized(true)} onResume={() => setTutorialMinimized(false)}
+          onDestination={openTutorialDestination} />}
+
 
       {/* Панель друзей */}
       {showFriends && (
