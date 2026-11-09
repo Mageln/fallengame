@@ -12,6 +12,7 @@ import { ClanModal } from "../../panels/Clan";
 import { RoomModal } from "../../panels/Room";
 import { getBossArt, isEnraged } from '../../game/enemyArt';
 import { Arena } from "../../panels/Arena";
+import { CasinoModal } from "../../panels/Casino";
 import { StoreModal } from "../../panels/Store";
 import { BossFightPanel, BossHub, PremiumShop } from "../../panels/Boss";
 import { FriendsPanel } from "../../panels/Friends";
@@ -127,6 +128,7 @@ export const FallenCanvas: React.FC<PrisonCanvasProps & {
   const [showPremiumShop, setShowPremiumShop] = useState(false);
   const [showArena, setShowArena] = useState(false);
   const [showStore, setShowStore] = useState(false);
+  const [showCasino, setShowCasino] = useState(false);
   const [showFriends, setShowFriends] = useState(false);
 
   useEffect(() => {
@@ -344,7 +346,8 @@ export const FallenCanvas: React.FC<PrisonCanvasProps & {
     state.premiumGold,
     () => setShowPremiumShop(true),
     () => setShowStore(true),
-    state.equipmentIds.includes('shop_cap') ? capImage : null
+    state.equipmentIds.includes('shop_cap') ? capImage : null,
+    () => setShowCasino(true)
   );
 
   return (
@@ -396,6 +399,7 @@ export const FallenCanvas: React.FC<PrisonCanvasProps & {
       )}
       <BossFightPanel />
       {showArena && <Arena onClose={() => setShowArena(false)} />}
+      {showCasino && <CasinoModal onClose={() => setShowCasino(false)} />}
       {showStore && <StoreModal onClose={() => setShowStore(false)} />}
       {showPremiumShop && <PremiumShop onClose={() => setShowPremiumShop(false)} />}
       {showFriends && <FriendsPanel onClose={() => setShowFriends(false)} />}

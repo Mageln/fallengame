@@ -4,6 +4,7 @@ import { useGame } from '../game/GameContext';
 import { carUpgradeCost, getDistrict, levelUpCost } from '../game/formulas';
 import { LOCATIONS } from '../game/constants';
 import styles from '../style/SurvivorProfile.module.scss';
+import { casinoBadge } from '../game/casino';
 import { SKILL_DEFS, SKILL_MAX_LEVEL, skillCost } from '../game/profileSkills';
 
 type Tab = 'file' | 'skills';
@@ -30,6 +31,7 @@ export const SurvivorProfile = ({ onClose, onWorkshop, onBosses, onInventory, on
   const room = LOCATIONS.find((item) => item.id === state.currentLocation)?.name ?? 'Неизвестно';
   const district = getDistrict(state.currentDistrict)?.name ?? 'Неизвестно';
   const carCost = carUpgradeCost(state.carLevel);
+  const badge = casinoBadge(state.casino);
   const durabilityMax = Math.max(1, state.weapon.maxDurability);
   const go = (callback: () => void) => { onClose(); callback(); };
 
@@ -47,7 +49,7 @@ export const SurvivorProfile = ({ onClose, onWorkshop, onBosses, onInventory, on
         <div className={styles.hero}>
           <div className={styles.portrait}><span className={styles.portraitLabel}>ЛИЧНОЕ ДЕЛО / 01</span>{vkUser?.photo_200 ? <img src={vkUser.photo_200} alt="Аватар VK" /> : <span className={styles.characterPortrait}><img className={styles.characterImage} src="/pers1.png" alt="Персонаж выжившего" />{state.equipmentIds.includes('shop_cap') && <img className={styles.capOverlay} src="/characters/survivor-cap-v2.png" alt="" />}</span>}<span className={styles.portraitFooter}>ПОСЛЕДНИЙ РУБЕЖ</span></div>
           <div className={styles.identity}>
-            <span className={styles.sectionLabel}>● СТАТУС: ВЫЖИВШИЙ</span><h3>{name}</h3>
+            <span className={styles.sectionLabel}>● СТАТУС: ВЫЖИВШИЙ</span><h3>{name}</h3>{badge && <span className={styles.sectionLabel}>{badge.icon} {badge.name}</span>}
             <div className={styles.tags}><span>УРОВЕНЬ {format(state.level)}</span><span>★ {format(state.experience)} ОПЫТА</span></div>
             <p className={styles.caption}>Опыт накапливается за боссов и рейды. Уровень повышается отдельно за патроны.</p>
             <div className={styles.meter}><div><span>ЗДОРОВЬЕ</span><strong>{format(state.health)} / {format(state.maxHealth)}</strong></div><progress value={state.health} max={state.maxHealth} aria-label="Здоровье" /></div>

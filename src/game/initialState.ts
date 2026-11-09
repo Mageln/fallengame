@@ -1,3 +1,4 @@
+import { emptyCasino } from './casino';
 import { TUTORIAL_VERSION } from './tutorial';
 import { TUTORIAL, DAILY_QUESTS, STARTER_WEAPON, DEFAULT_STATS } from './constants';
 import { dateKey, weekKey } from './formulas';
@@ -25,6 +26,7 @@ export const createInitialState = (): GameState => ({
   level: 30,
   experience: 0,
   loginRewards: { lastClaimDate: null, streak: 0 },
+  casino: emptyCasino(),
   profileSkills: emptyProfileSkills(),
   baseStamina: 40,
   luck: 20,

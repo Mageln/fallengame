@@ -92,7 +92,8 @@ export const useCanvas = (
   premiumGold: number = 0,
   onDonationClick?: () => void,
   onGoCloth?: () => void,
-  capImage: HTMLImageElement | null = null
+  capImage: HTMLImageElement | null = null,
+  onGoKazino?: () => void
 ) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const hoveredRef = useRef({ x: 0, y: 0 });
@@ -156,6 +157,7 @@ export const useCanvas = (
     onNotificationsClick,
     onDonationClick,
     onGoCloth,
+    onGoKazino,
   });
 
   // Обновляем ref callback'ов при каждом изменении
@@ -200,6 +202,7 @@ export const useCanvas = (
       onNotificationsClick,
       onDonationClick,
       onGoCloth,
+      onGoKazino,
     };
   }, [
     onProfileClick, onBattleClick, onBossModalClose, onCloseMap,
@@ -210,7 +213,7 @@ export const useCanvas = (
     onFightHeal, onFightGrenade, onOpenRoomModal, onSelectRoom,
     onClanClick, onInventoryClick, onQuestsClick, onCraftingClick,
     onGoClan, onGoInventory, onGoQuests, onGoCrafting, onFriendsClick, onRoomsClick,
-    onNotificationsClick, onDonationClick, onGoCloth
+    onNotificationsClick, onDonationClick, onGoCloth, onGoKazino
   ]);
 
   const render = useCallback(() => {

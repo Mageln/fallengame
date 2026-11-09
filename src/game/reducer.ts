@@ -1,3 +1,4 @@
+import { normalizeCasino, reduceCasino } from './casino';
 import { TUTORIAL_STEPS, TUTORIAL_VERSION, tutorialIsActive, tutorialViewStep } from './tutorial';
 import { reduceArena } from './arena';
 import { reduceRaid } from './raidReducer';
@@ -149,7 +150,7 @@ const computeClanWarGold = (win: boolean, streak: number): number => {
 
 export const hydrateState = (state: GameState): GameState => {
   // Normalize old saves that may lack new fields
-  let normalized: GameState = { ...state };
+  let normalized: GameState = { ...state, casino: normalizeCasino(state.casino) };
   
   if (!normalized.inventory) {
     normalized = { ...normalized, inventory: [] };
@@ -331,6 +332,11 @@ export const gameReducer = (state: GameState, action: GameAction): GameState => 
   // Босс на отдельной арене: старые кнопки пошагового боя не обходят его кулдауны.
   if (state.battle?.source === 'boss' && (action.type.startsWith('BATTLE_') || action.type === 'INVITE_FRIEND')) return state;
   switch (action.type) {
+    case 'CASINO_SAFE':
+    case 'CASINO_SLOTS':
+    case 'CASINO_CARD':
+    case 'CASINO_PRIZE':
+      return reduceCasino(state, action);
     case 'HYDRATE_STATE':
       // Загрузка сохранения конкретного пользователя (после определения его VK ID)
       return hydrateState({

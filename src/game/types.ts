@@ -1,3 +1,4 @@
+import type { CasinoState } from './casino';
 import type { ResourceEvent } from './survival';
 import type { LoginRewardState } from './loginRewards';
 
@@ -439,6 +440,7 @@ export interface GameState {
   level: number;
   experience: number; // накопленный опыт за боссов и рейды
   loginRewards: LoginRewardState;
+  casino: CasinoState;
   profileSkills: ProfileSkills;
   baseStamina: number;
   luck: number;
@@ -499,6 +501,10 @@ export interface GameState {
 }
 
 export type GameAction =
+  | { type: 'CASINO_SAFE'; choice: number }
+  | { type: 'CASINO_SLOTS' }
+  | { type: 'CASINO_CARD'; choice: number }
+  | { type: 'CASINO_PRIZE'; prizeId: string }
   | { type: 'START_ARENA'; opponentId: string }
   | { type: 'ARENA_SKILL'; skillId: string }
   | { type: 'CLOSE_ARENA_BATTLE' }

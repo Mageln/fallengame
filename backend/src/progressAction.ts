@@ -12,7 +12,7 @@ const noArguments = new Set([
   'RAID_SCOUT', 'RAID_BYPASS', 'RAID_LOOT', 'LEAVE_RAID', 'MINIMIZE_RAID',
   'CHECK_RAIDS', 'CLOSE_RAID_TASKS', 'START_GAST', 'BATTLE_POWER', 'BATTLE_COMBO',
   'BATTLE_BLOCK', 'BATTLE_EVADE', 'BATTLE_HEAL', 'LOTTERY', 'SEARCH_FRIEND',
-  'RADIO_HELP', 'FORGE_ITEM', 'UNFORGE_ITEM',
+  'RADIO_HELP', 'FORGE_ITEM', 'UNFORGE_ITEM', 'CASINO_SLOTS',
 ]);
 const idArguments: Record<string, string> = {
   ENTER_DISTRICT: 'districtId', DO_TASK: 'taskId',
@@ -34,6 +34,12 @@ export const parseProgressAction = (value: unknown): Record<string, unknown> | n
       Number.isInteger(action.appearance) && Number(action.appearance) >= 0 && Number(action.appearance) <= 5) {
     return { type: action.type, appearance: action.appearance };
   }
+  if ((action.type === 'CASINO_SAFE' || action.type === 'CASINO_CARD') && keys === 'choice,type' &&
+      Number.isInteger(action.choice) && Number(action.choice) >= 0 && Number(action.choice) <= 2) {
+    return { type: action.type, choice: action.choice };
+  }
+  if (action.type === 'CASINO_PRIZE' && keys === 'prizeId,type' &&
+      (action.prizeId === 'radio' || action.prizeId === 'crown')) return { type: action.type, prizeId: action.prizeId };
   if (action.type === 'TUTORIAL_PRACTICE' && keys === 'stepId,type' &&
       typeof action.stepId === 'string' && TUTORIAL_STEPS.some((step) => step.id === action.stepId)) {
     return { type: action.type, stepId: action.stepId };

@@ -337,3 +337,34 @@ test('server completes every practice step without granting or spending resource
   state = applyCombatAction(state, parseProgressAction({ type: 'START_TUTORIAL' }), Date.now());
   assert.equal(state.tutorialStep, -1);
 });
+
+test('casino commands cannot supply results, rewards, dates, stakes, or unknown prizes', () => {
+  assert.deepEqual(parseProgressAction({ type: 'CASINO_SLOTS' }), { type: 'CASINO_SLOTS' });
+  assert.deepEqual(parseProgressAction({ type: 'CASINO_SAFE', choice: 1 }), { type: 'CASINO_SAFE', choice: 1 });
+  assert.deepEqual(parseProgressAction({ type: 'CASINO_CARD', choice: 2 }), { type: 'CASINO_CARD', choice: 2 });
+  assert.deepEqual(parseProgressAction({ type: 'CASINO_PRIZE', prizeId: 'radio' }), { type: 'CASINO_PRIZE', prizeId: 'radio' });
+  for (const action of [
+    { type: 'CASINO_SLOTS', winnings: 999 }, { type: 'CASINO_SLOTS', bet: 0 },
+    { type: 'CASINO_SAFE', choice: 1, date: '2030-01-01' }, { type: 'CASINO_SAFE', choice: 3 },
+    { type: 'CASINO_CARD', choice: -1 }, { type: 'CASINO_CARD', choice: 0, outcome: 2 },
+    { type: 'CASINO_PRIZE', prizeId: 'premium' },
+  ]) assert.equal(parseProgressAction(action), null);
+});
+
+test('authoritative casino safe and spins only change reviewed game currencies', () => {
+  const before = createInitialState();
+  const safeAction = parseProgressAction({ type: 'CASINO_SAFE', choice: 0 });
+  const first = gameReducer(before, safeAction);
+  assert.equal(first.casino.chips, 10);
+  const duplicate = gameReducer(first, parseProgressAction({ type: 'CASINO_SAFE', choice: 1 }));
+  assert.equal(duplicate.casino.chips, 10);
+  assert.equal(duplicate.bullets, first.bullets);
+  assert.equal(duplicate.matches, first.matches);
+  assert.equal(duplicate.gold, first.gold);
+  const spin = gameReducer(duplicate, parseProgressAction({ type: 'CASINO_SLOTS' }));
+  assert.equal(spin.casino.points, 1);
+  assert.equal(spin.premiumGold, before.premiumGold);
+  assert.equal(spin.caps, before.caps);
+  assert.equal(spin.zhetons, before.zhetons);
+  assert.equal(spin.gold, duplicate.gold);
+});
