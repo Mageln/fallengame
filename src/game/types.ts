@@ -186,6 +186,8 @@ export interface BattleReward {
 export interface BattleState {
   bossId: string;
   bossName: string;
+  coopEncounterId?: string; // только серверное состояние совместного боя
+  coopParticipants?: number;
   bossHp: number;
   bossMaxHp: number;
   playerHp: number;

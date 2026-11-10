@@ -6,3 +6,5 @@ export { SKILL_DEFS } from '../../src/game/profileSkills';
 export { BOSS_SKILLS } from '../../src/game/survival';
 
 export { TUTORIAL_STEPS } from '../../src/game/tutorial';
+export { BOSSES } from '../../src/game/bosses';
+export { bossExperience } from '../../src/game/experience';
