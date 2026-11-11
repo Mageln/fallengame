@@ -14,7 +14,9 @@ import { getBossArt, isEnraged } from '../../game/enemyArt';
 import { Arena } from "../../panels/Arena";
 import { CasinoModal } from "../../panels/Casino";
 import { StoreModal } from "../../panels/Store";
-import { BossFightPanel, BossHub, PremiumShop } from "../../panels/Boss";
+import { BossFightPanel, BossHub } from "../../panels/Boss";
+import { ResourceTopUp } from "../../panels/ResourceTopUp";
+import type { TopUpResource } from "../../game/resourceTopUp";
 import { FriendsPanel } from "../../panels/Friends";
 import { NotificationsPanel } from "../NotificationsPanel";
 import { useGame } from "../../game/GameContext";
@@ -125,7 +127,7 @@ export const FallenCanvas: React.FC<PrisonCanvasProps & {
   // Спрайт босса для окна боя
   const [bossImage, setBossImage] = useState<HTMLImageElement | null>(null);
   const [showRoomModal, setShowRoomModal] = useState(false);
-  const [showPremiumShop, setShowPremiumShop] = useState(false);
+  const [topUpResource, setTopUpResource] = useState<TopUpResource | null>(null);
   const [showArena, setShowArena] = useState(false);
   const [showStore, setShowStore] = useState(false);
   const [showCasino, setShowCasino] = useState(false);
@@ -258,12 +260,8 @@ export const FallenCanvas: React.FC<PrisonCanvasProps & {
     if (state.showMap) dispatch({ type: 'TOGGLE_MAP' });
   }, [onProfileClose, state.showBossModal, state.showMap, dispatch]);
 
-  // Кнопки "+" — пополнение ресурсов (тестовый вариант: +10 за клик)
-  const handleRestoreEnergy = useCallback(() => dispatch({ type: 'ADD_RESOURCE', resource: 'energy', amount: 10 }), [dispatch]);
-  const handleRestoreSpicki = useCallback(() => dispatch({ type: 'ADD_RESOURCE', resource: 'matches', amount: 10 }), [dispatch]);
-  const handleRestoreBullets = useCallback(() => dispatch({ type: 'ADD_RESOURCE', resource: 'bullets', amount: 10 }), [dispatch]);
-  const handleRestoreGold = useCallback(() => dispatch({ type: 'ADD_RESOURCE', resource: 'gold', amount: 10 }), [dispatch]);
-  const handleRestoreZhetons = useCallback(() => dispatch({ type: 'ADD_RESOURCE', resource: 'zhetons', amount: 10 }), [dispatch]);
+  // Плюс открывает выбор пакета, а не изменяет баланс сразу.
+  const closeTopUp = useCallback(() => setTopUpResource(null), []);
 
   const lockedRoomsRemain = getNextLockedRoom(state.unlockedRooms) !== null;
 
@@ -295,11 +293,11 @@ export const FallenCanvas: React.FC<PrisonCanvasProps & {
     onProfileClose,    // onCloseProfile
     handleBackToMain,  // onBackToMain — все кнопки "Назад" ведут на главную
     onGoDistrict,      // onGoDistrict — кнопка "Районы" открывает карту
-    handleRestoreEnergy,
-    handleRestoreSpicki,
-    handleRestoreBullets,
-    handleRestoreGold,
-    handleRestoreZhetons,
+    () => setTopUpResource('energy'),
+    () => setTopUpResource('matches'),
+    () => setTopUpResource('bullets'),
+    () => setTopUpResource('gold'),
+    () => setTopUpResource('zhetons'),
     onRaidClick,       // клик по рейду на карте районов
     handleBossAttack,  // "Атаковать"/"В бой" в окне боссов
     handleFightAttack, // "Удар" в окне боя
@@ -344,7 +342,7 @@ export const FallenCanvas: React.FC<PrisonCanvasProps & {
     undefined, // onSelectRoom — выбор комнаты теперь в React-модалке
     lockedRoomsRemain,
     state.premiumGold,
-    () => setShowPremiumShop(true),
+    () => setTopUpResource('premium'),
     () => setShowStore(true),
     state.equipmentIds.includes('shop_cap') ? capImage : null,
     () => setShowCasino(true)
@@ -401,7 +399,7 @@ export const FallenCanvas: React.FC<PrisonCanvasProps & {
       {showArena && <Arena onClose={() => setShowArena(false)} />}
       {showCasino && <CasinoModal onClose={() => setShowCasino(false)} />}
       {showStore && <StoreModal onClose={() => setShowStore(false)} />}
-      {showPremiumShop && <PremiumShop onClose={() => setShowPremiumShop(false)} />}
+      {topUpResource && <ResourceTopUp resource={topUpResource} onClose={closeTopUp} />}
       {showFriends && <FriendsPanel onClose={() => setShowFriends(false)} />}
 
       {/* Модальное окно комнаты-убежища (в стиле клана) */}
