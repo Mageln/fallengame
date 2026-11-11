@@ -12,7 +12,7 @@ const { getBossArt, isEnraged } = await vite.ssrLoadModule('/src/game/enemyArt.t
 const { BOSS_COUNTER_MS } = await vite.ssrLoadModule('/src/game/survival.ts');
 
 const start = (id) => {
-  const state = gameReducer(createInitialState(), { type: 'START_BOSS_FIGHT', bossId: id });
+  const state = gameReducer({ ...createInitialState(), bossKeys: { zombie_brute: 2 } }, { type: 'START_BOSS_FIGHT', bossId: id });
   assert.equal(state.battle.bossId, id);
   return { ...state, battle: { ...state.battle, playerHp: 1000, playerMaxHp: 1000 } };
 };

@@ -309,6 +309,7 @@ model CoopBoss {
   rewardXp      Int
   rewardGold    Int
   rewardBullets Int
+  nextBossId    String?
   createdAt     DateTime @default(now())
   diedAt        DateTime?
   attackers     CoopBossAttacker[]
@@ -343,6 +344,7 @@ model CoopBossReward {
   xp          Int
   gold        Int
   bullets     Int
+  keyBossId   String?
   claimedAt   DateTime?
   encounter   CoopBoss @relation(fields: [encounterId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   player      PlayerProgress @relation(fields: [vkId], references: [vkId], onDelete: NoAction, onUpdate: NoAction)

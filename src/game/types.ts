@@ -223,7 +223,7 @@ export interface BattleState {
   outcome: 'fighting' | 'won' | 'lost';
   startedAt: number; // Date.now() на старте — ключ владения наградой
   endedAt: number | null; // Date.now() на финале
-  reward: { gold: number; bullets: number; keys: number; zhetons: number; experience?: number; room?: string | null; roomChance?: number; dropped?: boolean } | null;
+  reward: { gold: number; bullets: number; keys: number; zhetons: number; experience?: number; room?: string | null; roomChance?: number; dropped?: boolean; nextBossKey?: string | null } | null;
   damageDealt: number;
   endsAt: number;
   lastCounterAt: number;
@@ -439,6 +439,7 @@ export interface GameState {
   grenades: number;
   medkits: number;
   keys: number;
+  bossKeys: Record<string, number>; // расходуемые ключи по ID босса
   level: number;
   experience: number; // накопленный опыт за боссов и рейды
   loginRewards: LoginRewardState;
@@ -531,6 +532,7 @@ export type GameAction =
   | { type: 'REPAIR_WEAPON' }
   | { type: 'START_BOSS'; districtId: string }
   | { type: 'START_BOSS_FIGHT'; bossId: string }
+  | { type: 'BUY_BOSS_KEY'; bossId: string }
   | { type: 'START_GAST' }
   | { type: 'OPEN_BATTLE' }
   | { type: 'BOSS_TICK'; now: number }

@@ -1,6 +1,7 @@
 import { ResourceIcon, ResourceText } from '../components/ResourceIcon';
 import { getBossArt, isEnraged } from '../game/enemyArt';
 import { bossExperience } from '../game/experience';
+import { BOSS_KEY_ORDER, BOSS_KEY_PRICES, bossKeyCount, bossRequiresKey, nextBossKeyFor } from '../game/bossKeys';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useGame } from '../game/GameContext';
 import { BOSSES } from '../game/bosses';
@@ -27,6 +28,7 @@ export const PremiumShop = ({ onClose }: { onClose: () => void }) => {
 export const BossHub = ({ onClose }: { onClose: () => void }) => {
   const { state, dispatch } = useGame();
   const [buyBossId, setBuyBossId] = useState<string | null>(null);
+  const [buyKeyId, setBuyKeyId] = useState<string | null>(null);
   const [now, setNow] = useState(Date.now());
   useEffect(() => {
     const timer = window.setInterval(() => setNow(Date.now()), 1000);
@@ -38,31 +40,45 @@ export const BossHub = ({ onClose }: { onClose: () => void }) => {
   const buyBoss = buyBossId ? BOSSES.find((b) => b.id === buyBossId) ?? null : null;
   const buyPrice = buyBoss ? bossAttackPrice(buyBoss.dailyLimit) : 0;
   const battle = state.battle;
+  const keyBoss = buyKeyId ? BOSSES.find(b => b.id === buyKeyId) : undefined;
 
   return <div className={styles.backdrop} onClick={onClose}>
     <section className={styles.panel} role="dialog" aria-modal="true" aria-label="Список боссов" onClick={(event) => event.stopPropagation()}>
       <header className={styles.header}><span className={styles.lamp} aria-hidden="true" /><div><small>ЗАПРЕТНАЯ ЗОНА · СИГНАЛ 03</small><h2>БОССЫ РАЗРУШЕННОГО ГОРОДА</h2></div><button type="button" onClick={onClose} aria-label="Закрыть">✕</button></header>
-      <div className={styles.wallet}><span><ResourceIcon name="caps" /> Крышки: {state.caps}</span><span><ResourceIcon name="supplies" /> Припасы: {state.gold}</span>{BOSS_ATTACK_CONFIG.timedLimits ? <span>{resetAt !== undefined && resetAt > now ? `Обновление через ${remainingUntilReset(resetAt, now)}` : 'Период начнётся при нападении'}</span> : <span>⚔ Без ограничений · тестовый режим</span>}</div>
+      <div className={styles.wallet}><span><ResourceIcon name="caps" /> Крышки: {state.caps}</span><span><ResourceIcon name="supplies" /> Припасы: {state.gold}</span><span><ResourceIcon name="premium" /> Премиум-золото: {state.premiumGold}</span>{BOSS_ATTACK_CONFIG.timedLimits ? <span>{resetAt !== undefined && resetAt > now ? `Обновление через ${remainingUntilReset(resetAt, now)}` : 'Период начнётся при нападении'}</span> : <span>⚔ Без ограничений · тестовый режим</span>}</div>
       {battle?.source === 'boss' && <button type="button" className={styles.primary} onClick={() => dispatch({ type: 'OPEN_BATTLE' })}>{battle.outcome === 'fighting' ? '↩ ВЕРНУТЬСЯ В ТЕКУЩИЙ БОЙ' : '↩ ОТКРЫТЬ ИТОГИ БОЯ'}</button>}
       {battle && battle.source !== 'boss' && <p className={styles.notice}>Сначала завершите текущий бой на экране игры.</p>}
       <div className={styles.roster}>
-        {BOSSES.filter((boss) => ['1', '2', '3', '4', 'zombie', 'zombie_brute'].includes(boss.id)).map((boss) => {
+        {BOSSES.filter(boss => BOSS_KEY_ORDER.some(id => id === boss.id)).sort((a, b) => BOSS_KEY_ORDER.findIndex(id => id === a.id) - BOSS_KEY_ORDER.findIndex(id => id === b.id)).map((boss) => {
           const entry = entryFor(boss.id);
           const total = boss.dailyLimit + entry.purchased;
           const left = Math.max(0, total - entry.used);
           const exhausted = BOSS_ATTACK_CONFIG.timedLimits && left <= 0;
           const price = bossAttackPrice(boss.dailyLimit);
+          const requiresKey = bossRequiresKey(boss.id);
+          const keyCount = bossKeyCount(state.bossKeys, boss.id);
+          const nextId = nextBossKeyFor(boss.id);
+          const nextBoss = BOSSES.find(entry => entry.id === nextId);
           return <article key={boss.id} className={styles.bossCard}>
-            <div className={styles.bossPortrait}><img src={getBossArt(boss.id).face} alt={`Портрет: ${boss.name}`} /></div><div className={styles.bossInfo}><h3>{boss.name}</h3><p>{boss.description}</p><span>☠ {boss.hp} HP · ⭐ {bossExperience(boss.hp)} опыта · <ResourceIcon name="bullets" /> пули при победе · 🎁 комната </span><span>{BOSS_ATTACK_CONFIG.timedLimits ? <>⚔ Нападения: {left}/{total} · докупка <ResourceIcon name="caps" /> {price}</> : '⚔ Нападения без ограничений'}</span></div>
-            {exhausted
-              ? <button type="button" disabled={!!state.battle} title={state.battle ? 'Сначала завершите текущий бой' : undefined} onClick={() => setBuyBossId(boss.id)}><ResourceIcon name="caps" /> КУПИТЬ АТАКУ · {price}</button>
-              : <button type="button" data-tutorial-target={`boss-${boss.id}`} disabled={!!state.battle} title={state.battle ? 'Сначала завершите текущий бой' : undefined} onClick={() => dispatch({ type: 'START_BOSS_FIGHT', bossId: boss.id })}>НАПАСТЬ{BOSS_ATTACK_CONFIG.timedLimits ? ` · ${left}/${total}` : ''}</button>}
+            <div className={styles.bossPortrait}><img src={getBossArt(boss.id).face} alt={`Портрет: ${boss.name}`} /></div><div className={styles.bossInfo}><h3>{boss.name}</h3><p>{boss.description}</p><span>☠ {boss.hp} HP · ⭐ {bossExperience(boss.hp)} опыта · <ResourceIcon name="bullets" /> пули при победе · 🎁 комната </span><span>{BOSS_ATTACK_CONFIG.timedLimits ? <>⚔ Нападения: {left}/{total} · докупка <ResourceIcon name="caps" /> {price}</> : '⚔ Нападения без ограничений'}</span><p>{requiresKey ? <><ResourceIcon name="keys" /> Ключей: {keyCount} · 1 расходуется при начале боя</> : 'Первый босс · ключ не нужен'}</p><p>{nextBoss ? <>Победа: ключ от «{nextBoss.name}» · 100%</> : 'Последний босс цепочки'}</p></div>
+            <div className={styles.bossActions}>
+              {exhausted
+                ? <button type="button" disabled={!!state.battle} title={state.battle ? 'Сначала завершите текущий бой' : undefined} onClick={() => setBuyBossId(boss.id)}><ResourceIcon name="caps" /> КУПИТЬ АТАКУ · {price}</button>
+                : <button type="button" data-tutorial-target={`boss-${boss.id}`} disabled={!!state.battle || (requiresKey && keyCount < 1)} title={state.battle ? 'Сначала завершите текущий бой' : requiresKey && keyCount < 1 ? 'Нужен ключ от этого босса' : undefined} onClick={() => dispatch({ type: 'START_BOSS_FIGHT', bossId: boss.id })}>НАПАСТЬ{BOSS_ATTACK_CONFIG.timedLimits ? ` · ${left}/${total}` : ''}</button>}
+              {requiresKey && <button type="button" onClick={() => setBuyKeyId(boss.id)}><ResourceIcon name="keys" /> КУПИТЬ КЛЮЧ · <ResourceIcon name="premium" /> {BOSS_KEY_PRICES[boss.id]}</button>}
+            </div>
           </article>;
         })}
       </div>
       {state.pendingRoomDrop && <p className={styles.notice}>🎁 Найдена комната! Откройте раздел «Комната», чтобы забрать её.</p>}
       {state.lastMessage && <p className={styles.notice} role="status"><ResourceText text={state.lastMessage} /></p>}
     </section>
+    {keyBoss && <div className={styles.overlay} onClick={(event) => { event.stopPropagation(); setBuyKeyId(null); }}><section className={styles.paper} role="dialog" aria-modal="true" aria-label="Купить ключ от босса" onClick={event => event.stopPropagation()}>
+      <span className={styles.tape} aria-hidden="true" /><small>ЗАПИСКА ТОРГОВЦА</small><h3>КЛЮЧ · {keyBoss.name}</h3>
+      <p>Один ключ расходуется при начале нового боя и не возвращается при отступлении. Цена: <ResourceIcon name="premium" /> {BOSS_KEY_PRICES[keyBoss.id]} премиум-золота. У вас {state.premiumGold}.</p>
+      <p>Ключ также гарантированно выпадает за победу над предыдущим боссом. Реальная оплата здесь не подключена.</p>
+      <div className={styles.actions}><button type="button" disabled={state.premiumGold < BOSS_KEY_PRICES[keyBoss.id]} onClick={() => { dispatch({ type: 'BUY_BOSS_KEY', bossId: keyBoss.id }); setBuyKeyId(null); }}>КУПИТЬ</button><button type="button" onClick={() => setBuyKeyId(null)}>ОТМЕНА</button></div>
+    </section></div>}
     {buyBoss && <div className={styles.overlay} onClick={(event) => { event.stopPropagation(); setBuyBossId(null); }}><section className={styles.paper} role="dialog" aria-modal="true" aria-label="Купить атаку" onClick={(event) => event.stopPropagation()}><span className={styles.tape} aria-hidden="true"/><small>ЗАПИСКА ТОРГОВЦА</small><h3>КУПИТЬ АТАКУ · {buyBoss.name}</h3><p>Дополнительное нападение на «{buyBoss.name}» действует до следующего обновления. Цена: <ResourceIcon name="caps" /> {buyPrice} крышек. У вас {state.caps}.</p><div className={styles.actions}><button type="button" disabled={state.caps < buyPrice} onClick={() => { dispatch({ type: 'BUY_BOSS_ATTACK', bossId: buyBoss.id }); setBuyBossId(null); }}>ПОДТВЕРДИТЬ</button><button type="button" onClick={() => setBuyBossId(null)}>ОТМЕНА</button></div>{state.caps < buyPrice && <p>Тестовый режим: пополните крышки кнопкой «+» в убежище. Позже здесь будет оплата через донат.</p>}</section></div>}
   </div>;
 };
@@ -108,8 +124,8 @@ export const BossFightPanel = () => {
             <span>{skill.icon}</span>{skill.name}{skill.id === 'weapon' && <small>{state.weapon.name}</small>}
             <small>{skill.id === 'jab' ? `+${BOSS_ENERGY_PER_HIT}` : `−${skill.energyCost}`} <ResourceIcon name="energy" /></small>
           </button>;
-        })}</div><button type="button" className={styles.exit} onClick={close}>ЗАКРЫТЬ · БОЙ ПРОДОЛЖИТСЯ</button><button type="button" className={styles.exit} onClick={() => { if (window.confirm('Отступить от босса? Нанесённый урон сохранится.')) dispatch({ type: 'ABANDON_BOSS' }); }}>ОТСТУПИТЬ ОТ БОССА</button>
-      </> : <div className={styles.results}><strong className={battle.outcome === 'won' ? styles.success : styles.failure}>{battle.outcome === 'won' ? 'БОСС ПОВЕРЖЕН' : 'БОЙ ЗАВЕРШЁН'}</strong><p>Нанесено урона: {battle.damageDealt} · опыт: +{battle.reward?.experience ?? 0} · пули: +{battle.reward?.bullets ?? 0} · припасы: +{battle.reward?.gold ?? 0}</p>{battle.coopEncounterId ? <p>Награда делится между участниками и начисляется автоматически. Комнаты в совместном бою не выпадают.</p> : <p>Шанс комнаты: {Math.round(chance * 100)}% · <b>{battle.reward?.dropped ? 'ВЫПАЛО' : 'НЕ ВЫПАЛО'}</b></p>}{battle.reward?.room && <p>🎁 Найдена комната! Заберите её на экране «Комната».</p>}<button type="button" onClick={close}>{battle.outcome === 'won' && !battle.coopEncounterId ? 'ЗАБРАТЬ НАГРАДУ' : 'ЗАКРЫТЬ'}</button></div>}
+        })}</div><button type="button" className={styles.exit} onClick={close}>ЗАКРЫТЬ · БОЙ ПРОДОЛЖИТСЯ</button><button type="button" className={styles.exit} onClick={() => { if (window.confirm('Отступить от босса? Нанесённый урон сохранится, потраченный ключ не вернётся.')) dispatch({ type: 'ABANDON_BOSS' }); }}>ОТСТУПИТЬ ОТ БОССА</button>
+      </> : <div className={styles.results}><strong className={battle.outcome === 'won' ? styles.success : styles.failure}>{battle.outcome === 'won' ? 'БОСС ПОВЕРЖЕН' : 'БОЙ ЗАВЕРШЁН'}</strong><p>Нанесено урона: {battle.damageDealt} · опыт: +{battle.reward?.experience ?? 0} · пули: +{battle.reward?.bullets ?? 0} · припасы: +{battle.reward?.gold ?? 0}</p>{battle.coopEncounterId ? <p>Награда делится между участниками и начисляется автоматически. Комнаты в совместном бою не выпадают.</p> : <p>Шанс комнаты: {Math.round(chance * 100)}% · <b>{battle.reward?.dropped ? 'ВЫПАЛО' : 'НЕ ВЫПАЛО'}</b></p>}{battle.outcome === 'won' && battle.reward?.nextBossKey && <p><ResourceIcon name="keys" /> Ключ от «{BOSSES.find(b => b.id === battle.reward?.nextBossKey)?.name ?? 'следующего босса'}» · 100%</p>}{battle.reward?.room && <p>🎁 Найдена комната! Заберите её на экране «Комната».</p>}<button type="button" onClick={close}>{battle.outcome === 'won' && !battle.coopEncounterId ? 'ЗАБРАТЬ НАГРАДУ' : 'ЗАКРЫТЬ'}</button></div>}
       <div className={styles.battleLog}>
         <h3>ЖУРНАЛ УРОНА</h3>
         <div ref={logRef} className={styles.battleLogEntries} role="log" aria-label="Журнал урона" aria-live="polite" tabIndex={0}

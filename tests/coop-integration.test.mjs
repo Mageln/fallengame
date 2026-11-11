@@ -23,7 +23,8 @@ test('two server players share one boss and receive rewards exactly once', async
   try {
     await db.exec('CREATE TABLE "PlayerProgress" ("vkId" INTEGER PRIMARY KEY, "state" JSONB NOT NULL, "revision" INTEGER NOT NULL DEFAULT 0, "updatedAt" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP)');
     await db.exec(await readFile('backend/prisma/migrations/20261107_shared_boss/migration.sql', 'utf8'));
-    for (const id of [101, 202, 303]) await db.query('INSERT INTO "PlayerProgress" ("vkId", "state") VALUES ($1, $2::jsonb)', [id, JSON.stringify(createInitialState())]);
+    await db.exec(await readFile('backend/prisma/migrations/20261108_boss_keys/migration.sql', 'utf8'));
+    for (const id of [101, 202, 303]) await db.query('INSERT INTO "PlayerProgress" ("vkId", "state") VALUES ($1, $2::jsonb)', [id, JSON.stringify({ ...createInitialState(), bossKeys: { '1': 1 } })]);
     let now = Date.now();
     const act = (vkId, action) => db.transaction(async raw => {
       const tx = adapter(raw);
@@ -50,6 +51,8 @@ test('two server players share one boss and receive rewards exactly once', async
     assert.equal(spectatorResult.experience, 0);
     a = await act(101, { type: 'BOSS_TICK' });
     assert.equal(a.battle.outcome, 'won'); assert.equal(a.battle.bossHp, 0);
+    assert.equal(a.bossKeys['2'], 1); assert.equal(b.bossKeys['2'], 1);
+    assert.equal(spectatorResult.bossKeys['2'], undefined);
     assert.equal(a.experience + b.experience, 110);
     assert.equal(a.gold + b.gold, 200); assert.equal(a.bullets + b.bullets, 15);
     assert.equal(a.pendingRoomDrop, null); assert.equal(b.pendingRoomDrop, null);

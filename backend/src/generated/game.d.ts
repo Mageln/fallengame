@@ -7,3 +7,5 @@ export const BOSS_SKILLS: ReadonlyArray<{ id: string }>;
 export const TUTORIAL_STEPS: ReadonlyArray<{ id: string }>;
 export const BOSSES: ReadonlyArray<{ id: string; hp: number; reward: { gold: number; bullets: number } }>;
 export function bossExperience(hp: number): number;
+
+export function nextBossKeyFor(bossId: string): string | null;

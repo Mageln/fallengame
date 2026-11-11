@@ -1,3 +1,4 @@
+import { nextBossKeyFor } from './bossKeys';
 import { SKILL_BLOCK_PERCENT, SKILL_HP_PER_LEVEL } from './profileSkills';
 import { bossExperience } from './experience';
 import { DAILY_QUESTS, getNextLockedRoom, WEAPON_BREAK_CHANCE, TURN_LIMIT, WEAK_POINT_STREAK, WEAK_POINT_TURNS, ENRAGE_THRESHOLD, STUN_CHANCE, POISON_CHANCE, POISON_TURNS, POISON_DAMAGE, BLOCK_COUNTER_MUL, EVADE_COUNTER_MUL } from './constants';
@@ -175,6 +176,7 @@ export const bossKilled = (state: GameState, battle: BattleState): GameState => 
       endedAt: Date.now(),
       reward: {
         experience: battle.source === 'boss' ? bossExperience(battle.bossMaxHp) : 0,
+        nextBossKey: battle.source === 'boss' ? nextBossKeyFor(battle.bossId) : null,
         bullets: bossReward?.bullets ?? bullets,
         keys: bossReward ? 1 : (battle.source === 'gast' ? 0 : 1),
         zhetons: battle.source === 'boss' ? 0 : zhetons,

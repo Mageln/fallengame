@@ -76,7 +76,7 @@ test('victory rewards once, retreat pays nothing, and normal HP is unchanged', (
 });
 
 test('existing battles block arena and ongoing arena blocks starting other battles', () => {
-  const initial = createInitialState();
+  const initial = { ...createInitialState(), bossKeys: { '1': 1 } };
   const arena = start(initial);
   const boss = gameReducer(arena, { type: 'START_BOSS_FIGHT', bossId: '1' });
   assert.equal(boss.battle, null);

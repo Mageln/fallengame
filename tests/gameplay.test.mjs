@@ -5,7 +5,9 @@ import { createServer } from 'vite';
 const vite = await createServer({ configFile: false, server: { middlewareMode: true, hmr: false } });
 after(() => vite.close());
 
-const { createInitialState } = await vite.ssrLoadModule('/src/game/initialState.ts');
+const { createInitialState: baseInitialState } = await vite.ssrLoadModule('/src/game/initialState.ts');
+// These pre-existing combat tests start with keys to isolate their original mechanics.
+const createInitialState = () => ({ ...baseInitialState(), bossKeys: { '1': 50, '2': 50, '3': 50, '4': 50, zombie_brute: 50 } });
 const { gameReducer, hydrateState } = await vite.ssrLoadModule('/src/game/reducer.ts');
 const { roomDropChance, BOSS_COUNTER_MS, BOSS_DURATION_MS, bossAttackPrice, todayLocal, BOSS_ATTACK_CONFIG } = await vite.ssrLoadModule('/src/game/survival.ts');
 

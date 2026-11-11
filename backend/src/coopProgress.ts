@@ -1,12 +1,12 @@
 import type { Prisma } from '@prisma/client';
-import { BOSSES, bossExperience } from './generated/game.js';
+import { BOSSES, bossExperience, nextBossKeyFor } from './generated/game.js';
 import { applyCombatAction } from './progressCombat.js';
 import { joinCoopBoss, takeCoopDamage } from './coopBoss.js';
 
 type State = Record<string, any>;
 type Action = Record<string, unknown>;
 type Boss = { id: string; hp: number; maxHp: number; status: 'alive' | 'dead' };
-type Award = { xp: number; gold: number; bullets: number };
+type Award = { xp: number; gold: number; bullets: number; keyBossId: string | null };
 
 // All calls use one transaction with the player locked before the encounter.
 // No client-provided HP, damage or reward is used.
@@ -20,12 +20,12 @@ export const syncCoopBattle = async (tx: Prisma.TransactionClient, state: State,
   const mine = attackers.find(a => a.vkId === vkId);
   const info = { ...battle, bossHp: boss.hp, bossMaxHp: boss.maxHp, damageDealt: mine?.damage ?? 0, coopParticipants: attackers.length };
   if (boss.status === 'alive') return { ...state, battle: info };
-  const rewards = await tx.$queryRaw<Award[]>`SELECT "xp", "gold", "bullets" FROM "CoopBossReward" WHERE "encounterId" = ${boss.id} AND "vkId" = ${vkId}`;
+  const rewards = await tx.$queryRaw<Award[]>`SELECT "xp", "gold", "bullets", "keyBossId" FROM "CoopBossReward" WHERE "encounterId" = ${boss.id} AND "vkId" = ${vkId}`;
   const reward = rewards[0];
   const newOutcome = reward ? 'won' : 'lost';
   const firstNotice = battle.outcome === 'fighting';
   return { ...state, battle: { ...info, outcome: newOutcome, endedAt: battle.endedAt ?? now,
-    reward: reward ? { experience: reward.xp, gold: reward.gold, bullets: reward.bullets, keys: 0, zhetons: 0, dropped: false, room: null, roomChance: 0 } : null,
+    reward: reward ? { experience: reward.xp, gold: reward.gold, bullets: reward.bullets, keys: 0, zhetons: 0, dropped: false, room: null, roomChance: 0, nextBossKey: reward.keyBossId } : null,
     log: firstNotice ? [...battle.log, reward ? 'Общий босс повержен. Ваша награда начислена.' : 'Общий босс повержен без вашего участия.'] : battle.log },
     lastMessage: firstNotice ? (reward ? 'Общий босс повержен. Награда начислена.' : 'Босс повержен до вашего удара.') : state.lastMessage };
 };
@@ -43,7 +43,7 @@ export const applyCoopProgressAction = async (tx: Prisma.TransactionClient, stat
   if (action.type === 'START_BOSS_FIGHT' && !priorBattle && next.battle?.source === 'boss' && next.battle?.outcome === 'fighting') {
     const def = BOSSES.find(b => b.id === next.battle.bossId);
     if (!def) throw new Error('Unknown boss');
-    const boss = await joinCoopBoss(tx, { bossId: def.id, maxHp: def.hp, rewardXp: bossExperience(def.hp), rewardGold: def.reward.gold, rewardBullets: def.reward.bullets });
+    const boss = await joinCoopBoss(tx, { bossId: def.id, maxHp: def.hp, rewardXp: bossExperience(def.hp), rewardGold: def.reward.gold, rewardBullets: def.reward.bullets, nextBossId: nextBossKeyFor(def.id) });
     current = { ...next, battle: { ...next.battle, coopEncounterId: boss.id, bossHp: boss.hp, bossMaxHp: boss.maxHp, coopParticipants: 0 } };
     return syncCoopBattle(tx, current, vkId, now);
   }

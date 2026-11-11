@@ -23,6 +23,7 @@ export const createInitialState = (): GameState => ({
   grenades: 0,
   medkits: 0,
   keys: 0,
+  bossKeys: {},
   level: 30,
   experience: 0,
   loginRewards: { lastClaimDate: null, streak: 0 },

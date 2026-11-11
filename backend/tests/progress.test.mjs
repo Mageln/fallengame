@@ -1,7 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { parseProgressAction } from '../dist/progressAction.js';
-import { createInitialState, gameReducer, applyDailyReset, TUTORIAL_STEPS } from '../dist/generated/game.js';
+import { createInitialState as baseInitialState, gameReducer, applyDailyReset, TUTORIAL_STEPS } from '../dist/generated/game.js';
+const createInitialState = () => ({ ...baseInitialState(), bossKeys: { '1': 50, '2': 50, '3': 50, '4': 50, zombie_brute: 50 } });
 
 test('server allows only explicitly reviewed actions and rejects injected fields', () => {
   assert.deepEqual(parseProgressAction({ type: 'SET_APPEARANCE', appearance: 3 }), { type: 'SET_APPEARANCE', appearance: 3 });
@@ -367,4 +368,19 @@ test('authoritative casino safe and spins only change reviewed game currencies',
   assert.equal(spin.caps, before.caps);
   assert.equal(spin.zhetons, before.zhetons);
   assert.equal(spin.gold, duplicate.gold);
+});
+
+test('server validates boss key purchase and enforces price, ownership and consumption', () => {
+  assert.equal(parseProgressAction({ type: 'BUY_BOSS_KEY', bossId: '1', price: 0 }), null);
+  assert.deepEqual(gameReducer(baseInitialState(), parseProgressAction({ type: 'BUY_BOSS_KEY', bossId: 'zombie' })), baseInitialState());
+  const purchase = parseProgressAction({ type: 'BUY_BOSS_KEY', bossId: '1' });
+  assert.ok(purchase);
+  let state = { ...baseInitialState(), premiumGold: 200 };
+  state = gameReducer(state, purchase);
+  assert.equal(state.premiumGold, 0); assert.equal(state.bossKeys['1'], 1);
+  state = applyCombatAction(state, parseProgressAction({ type: 'START_BOSS_FIGHT', bossId: '1' }), Date.now());
+  assert.ok(state.battle); assert.equal(state.bossKeys['1'], 0);
+  state = applyCombatAction(state, parseProgressAction({ type: 'ABANDON_BOSS' }), Date.now());
+  state = applyCombatAction(state, parseProgressAction({ type: 'START_BOSS_FIGHT', bossId: '1' }), Date.now());
+  assert.equal(state.battle, null); assert.equal(state.bossKeys['1'], 0);
 });

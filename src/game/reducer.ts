@@ -1,3 +1,4 @@
+import { addBossKey, BOSS_KEY_PRICES, bossRequiresKey, normalizeBossKeys } from './bossKeys';
 import { normalizeCasino, reduceCasino } from './casino';
 import { TUTORIAL_STEPS, TUTORIAL_VERSION, tutorialIsActive, tutorialViewStep } from './tutorial';
 import { reduceArena } from './arena';
@@ -150,7 +151,7 @@ const computeClanWarGold = (win: boolean, streak: number): number => {
 
 export const hydrateState = (state: GameState): GameState => {
   // Normalize old saves that may lack new fields
-  let normalized: GameState = { ...state, casino: normalizeCasino(state.casino) };
+  let normalized: GameState = { ...state, casino: normalizeCasino(state.casino), bossKeys: normalizeBossKeys(state.bossKeys) };
   
   if (!normalized.inventory) {
     normalized = { ...normalized, inventory: [] };
@@ -370,6 +371,13 @@ export const gameReducer = (state: GameState, action: GameAction): GameState => 
     }
     case 'CLEAR_MESSAGE':
       return { ...state, lastMessage: '' };
+    case 'BUY_BOSS_KEY': {
+      if (!bossRequiresKey(action.bossId)) return state;
+      const price = BOSS_KEY_PRICES[action.bossId];
+      if (!Number.isSafeInteger(state.premiumGold) || state.premiumGold < price) return msg(state, `Не хватает премиум-золота: нужно ${price}.`);
+      return { ...state, premiumGold: state.premiumGold - price,
+        bossKeys: addBossKey(state.bossKeys, action.bossId), lastMessage: `Ключ куплен за ${price} премиум-золота.` };
+    }
     case 'SET_APPEARANCE':
       return { ...state, appearance: action.appearance };
     // Повторно запускать пройденное или пропущенное обучение нельзя.

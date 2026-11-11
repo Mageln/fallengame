@@ -3,7 +3,7 @@ import type { Prisma } from '@prisma/client';
 
 // These functions MUST be called inside the same Prisma transaction that locks
 // and saves PlayerProgress. The client must never supply damage or rewards.
-export interface CoopBossConfig { bossId: string; maxHp: number; rewardXp: number; rewardGold: number; rewardBullets: number }
+export interface CoopBossConfig { bossId: string; maxHp: number; rewardXp: number; rewardGold: number; rewardBullets: number; nextBossId?: string | null }
 export interface CoopBossRow extends CoopBossConfig { id: string; hp: number; status: 'alive' | 'dead' }
 interface Hit { damage: number; hpAfter: number }
 interface Attacker { vkId: number; damage: number }
@@ -26,12 +26,12 @@ export const joinCoopBoss = async (tx: Prisma.TransactionClient, config: CoopBos
   if (!validId(config.bossId) || !validInt(config.maxHp, 1) || ![config.rewardXp, config.rewardGold, config.rewardBullets].every(n => validInt(n, 0))) throw new Error('Invalid boss config');
   const id = randomUUID();
   await tx.$executeRaw`
-    INSERT INTO "CoopBoss" ("id", "bossId", "maxHp", "hp", "status", "rewardXp", "rewardGold", "rewardBullets")
-    VALUES (${id}, ${config.bossId}, ${config.maxHp}, ${config.maxHp}, 'alive', ${config.rewardXp}, ${config.rewardGold}, ${config.rewardBullets})
+    INSERT INTO "CoopBoss" ("id", "bossId", "maxHp", "hp", "status", "rewardXp", "rewardGold", "rewardBullets", "nextBossId")
+    VALUES (${id}, ${config.bossId}, ${config.maxHp}, ${config.maxHp}, 'alive', ${config.rewardXp}, ${config.rewardGold}, ${config.rewardBullets}, ${config.nextBossId ?? null})
     ON CONFLICT DO NOTHING
   `;
   const rows = await tx.$queryRaw<CoopBossRow[]>`
-    SELECT "id", "bossId", "maxHp", "hp", "status", "rewardXp", "rewardGold", "rewardBullets"
+    SELECT "id", "bossId", "maxHp", "hp", "status", "rewardXp", "rewardGold", "rewardBullets", "nextBossId"
     FROM "CoopBoss" WHERE "bossId" = ${config.bossId} AND "status" = 'alive' FOR UPDATE
   `;
   // The active encounter can have died while waiting for the unique-index lock.
@@ -46,7 +46,7 @@ export interface CoopHitResult { duplicate: boolean; damage: number; hp: number;
 export const takeCoopDamage = async (tx: Prisma.TransactionClient, encounterId: string, vkId: number, attackId: string, damage: number): Promise<CoopHitResult> => {
   if (!validId(encounterId) || !validInt(vkId, 1) || !validId(attackId) || !validInt(damage, 1)) throw new Error('Invalid hit');
   const bosses = await tx.$queryRaw<CoopBossRow[]>`
-    SELECT "id", "bossId", "maxHp", "hp", "status", "rewardXp", "rewardGold", "rewardBullets"
+    SELECT "id", "bossId", "maxHp", "hp", "status", "rewardXp", "rewardGold", "rewardBullets", "nextBossId"
     FROM "CoopBoss" WHERE "id" = ${encounterId} FOR UPDATE
   `;
   const boss = bosses[0];
@@ -70,8 +70,8 @@ export const takeCoopDamage = async (tx: Prisma.TransactionClient, encounterId: 
     const attackers = await tx.$queryRaw<Attacker[]>`SELECT "vkId", "damage" FROM "CoopBossAttacker" WHERE "encounterId" = ${encounterId} ORDER BY "vkId"`;
     for (const reward of splitCoopRewards(attackers, boss)) {
       await tx.$executeRaw`
-        INSERT INTO "CoopBossReward" ("encounterId", "vkId", "xp", "gold", "bullets")
-        VALUES (${encounterId}, ${reward.vkId}, ${reward.xp}, ${reward.gold}, ${reward.bullets})
+        INSERT INTO "CoopBossReward" ("encounterId", "vkId", "xp", "gold", "bullets", "keyBossId")
+        VALUES (${encounterId}, ${reward.vkId}, ${reward.xp}, ${reward.gold}, ${reward.bullets}, ${boss.nextBossId ?? null})
         ON CONFLICT ("encounterId", "vkId") DO NOTHING
       `;
     }
@@ -80,7 +80,7 @@ export const takeCoopDamage = async (tx: Prisma.TransactionClient, encounterId: 
 };
 
 interface ProgressRow { state: Record<string, unknown>; revision: number }
-interface PendingReward extends CoopReward { encounterId: string }
+interface PendingReward extends CoopReward { encounterId: string; keyBossId: string | null }
 export interface CoopClaimResult { state: Record<string, unknown>; revision: number; claimed: PendingReward[] }
 
 // Atomically credits every pending reward to the existing server progress.
@@ -92,7 +92,7 @@ export const claimCoopRewards = async (tx: Prisma.TransactionClient, vkId: numbe
   const progress = await tx.$queryRaw<ProgressRow[]>`SELECT "state", "revision" FROM "PlayerProgress" WHERE "vkId" = ${vkId} FOR NO KEY UPDATE`;
   if (!progress[0] || !progress[0].state || typeof progress[0].state !== 'object' || Array.isArray(progress[0].state)) throw new Error('Player progress not found');
   const pending = await tx.$queryRaw<PendingReward[]>`
-    SELECT "encounterId", "vkId", "xp", "gold", "bullets" FROM "CoopBossReward"
+    SELECT "encounterId", "vkId", "xp", "gold", "bullets", "keyBossId" FROM "CoopBossReward"
     WHERE "vkId" = ${vkId} AND "claimedAt" IS NULL ORDER BY "encounterId" FOR UPDATE
   `;
   if (!pending.length) return { ...progress[0], claimed: [] };
@@ -104,6 +104,19 @@ export const claimCoopRewards = async (tx: Prisma.TransactionClient, vkId: numbe
     if (!Number.isSafeInteger(old + amount)) throw new Error('Reward balance overflow');
     state[field] = old + amount;
   }
+  const keyIds = ['zombie_brute', '1', '2', '3', '4'];
+  const previousKeys = state.bossKeys && typeof state.bossKeys === 'object' && !Array.isArray(state.bossKeys) ? state.bossKeys as Record<string, unknown> : {};
+  const bossKeys: Record<string, number> = {};
+  for (const id of keyIds) {
+    const count = previousKeys[id];
+    if (typeof count === 'number' && Number.isSafeInteger(count) && count > 0) bossKeys[id] = count;
+  }
+  for (const reward of pending) {
+    if (!reward.keyBossId) continue;
+    if (!keyIds.includes(reward.keyBossId) || (bossKeys[reward.keyBossId] ?? 0) >= Number.MAX_SAFE_INTEGER) throw new Error('Invalid boss key reward');
+    bossKeys[reward.keyBossId] = (bossKeys[reward.keyBossId] ?? 0) + 1;
+  }
+  state.bossKeys = bossKeys;
   await tx.$executeRaw`
     UPDATE "PlayerProgress" SET "state" = ${JSON.stringify(state)}::jsonb, "revision" = "revision" + 1, "updatedAt" = CURRENT_TIMESTAMP
     WHERE "vkId" = ${vkId}

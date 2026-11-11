@@ -1,3 +1,4 @@
+import { addBossKey, bossKeyCount, bossRequiresKey, nextBossKeyFor, normalizeBossKeys } from './bossKeys';
 import { normalizeBattle, startBattle, spendAmmo, wearWeapon, bumpKillQuests, appendBossLog, bossKilled, advanceBossClock, runRound, stunnedRound } from './battleEngine';
 import { msg, recordResources, recordClanEvent } from './reducerShared';
 import { SKILL_FIST_PERCENT, SKILL_WEAPON_PERCENT, SKILL_HEAL_PER_LEVEL } from './profileSkills';
@@ -25,10 +26,15 @@ export const reduceBattle = (state: GameState, action: BattleAction): GameState 
       if (!boss) return state;
       if (state.battle && state.battle.bossId === action.bossId)
         return { ...advanceBossClock(state, Date.now()), battleVisible: true };
-      // Босс может остаться раненым после прошлой попытки
+      // Возврат в активный бой не тратит второй ключ; новый бой требует ключ.
+      if (!state.battle && bossRequiresKey(action.bossId) && bossKeyCount(state.bossKeys, action.bossId) < 1) {
+        return msg(state, `Нужен ключ от босса «${boss.name}».`);
+      }
       const wounded = state.woundedBosses[action.bossId];
       const hp = wounded && wounded > 0 && wounded <= boss.hp ? wounded : boss.hp;
-      return startBattle(state, action.bossId, boss.name, hp, 'boss', boss.hp);
+      const started = startBattle(state, action.bossId, boss.name, hp, 'boss', boss.hp);
+      if (state.battle || !started.battle || started.battle.bossId !== action.bossId || !bossRequiresKey(action.bossId)) return started;
+      return { ...started, bossKeys: { ...normalizeBossKeys(state.bossKeys), [action.bossId]: bossKeyCount(state.bossKeys, action.bossId) - 1 } };
     }
     case 'START_GAST': {
       if (!state.gast.active || !state.gast.districtId) {
@@ -321,6 +327,8 @@ export const reduceBattle = (state: GameState, action: BattleAction): GameState 
             experience: state.experience + (r.experience ?? 0),
             bullets: state.bullets + r.bullets,
             keys: state.keys + (r.keys ?? 0),
+            bossKeys: battle.source === 'boss' && (r.nextBossKey ?? nextBossKeyFor(battle.bossId))
+              ? addBossKey(state.bossKeys, (r.nextBossKey ?? nextBossKeyFor(battle.bossId))!) : state.bossKeys,
             zhetons: state.zhetons + r.zhetons,
             gold: state.gold + r.gold,
             gast: battle.source === 'gast' ? { ...state.gast, active: false, districtId: null } : state.gast,

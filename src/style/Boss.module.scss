@@ -21,6 +21,7 @@
 .bossCard { display: flex; align-items: center; gap: 12px; padding: 12px; background: linear-gradient(115deg, #38281e, #201e1a); border: 1px solid #665037; }
 .bossPortrait { flex: 0 0 82px; height: 82px; overflow: hidden; border: 3px solid #6b4a2f; }
 .bossPortrait img { width: 100%; height: 100%; object-fit: cover; object-position: center top; }
+.bossActions { display: grid; gap: 6px; min-width: 140px; }
 .bossInfo { flex: 1; min-width: 0; }
 .bossInfo h3 { margin: 0; color: #c9a227; font-family: Stencil, Impact, sans-serif; }
 .bossInfo p { font-size: 12px; line-height: 1.4; margin: 6px 0; }
@@ -70,7 +71,7 @@
 @keyframes blink { 0%, 92%, 100% { opacity: 1; } 93%, 97% { opacity: .2; } }
 @keyframes rattle { 50% { transform: translateX(2px) rotate(.3deg); } }
 @keyframes impact { from { transform: scale(1.5) translateY(9px); opacity: 0; } to { transform: scale(1) translateY(0); opacity: 1; } }
-@media (max-width: 600px) { .panel { padding: 12px; } .header h2 { font-size: 18px; } .bossCard { flex-wrap: wrap; } .bossCard button { width: 100%; } .arena { grid-template-columns: 1fr 1.3fr 1fr; padding: 6px; gap: 4px; } .arena img { width: 65px; height: 72px; } .playerPortrait { width: 65px; height: 72px; } .arena .characterImage { width: 100%; height: 100%; } .arena .capOverlay { width: 18.41%; height: auto; } .timer { font-size: 16px; } .skillGrid { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 600px) { .panel { padding: 12px; } .header h2 { font-size: 18px; } .bossCard { flex-wrap: wrap; } .bossActions { width: 100%; } .bossCard button { width: 100%; } .arena { grid-template-columns: 1fr 1.3fr 1fr; padding: 6px; gap: 4px; } .arena img { width: 65px; height: 72px; } .playerPortrait { width: 65px; height: 72px; } .arena .characterImage { width: 100%; height: 100%; } .arena .capOverlay { width: 18.41%; height: auto; } .timer { font-size: 16px; } .skillGrid { grid-template-columns: repeat(2, 1fr); } }
 @media (prefers-reduced-motion: reduce) { .backdrop *, .backdrop *::before { animation: none !important; transition: none !important; } }
 
 /* В бою показываем противника целиком, без обрезки и растягивания. */

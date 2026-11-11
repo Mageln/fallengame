@@ -18,7 +18,7 @@ const idArguments: Record<string, string> = {
   ENTER_DISTRICT: 'districtId', DO_TASK: 'taskId',
   BUY_EQUIPMENT: 'itemId', EQUIP_SHOP_WEAPON: 'weaponId', CLAIM_QUEST_REWARD: 'questId',
   CRAFT_ITEM: 'recipeId', CHANGE_LOCATION: 'locationId',
-  START_ARENA: 'opponentId', START_BOSS_FIGHT: 'bossId', BUY_BOSS_ATTACK: 'bossId',
+  START_ARENA: 'opponentId', START_BOSS_FIGHT: 'bossId', BUY_BOSS_ATTACK: 'bossId', BUY_BOSS_KEY: 'bossId',
   START_RAID: 'raidId', OPEN_MAP_RAID: 'raidId', CANCEL_RAID: 'raidId',
   CLAIM_RAID_REWARD: 'raidId', OPEN_RAID_TASKS: 'raidId', REMOVE_NOTIFICATION: 'id',
   START_BOSS: 'districtId', BUY_SHELTER_ITEM: 'itemId', BUY_SKIN: 'skinId', APPLY_SKIN: 'skinId',
