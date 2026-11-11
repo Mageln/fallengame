@@ -86,6 +86,10 @@ test('boss hub shows order, key count and premium price', () => {
   const html = renderToStaticMarkup(React.createElement(GameContext.Provider, { value }, React.createElement(BossHub, { onClose: () => {} })));
   assert.ok(html.indexOf('Обычный зомби') < html.indexOf('Зомби-громила'));
   assert.ok(html.indexOf('Зомби-громила') < html.indexOf('Михалыч'));
-  assert.match(html, /Первый босс · ключ не нужен/); assert.match(html, /КУПИТЬ КЛЮЧ/);
-  assert.match(html, /Премиум-золото/); assert.match(html, /100%/);
+  assert.doesNotMatch(html, /Первый босс · ключ не нужен|Победа: ключ от|Последний босс цепочки/);
+  for (const id of ['zombie_brute', '1', '2', '3', '4']) assert.match(html, new RegExp(`data-boss-key=\"${id}\"`));
+  assert.equal((html.match(/КУПИТЬ КЛЮЧ/g) ?? []).length, 5);
+  assert.match(html, /Ключи от Зомби-громила: 0/);
+  assert.match(html, /Награда за победу: ключ от Зомби-громила/);
+  assert.match(html, /Премиум-золото/);
 });
