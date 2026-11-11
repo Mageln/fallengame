@@ -384,3 +384,17 @@ test('server validates boss key purchase and enforces price, ownership and consu
   state = applyCombatAction(state, parseProgressAction({ type: 'START_BOSS_FIGHT', bossId: '1' }), Date.now());
   assert.equal(state.battle, null); assert.equal(state.bossKeys['1'], 0);
 });
+
+test('server enforces premium-only animated clothing purchases and equips them after reload', () => {
+  let state = { ...baseInitialState(), gold: 10000, premiumGold: 200 };
+  const parse = (currency) => parseProgressAction({ type: 'BUY_SHOP_ITEM', category: 'clothing', itemId: 'head_inferno', currency });
+  const wrong = gameReducer(state, parse('gold'));
+  assert.equal(wrong.gold, 10000); assert.equal(wrong.inventory.length, state.inventory.length);
+  state = gameReducer(state, parse('premium'));
+  assert.equal(state.premiumGold, 80); assert.equal(state.inventory.at(-1).itemId, 'head_inferno');
+  const equip = parseProgressAction({ type: 'EQUIP_ITEM', slotIndex: state.inventory.length - 1 });
+  state = gameReducer(JSON.parse(JSON.stringify(state)), equip);
+  assert.ok(state.equipmentIds.includes('head_inferno'));
+  assert.equal(gameReducer(state, parse('premium')).premiumGold, 80);
+  assert.equal(parseProgressAction({ type: 'BUY_SHOP_ITEM', category: 'clothing', itemId: 'head_inferno', currency: 'premium', price: 0 }), null);
+});

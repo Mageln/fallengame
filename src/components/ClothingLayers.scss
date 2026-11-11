@@ -1,0 +1,6 @@
+.animated-clothing { animation: clothing-energy 1.15s ease-in-out infinite alternate; }
+@keyframes clothing-energy {
+  from { filter: drop-shadow(0 0 2px var(--clothing-glow)) brightness(1); }
+  to { filter: drop-shadow(0 0 9px var(--clothing-glow)) drop-shadow(0 0 5px var(--clothing-glow)) brightness(1.4); }
+}
+@media (prefers-reduced-motion: reduce) { .animated-clothing { animation: none; filter: drop-shadow(0 0 3px var(--clothing-glow)); } }

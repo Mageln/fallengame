@@ -15,11 +15,16 @@ const { LOCATIONS, ROOM_SKINS, resolveBackground } = await vite.ssrLoadModule('/
 const { drawCharacter } = await vite.ssrLoadModule('/src/components/FallenCanvas/drawCharacter.ts');
 const act = (s, type, args) => gameReducer(s, { type, ...args });
 
-test('clothing catalog has six unique purchasable pieces and separate leg and feet slots', async () => {
-  assert.ok(SHOP_CLOTHING.length >= 6);
+test('clothing catalog has five items per slot and valid purchasable assets', async () => {
+  assert.equal(SHOP_CLOTHING.length, 20);
+  for (const slot of ['head', 'body', 'legs', 'feet']) assert.equal(SHOP_CLOTHING.filter(e => e.slot === slot).length, 5);
   assert.deepEqual(new Set(SHOP_CLOTHING.map(e => e.slot)), new Set(['head', 'body', 'legs', 'feet']));
   assert.equal(clothingSlot('shop_pants'), 'legs'); assert.equal(clothingSlot('shop_boots'), 'feet');
-  for (const item of SHOP_CLOTHING) { assert.ok(item.price.gold > 0); await access(`public${item.image}`); }
+  for (const item of SHOP_CLOTHING) {
+    for (const currency of item.currencies) assert.ok(item.price[currency] > 0);
+    if (item.effect) assert.deepEqual(item.currencies, ['premium']);
+    await access(`public${item.image}`);
+  }
   for (const id of equippedClothingVisuals(SHOP_CLOTHING.map(e => e.item.id))) {
     const svg = await readFile(`public${clothingVisualPath(id)}`, 'utf8');
     assert.match(svg, /viewBox="0 0 402 600"/);
@@ -67,4 +72,39 @@ test('new room backgrounds exist and existing room skin IDs resolve to new image
   assert.equal(resolveBackground('location1', {}, ['location1']), 'backgrounds/shelter.jpg');
   assert.equal(resolveBackground('location4', { location4: 'l4_lab' }, ['location1', 'location4']), 'backgrounds/laboratory.jpg');
   await access('public/backgrounds/battle.jpg');
+});
+
+
+test('each new item enforces its currency, balance, equip and persistence', () => {
+  for (const entry of SHOP_CLOTHING.filter(e => e.currencies.length === 1)) {
+    const id = entry.item.id; const currency = entry.currencies[0];
+    const wrong = currency === 'gold' ? 'premium' : 'gold';
+    const initial = { ...createInitialState(), gold: 100000, premiumGold: 100000 };
+    const rejected = act(initial, 'BUY_SHOP_ITEM', { category: 'clothing', itemId: id, currency: wrong });
+    assert.equal(rejected.gold, initial.gold); assert.equal(rejected.premiumGold, initial.premiumGold);
+    assert.ok(!rejected.inventory.some(item => item.itemId === id));
+    const balanceField = currency === 'gold' ? 'gold' : 'premiumGold';
+    const insufficient = act({ ...initial, [balanceField]: entry.price[currency] - 1 }, 'BUY_SHOP_ITEM', { category: 'clothing', itemId: id, currency });
+    assert.ok(!insufficient.inventory.some(item => item.itemId === id));
+    let state = act(initial, 'BUY_SHOP_ITEM', { category: 'clothing', itemId: id, currency });
+    assert.equal(state[balanceField], initial[balanceField] - entry.price[currency]);
+    state = act(state, 'EQUIP_ITEM', { slotIndex: state.inventory.findIndex(item => item.itemId === id) });
+    state = hydrateState(JSON.parse(JSON.stringify(state)));
+    assert.ok(state.equipmentIds.includes(id));
+    assert.ok(equippedClothingVisuals(state.equipmentIds).includes(id));
+    const again = act(state, 'BUY_SHOP_ITEM', { category: 'clothing', itemId: id, currency });
+    assert.equal(again[balanceField], state[balanceField]);
+  }
+});
+
+test('premium clothing uses animated styles in overlays and glow when rendered on canvas', () => {
+  const html = renderToStaticMarkup(React.createElement(ClothingLayers, { equipmentIds: ['head_volt', 'legs_cosmic'], className: 'layer' }));
+  assert.equal((html.match(/animated-clothing/g) ?? []).length, 2);
+  assert.match(html, /--clothing-glow:#4cdfff/); assert.match(html, /--clothing-glow:#d88fff/);
+  const calls = []; const ctx = { drawImage: (...args) => calls.push(args), save: () => calls.push('save'), restore: () => calls.push('restore') };
+  const character = { complete: true, naturalWidth: 402, naturalHeight: 600 };
+  const item = { complete: true, naturalWidth: 402, naturalHeight: 600, dataset: { clothingId: 'head_volt' } };
+  drawCharacter(ctx, { x: 0, y: 0, width: 201, height: 300 }, character, '#fff', null, [item]);
+  assert.equal(calls[1], 'save'); assert.equal(calls[2][0], item); assert.equal(calls[3], 'restore');
+  assert.equal(ctx.shadowColor, '#4cdfff');
 });

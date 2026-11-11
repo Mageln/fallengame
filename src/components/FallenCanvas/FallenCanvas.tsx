@@ -150,6 +150,7 @@ export const FallenCanvas: React.FC<PrisonCanvasProps & {
     setClothingImages([]);
     Promise.all(ids.map(id => new Promise<HTMLImageElement | null>(resolve => {
       const image = new Image();
+      image.dataset.clothingId = id;
       image.onload = () => resolve(image);
       image.onerror = () => resolve(null);
       image.src = clothingVisualPath(id);

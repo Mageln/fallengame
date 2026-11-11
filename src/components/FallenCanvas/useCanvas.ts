@@ -1,3 +1,4 @@
+import { clothingEffect } from '../../game/clothingVisuals';
 import { tutorialCarouselOffset } from './tutorialTargets';
 import type { TutorialCanvas } from './tutorialTargets';
 import { useRef, useEffect, useCallback } from 'react';
@@ -412,6 +413,20 @@ export const useCanvas = (
   }, []);
 
   useEffect(() => stopAnimLoop, [stopAnimLoop]);
+
+  // Animate premium equipment even when the otherwise idle canvas is static.
+  useEffect(() => {
+    if (!clothingImages.some(image => clothingEffect(image.dataset.clothingId ?? ''))) return;
+    if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return;
+    let frame = 0;
+    let previous = 0;
+    const tick = (now: number) => {
+      if (!document.hidden && now - previous >= 50) { previous = now; renderRef.current(); }
+      frame = requestAnimationFrame(tick);
+    };
+    frame = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(frame);
+  }, [clothingImages]);
 
   // Любое изменение боссов (например, обновилось HP) требует нового кадра
   useEffect(() => {

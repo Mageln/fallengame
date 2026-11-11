@@ -1,3 +1,4 @@
+import { clothingEffect, EFFECT_COLORS } from '../../game/clothingVisuals';
 import { Position } from './types';
 import { getVisibleBounds, type IconBounds } from './iconBounds';
 
@@ -42,7 +43,18 @@ export const drawCharacter = (
     );
     for (const layer of clothingImages) {
       if (layer.complete && layer.naturalWidth > 0 && layer.naturalHeight > 0) {
-        ctx.drawImage(layer, visible.x, visible.y, visible.w, visible.h, position.x, position.y, position.width, position.height);
+        const effect = clothingEffect(layer.dataset?.clothingId ?? '');
+        if (effect) {
+          const reduced = typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+          const pulse = reduced ? 0.35 : (Math.sin(performance.now() / 270) + 1) / 2;
+          ctx.save();
+          ctx.shadowColor = EFFECT_COLORS[effect];
+          ctx.shadowBlur = 5 + pulse * 16;
+          ctx.drawImage(layer, visible.x, visible.y, visible.w, visible.h, position.x, position.y, position.width, position.height);
+          ctx.restore();
+        } else {
+          ctx.drawImage(layer, visible.x, visible.y, visible.w, visible.h, position.x, position.y, position.width, position.height);
+        }
       }
     }
     if (capImage?.complete && capImage.naturalWidth > 0 && capImage.naturalHeight > 0) {

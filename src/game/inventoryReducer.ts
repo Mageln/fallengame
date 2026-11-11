@@ -14,12 +14,13 @@ export const reduceInventory = (state: GameState, action: InventoryAction): Game
       const clothing = action.category === 'clothing' ? SHOP_CLOTHING.find((entry) => entry.item.id === action.itemId) : undefined;
       const entry = weapon ?? clothing;
       if (!entry) return state;
+      if (clothing && !clothing.currencies.includes(action.currency)) return msg(state, 'Эта валюта не подходит для покупки предмета.');
       if (weapon && (state.weapon.id === action.itemId || state.storedWeapons.some((w) => w.id === action.itemId))) return msg(state, 'Оружие уже куплено.');
       if (clothing && (state.inventory.some((slot) => slot.itemId === action.itemId) || state.equipmentIds.includes(action.itemId))) return msg(state, 'Предмет уже куплен.');
       if (clothing && state.inventory.length >= INVENTORY_SLOTS) return msg(state, 'Инвентарь заполнен.');
       const cost = entry.price[action.currency];
       const balance = action.currency === 'gold' ? state.gold : state.premiumGold;
-      if (balance < cost) return msg(state, action.currency === 'gold' ? 'Не хватает игровых припасов.' : 'Не хватает премиум-золота.');
+      if (!Number.isSafeInteger(balance) || balance < cost) return msg(state, action.currency === 'gold' ? 'Не хватает игровых припасов.' : 'Не хватает премиум-золота.');
       const autoEquipCap = clothing?.item.id === 'shop_cap';
       const replacedHeadIds = autoEquipCap ? state.equipmentIds.filter((id) => clothingSlot(id) === 'head') : [];
       return {
