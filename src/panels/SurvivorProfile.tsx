@@ -1,3 +1,4 @@
+import { WeaponImage } from '../components/WeaponImage';
 import { ClothingLayers } from '../components/ClothingLayers';
 import { ResourceIcon } from '../components/ResourceIcon';
 import { useEffect, useState } from 'react';
@@ -72,7 +73,7 @@ export const SurvivorProfile = ({ onClose, onWorkshop, onBosses, onInventory, on
           {[['⚔', 'УРОН', format(derived.damage)], ['✚', 'ВЫНОСЛИВОСТЬ', format(derived.stamina)], ['♣', 'УДАЧА', format(derived.luck)], ['◎', 'ШАНС КРИТА', `${(derived.crit * 100).toFixed(1)}%`]].map(([icon, label, value]) => <div className={styles.stat} key={label}><span>{icon}</span><div><small>{label}</small><strong>{value}</strong></div></div>)}
         </div>
         <div className={styles.gear}>
-          <div><small>СНАРЯЖЕНИЕ / ОСНОВНОЕ ОРУЖИЕ</small><h3>{state.weapon.icon} {state.weapon.name} <span>+{state.weapon.level}</span></h3><p className={state.weapon.broken ? styles.broken : ''}>{state.weapon.broken ? '⚠ ОРУЖИЕ СЛОМАНО' : `Прочность: ${format(state.weapon.durability)} / ${format(state.weapon.maxDurability)}`}</p><progress value={Math.min(state.weapon.durability, durabilityMax)} max={durabilityMax} aria-label="Прочность оружия" /></div>
+          <WeaponImage weapon={state.weapon} className={styles.gearImage} /><div><small>СНАРЯЖЕНИЕ / ОСНОВНОЕ ОРУЖИЕ</small><h3>{state.weapon.name} <span>+{state.weapon.level}</span></h3><p className={state.weapon.broken ? styles.broken : ''}>{state.weapon.broken ? '⚠ ОРУЖИЕ СЛОМАНО' : `Прочность: ${format(state.weapon.durability)} / ${format(state.weapon.maxDurability)}`}</p><progress value={Math.min(state.weapon.durability, durabilityMax)} max={durabilityMax} aria-label="Прочность оружия" /></div>
           <button type="button" data-tutorial-target="profile-workshop" onClick={() => go(onWorkshop)}>МАСТЕРСКАЯ ↗</button>
         </div>
         <div className={styles.links}><button type="button" data-tutorial-target="profile-inventory" onClick={() => go(onInventory)}>▣ ИНВЕНТАРЬ</button><button type="button" onClick={() => go(onBosses)}>⚔ БОССЫ</button><button type="button" onClick={() => go(onClan)}>☠ КЛАН</button></div>

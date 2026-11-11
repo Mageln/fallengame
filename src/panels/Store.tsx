@@ -1,3 +1,4 @@
+import { WeaponImage } from '../components/WeaponImage';
 import { ResourceIcon, ResourceText } from '../components/ResourceIcon';
 import { useEffect, useState } from 'react';
 import { useGame } from '../game/GameContext';
@@ -46,7 +47,7 @@ export const StoreModal = ({ onClose }: { onClose: () => void }) => {
           {item.currencies.includes('premium') && <button type="button" disabled={state.premiumGold < item.price.premium || (tab === 'clothing' && state.inventory.length >= 20)} onClick={() => setPurchase({ category: tab, itemId: item.id, name: item.name, currency: 'premium', cost: item.price.premium })}><ResourceIcon name="premium" /> {fmt(item.price.premium)}</button>}
         </>}</div>
       </article>)}</div>
-      {tab === 'weapon' && state.storedWeapons.some((w) => !SHOP_WEAPONS.some((entry) => entry.weapon.id === w.id)) && <div className={styles.owned}><h3>ВАШЕ ДРУГОЕ ОРУЖИЕ</h3>{state.storedWeapons.filter((w) => !SHOP_WEAPONS.some((entry) => entry.weapon.id === w.id)).map((w) => <button type="button" key={w.id} disabled={!!state.battle} onClick={() => { dispatch({ type: 'EQUIP_SHOP_WEAPON', weaponId: w.id }); setActed(true); }}>{w.icon} {w.name} · прочность {w.durability}/{w.maxDurability} · ВЗЯТЬ</button>)}</div>}
+      {tab === 'weapon' && state.storedWeapons.some((w) => !SHOP_WEAPONS.some((entry) => entry.weapon.id === w.id)) && <div className={styles.owned}><h3>ВАШЕ ДРУГОЕ ОРУЖИЕ</h3>{state.storedWeapons.filter((w) => !SHOP_WEAPONS.some((entry) => entry.weapon.id === w.id)).map((w) => <button type="button" key={w.id} disabled={!!state.battle} onClick={() => { dispatch({ type: 'EQUIP_SHOP_WEAPON', weaponId: w.id }); setActed(true); }}><WeaponImage weapon={w} className={styles.ownedImage} /> {w.name} · прочность {w.durability}/{w.maxDurability} · ВЗЯТЬ</button>)}</div>}
       {purchase && <div className={styles.overlay} onClick={() => setPurchase(null)}><section className={styles.confirm} role="dialog" aria-modal="true" aria-label="Подтверждение покупки" onClick={(event) => event.stopPropagation()}><h3>ПОДТВЕРДИТЬ ПОКУПКУ</h3><p>{purchase.name}</p><p>Цена: <ResourceIcon name={purchase.currency === 'gold' ? 'supplies' : 'premium'} /> {purchase.currency === 'gold' ? 'игровые припасы' : 'премиум-золото'} · {fmt(purchase.cost)}</p><div className={styles.actions}><button type="button" onClick={() => { dispatch({ type: 'BUY_SHOP_ITEM', category: purchase.category, itemId: purchase.itemId, currency: purchase.currency }); setPurchase(null); setActed(true); }}>КУПИТЬ</button><button type="button" onClick={() => setPurchase(null)}>ОТМЕНА</button></div></section></div>}
     </section>
   </div>;

@@ -1,3 +1,5 @@
+import '../style/WeaponImages.scss';
+import { WeaponImage } from '../components/WeaponImage';
 import { ResourceIcon } from '../components/ResourceIcon';
 import { Panel, PanelHeader, Group, Button, Text, Header, Box, Cell } from '@vkontakte/vkui';
 import { Icon28ArrowLeftOutline } from '@vkontakte/icons';
@@ -42,7 +44,7 @@ export const Workshop = ({ id }: Props) => {
                 {state.weapon.upgraded && <Text style={{ color: '#fbbf24' }}> • ⭐ МОДЕРНИЗИРОВАНО</Text>}
               </Text>
             </Box>
-            <Text style={{ fontSize: 24 }}>🔫</Text>
+            <WeaponImage weapon={state.weapon} className="workshop-weapon-image" />
           </Box>
         </Cell>
         

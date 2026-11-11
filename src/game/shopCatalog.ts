@@ -1,3 +1,4 @@
+import { weaponImage } from './weaponImages';
 import type { InventoryItem, Weapon } from './types';
 
 type Price = { gold: number; premium: number };
@@ -5,7 +6,7 @@ export type ShopWeapon = { weapon: Weapon; image: string; price: Price };
 export type ClothingEffect = 'fire' | 'electric' | 'toxic' | 'cosmic';
 export type ShopClothing = { item: InventoryItem; slot: 'head' | 'body' | 'legs' | 'feet'; image: string; price: Price; currencies: readonly ('gold' | 'premium')[]; effect?: ClothingEffect };
 const weapon = (id: string, name: string, icon: string, type: Weapon['type'], damage: number, rarity: Weapon['rarity'], price: Price): ShopWeapon => ({
-  weapon: { id, name, icon, type, rarity, baseDamage: damage, attackSpeed: type === 'melee' ? 7 : 6, accuracy: type === 'melee' ? 0.82 : 0.8, critChance: 0.05, critDamage: 1.8, range: type === 'melee' ? 1 : 4, ammoType: type === 'melee' ? 'none' : 'bullets', ammoPerShot: type === 'melee' ? 0 : 1, durability: 100, maxDurability: 100, level: 0, upgraded: false, broken: false, mods: [] }, image: `/icon/shop/${id}.svg`, price,
+  weapon: { id, name, icon, type, rarity, baseDamage: damage, attackSpeed: type === 'melee' ? 7 : 6, accuracy: type === 'melee' ? 0.82 : 0.8, critChance: 0.05, critDamage: 1.8, range: type === 'melee' ? 1 : 4, ammoType: type === 'melee' ? 'none' : 'bullets', ammoPerShot: type === 'melee' ? 0 : 1, durability: 100, maxDurability: 100, level: 0, upgraded: false, broken: false, mods: [] }, image: weaponImage(id) ?? `/icon/shop/${id}.svg`, price,
 });
 export const SHOP_WEAPONS: ShopWeapon[] = [
   weapon('shop_knuckles', 'Кастет выжившего', '👊', 'melee', 8, 'common', { gold: 250, premium: 20 }),

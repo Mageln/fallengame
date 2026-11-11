@@ -11,3 +11,5 @@
 @keyframes shopGlow { from { filter: drop-shadow(0 0 2px #ff5522); } to { filter: drop-shadow(0 0 9px #ffdd69) brightness(1.35); } }
 @media (prefers-reduced-motion: reduce) { .animatedItem { animation: none; } }
 .slotLabel { display: block; color: #b39b72; font-size: 10px; letter-spacing: .08em; margin-bottom: 4px; }
+
+.ownedImage { width: 58px; height: 42px; object-fit: contain; vertical-align: middle; margin-right: 6px; background: #27231c; }
