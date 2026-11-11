@@ -56,12 +56,12 @@ export const DISTRICTS = [
 ] as const;
 
 export const LOCATIONS = [
-  { id: 'location1', name: 'Казармы', bg: 'room1.jpg', character: 'pers1.png' },
-  { id: 'location2', name: 'Больница', bg: 'room2.jpg', character: 'pers1.png' },
-  { id: 'location3', name: 'Склад', bg: 'room3.jpg', character: 'pers1.png' },
-  { id: 'location4', name: 'Лаборатория', bg: 'room4.jpg', character: 'pers1.png' },
-  { id: 'location5', name: 'Бункер', bg: 'room5.jpg', character: 'pers1.png' },
-  { id: 'location6', name: 'Смотровая', bg: 'room6.jpg', character: 'pers1.png' },
+  { id: 'location1', name: 'Казармы', bg: 'backgrounds/shelter.jpg', character: 'pers1.png' },
+  { id: 'location2', name: 'Больница', bg: 'backgrounds/hospital.jpg', character: 'pers1.png' },
+  { id: 'location3', name: 'Склад', bg: 'backgrounds/warehouse.jpg', character: 'pers1.png' },
+  { id: 'location4', name: 'Лаборатория', bg: 'backgrounds/laboratory.jpg', character: 'pers1.png' },
+  { id: 'location5', name: 'Бункер', bg: 'backgrounds/bunker.jpg', character: 'pers1.png' },
+  { id: 'location6', name: 'Смотровая', bg: 'backgrounds/lookout.jpg', character: 'pers1.png' },
 ] as const;
 
 // ===== УБЕЖИЩЕ (КОМНАТА) ======================================================
@@ -75,26 +75,26 @@ export const SHELTER_ITEMS: ShelterItem[] = [
 
 // Оформления комнат. price: 0 — базовый скин (выдаётся вместе с комнатой).
 export const ROOM_SKINS: RoomSkin[] = [
-  { id: 'l1_bunker', roomId: 'location1', name: 'Ржавый бункер', description: 'Стены в ржавчине и оружейных шкафах', bg: 'room1.jpg', price: 0 },
-  { id: 'l1_rust', roomId: 'location1', name: 'Ржавчина', description: 'Металл, кровь, тусклый свет', bg: 'room5.jpg', price: 150 },
-  { id: 'l1_lab', roomId: 'location1', name: 'Заброшенная лаборатория', description: 'Колбы и тени прошлого', bg: 'room4.jpg', price: 300 },
+  { id: 'l1_bunker', roomId: 'location1', name: 'Ржавый бункер', description: 'Стены в ржавчине и оружейных шкафах', bg: 'backgrounds/shelter.jpg', price: 0 },
+  { id: 'l1_rust', roomId: 'location1', name: 'Ржавчина', description: 'Металл, кровь, тусклый свет', bg: 'backgrounds/bunker.jpg', price: 150 },
+  { id: 'l1_lab', roomId: 'location1', name: 'Заброшенная лаборатория', description: 'Колбы и тени прошлого', bg: 'backgrounds/laboratory.jpg', price: 300 },
 
-  { id: 'l2_hospital', roomId: 'location2', name: 'Госпиталь', description: 'Палаты, где уже никто не лечит', bg: 'room2.jpg', price: 0 },
-  { id: 'l2_fog', roomId: 'location2', name: 'Улицы города в тумане', description: 'Туман и остовы домов', bg: 'room3.jpg', price: 200 },
-  { id: 'l2_rust', roomId: 'location2', name: 'Ржавый бункер', description: 'Глухой металл подземелья', bg: 'room5.jpg', price: 400 },
+  { id: 'l2_hospital', roomId: 'location2', name: 'Госпиталь', description: 'Палаты, где уже никто не лечит', bg: 'backgrounds/hospital.jpg', price: 0 },
+  { id: 'l2_fog', roomId: 'location2', name: 'Улицы города в тумане', description: 'Туман и остовы домов', bg: 'backgrounds/battle.jpg', price: 200 },
+  { id: 'l2_rust', roomId: 'location2', name: 'Ржавый бункер', description: 'Глухой металл подземелья', bg: 'backgrounds/bunker.jpg', price: 400 },
 
-  { id: 'l3_warehouse', roomId: 'location3', name: 'Склад', description: 'Ящики, полки, эхо шагов', bg: 'room3.jpg', price: 0 },
-  { id: 'l3_bunker', roomId: 'location3', name: 'Ржавый бункер', description: 'Бетон и ржавчина', bg: 'room1.jpg', price: 250 },
-  { id: 'l3_fog', roomId: 'location3', name: 'Улицы города в тумане', description: 'Серый туман за стеной', bg: 'room2.jpg', price: 450 },
+  { id: 'l3_warehouse', roomId: 'location3', name: 'Склад', description: 'Ящики, полки, эхо шагов', bg: 'backgrounds/warehouse.jpg', price: 0 },
+  { id: 'l3_bunker', roomId: 'location3', name: 'Ржавый бункер', description: 'Бетон и ржавчина', bg: 'backgrounds/shelter.jpg', price: 250 },
+  { id: 'l3_fog', roomId: 'location3', name: 'Улицы города в тумане', description: 'Серый туман за стеной', bg: 'backgrounds/battle.jpg', price: 450 },
 
-  { id: 'l4_lab', roomId: 'location4', name: 'Заброшенная лаборатория', description: 'Колбы, реактивы, опасность', bg: 'room4.jpg', price: 0 },
-  { id: 'l4_hospital', roomId: 'location4', name: 'Госпиталь', description: 'Белый халат уже не нужен', bg: 'room2.jpg', price: 350 },
-  { id: 'l4_rust', roomId: 'location4', name: 'Ржавый бункер', description: 'Металлическая тишина', bg: 'room5.jpg', price: 500 },
+  { id: 'l4_lab', roomId: 'location4', name: 'Заброшенная лаборатория', description: 'Колбы, реактивы, опасность', bg: 'backgrounds/laboratory.jpg', price: 0 },
+  { id: 'l4_hospital', roomId: 'location4', name: 'Госпиталь', description: 'Белый халат уже не нужен', bg: 'backgrounds/hospital.jpg', price: 350 },
+  { id: 'l4_rust', roomId: 'location4', name: 'Ржавый бункер', description: 'Металлическая тишина', bg: 'backgrounds/bunker.jpg', price: 500 },
 
-  { id: 'l5_bunker', roomId: 'location5', name: 'Бункер', description: 'Последний рубеж', bg: 'room5.jpg', price: 0 },
-  { id: 'l5_lab', roomId: 'location5', name: 'Заброшенная лаборатория', description: 'Эксперименты не закончились', bg: 'room4.jpg', price: 450 },
-  { id: 'l5_city', roomId: 'location5', name: 'Улицы города в тумане', description: 'Вид на мёртвый город', bg: 'room3.jpg', price: 600 },
-  { id: 'l6_lookout', roomId: 'location6', name: 'Смотровая', description: 'Взгляд на мёртвый город', bg: 'room6.jpg', price: 0 },
+  { id: 'l5_bunker', roomId: 'location5', name: 'Бункер', description: 'Последний рубеж', bg: 'backgrounds/bunker.jpg', price: 0 },
+  { id: 'l5_lab', roomId: 'location5', name: 'Заброшенная лаборатория', description: 'Эксперименты не закончились', bg: 'backgrounds/laboratory.jpg', price: 450 },
+  { id: 'l5_city', roomId: 'location5', name: 'Улицы города в тумане', description: 'Вид на мёртвый город', bg: 'backgrounds/battle.jpg', price: 600 },
+  { id: 'l6_lookout', roomId: 'location6', name: 'Смотровая', description: 'Взгляд на мёртвый город', bg: 'backgrounds/lookout.jpg', price: 0 },
 ];
 
 export const getShelterItem = (id: ShelterItemId): ShelterItem | undefined =>

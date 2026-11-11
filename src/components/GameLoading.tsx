@@ -3,7 +3,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 // Изображения из папки public, которые используются в игре.
 const GAME_IMAGES = [
   ...['energy', 'bullets', 'supplies', 'premium', 'tokens', 'matches', 'caps', 'medkits', 'grenades', 'keys'].map((name) => `/icon/resources/${name}.png`),
-  '/1.png', '/background.jpg', '/pers1.png', '/characters/survivor-cap-v2.png', '/upperbackground.png', '/logo.svg',
+  '/1.png', '/backgrounds/battle.jpg', '/pers1.png', '/characters/survivor-cap-v2.png', '/upperbackground.png', '/logo.svg',
   '/bossRoom/FonLoot.jpg', '/bossRoom/fonIconBoss.jpg', '/bossRoom/fonWinnera.jpg',
   '/enemy/avatar-boss.jpg', '/enemy/boss1.jpg', '/enemy/zombi.jpg', '/enemy/zombi1.jpg',
   '/icon/arena.jpg', '/icon/boss.jpg', '/icon/clans.jpg', '/icon/clans.png',
@@ -16,8 +16,8 @@ const GAME_IMAGES = [
   '/icon/skills/health.svg', '/icon/skills/fist.svg', '/icon/skills/luck.svg', '/icon/skills/block.svg',
   '/icon/resource/bullets.png', '/icon/resource/energy.png', '/icon/resource/gold.png',
   '/icon/resource/spicki.png', '/icon/resource/zheton.png', '/map/iconboss.jpg',
-  '/map/map.jpg', '/room1.jpg', '/room2.jpg', '/room3.jpg', '/room4.jpg',
-  '/room5.jpg', '/room6.jpg', '/weapon/ak.jpg', '/weapon/awp.jpg',
+  '/map/map.jpg', '/backgrounds/shelter.jpg', '/backgrounds/hospital.jpg', '/backgrounds/warehouse.jpg', '/backgrounds/laboratory.jpg',
+  '/backgrounds/bunker.jpg', '/backgrounds/lookout.jpg', '/weapon/ak.jpg', '/weapon/awp.jpg',
   '/weapon/deagle.jpg', '/weapon/katana.jpg', '/weapon/m4a4.jpg',
   '/weapon/vetka.jpg', '/weapon/vintovka.jpg',
 ];

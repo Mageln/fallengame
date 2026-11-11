@@ -1,3 +1,4 @@
+import { clothingVisualPath, equippedClothingVisuals } from '../../game/clothingVisuals';
 import React, { useState, useEffect, useCallback } from "react";
 import styles from "../../style/PrisonCanvas/PrisonCanvas.module.scss";
 import { PrisonCanvasProps } from "./types";
@@ -120,6 +121,7 @@ export const FallenCanvas: React.FC<PrisonCanvasProps & {
 }) => {
   const { dispatch, state } = useGame();
   const [backgroundImage, setBackgroundImage] = useState<HTMLImageElement | null>(null);
+  const [clothingImages, setClothingImages] = useState<HTMLImageElement[]>([]);
   const [capImage, setCapImage] = useState<HTMLImageElement | null>(null);
   const [characterImage, setCharacterImage] = useState<HTMLImageElement | null>(null);
   const [mapImage, setMapImage] = useState<HTMLImageElement | null>(null);
@@ -140,6 +142,20 @@ export const FallenCanvas: React.FC<PrisonCanvasProps & {
     image.src = '/characters/survivor-cap-v2.png';
     return () => { image.onload = null; image.onerror = null; };
   }, []);
+
+  const clothingKey = equippedClothingVisuals(state.equipmentIds).join(',');
+  useEffect(() => {
+    let cancelled = false;
+    const ids = clothingKey ? clothingKey.split(',') : [];
+    setClothingImages([]);
+    Promise.all(ids.map(id => new Promise<HTMLImageElement | null>(resolve => {
+      const image = new Image();
+      image.onload = () => resolve(image);
+      image.onerror = () => resolve(null);
+      image.src = clothingVisualPath(id);
+    }))).then(images => { if (!cancelled) setClothingImages(images.filter((image): image is HTMLImageElement => image !== null)); });
+    return () => { cancelled = true; };
+  }, [clothingKey]);
 
   // "Атаковать"/"В бой" — запускает бой через reducer (state.battle)
   const handleBossAttack = useCallback(
@@ -299,7 +315,7 @@ export const FallenCanvas: React.FC<PrisonCanvasProps & {
     () => setTopUpResource('gold'),
     () => setTopUpResource('zhetons'),
     onRaidClick,       // клик по рейду на карте районов
-    handleBossAttack,  // "Атаковать"/"В бой" в окне боссов
+    handleBossAttack, // "Атаковать"/"В бой" в окне боссов
     handleFightAttack, // "Удар" в окне боя
     handleFightLeave,  // "Отступить"/"Закрыть" в окне боя
     handleFightTechnique,
@@ -345,7 +361,8 @@ export const FallenCanvas: React.FC<PrisonCanvasProps & {
     () => setTopUpResource('premium'),
     () => setShowStore(true),
     state.equipmentIds.includes('shop_cap') ? capImage : null,
-    () => setShowCasino(true)
+    () => setShowCasino(true),
+    clothingImages
   );
 
   return (

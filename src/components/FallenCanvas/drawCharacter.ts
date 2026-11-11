@@ -27,7 +27,8 @@ export const drawCharacter = (
   position: Position,
   characterImage: HTMLImageElement | null,
   appearanceColor = '#d4a574',
-  capImage: HTMLImageElement | null = null
+  capImage: HTMLImageElement | null = null,
+  clothingImages: HTMLImageElement[] = []
 ) => {
   if (characterImage && characterImage.complete && characterImage.naturalWidth > 0 && characterImage.naturalHeight > 0) {
     const visible = getVisibleBounds(characterImage);
@@ -39,6 +40,11 @@ export const drawCharacter = (
       position.width,
       position.height
     );
+    for (const layer of clothingImages) {
+      if (layer.complete && layer.naturalWidth > 0 && layer.naturalHeight > 0) {
+        ctx.drawImage(layer, visible.x, visible.y, visible.w, visible.h, position.x, position.y, position.width, position.height);
+      }
+    }
     if (capImage?.complete && capImage.naturalWidth > 0 && capImage.naturalHeight > 0) {
       const cap = getCapPosition(position, visible, characterImage.naturalWidth, characterImage.naturalHeight, capImage.naturalWidth, capImage.naturalHeight);
       ctx.drawImage(capImage, cap.x, cap.y, cap.width, cap.height);

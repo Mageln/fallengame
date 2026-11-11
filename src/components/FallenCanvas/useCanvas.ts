@@ -93,7 +93,8 @@ export const useCanvas = (
   onDonationClick?: () => void,
   onGoCloth?: () => void,
   capImage: HTMLImageElement | null = null,
-  onGoKazino?: () => void
+  onGoKazino?: () => void,
+  clothingImages: HTMLImageElement[] = []
 ) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const hoveredRef = useRef({ x: 0, y: 0 });
@@ -249,7 +250,7 @@ export const useCanvas = (
     const bounds = characterImage && characterImage.complete && characterImage.naturalWidth > 0 && characterImage.naturalHeight > 0
       ? getVisibleBounds(characterImage) : null;
     const characterPosition = getCharacterPosition(w, h, bounds ? bounds.w / bounds.h : undefined);
-    drawCharacter(ctx, characterPosition, characterImage, appearanceColor, capImage);
+    drawCharacter(ctx, characterPosition, characterImage, appearanceColor, capImage, clothingImages);
     
     updateParticles();
     drawParticles(ctx);
@@ -314,7 +315,7 @@ export const useCanvas = (
       }
     };
     needsRenderRef.current = false;
-  }, [backgroundImage, characterImage, capImage, icons, energy, maxEnergy, authority, spicki, bullets, gold, premiumGold, zhetons, tasks, appearanceColor, currentLocation, carLevel, level, districtName, playerName, avatarImage, showProfile, showBossModal, showMap, showRoomModal, unlockedRooms, battle, profileData, bosses, medkits, grenades, mapRaids, mapImage, topBarImage, bossImage, mapMessage, unreadNotifications, lockedRoomsRemain]);
+  }, [backgroundImage, characterImage, capImage, clothingImages, icons, energy, maxEnergy, authority, spicki, bullets, gold, premiumGold, zhetons, tasks, appearanceColor, currentLocation, carLevel, level, districtName, playerName, avatarImage, showProfile, showBossModal, showMap, showRoomModal, unlockedRooms, battle, profileData, bosses, medkits, grenades, mapRaids, mapImage, topBarImage, bossImage, mapMessage, unreadNotifications, lockedRoomsRemain]);
 
   // Всегда актуальная версия render для обработчика кликов
   renderRef.current = render;
@@ -444,7 +445,7 @@ export const useCanvas = (
 
   // A newly loaded, equipped, or removed cap must redraw even when no other
   // canvas data has changed (the canvas otherwise stays on its previous frame).
-  useEffect(() => { needsRenderRef.current = true; }, [capImage]);
+  useEffect(() => { needsRenderRef.current = true; }, [capImage, clothingImages]);
 
   // Рендер когда нужно
   useEffect(() => {
