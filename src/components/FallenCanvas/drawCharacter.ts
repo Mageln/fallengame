@@ -23,13 +23,22 @@ export const getCapPosition = (position: Position, visible: IconBounds, imageWid
   height: imageWidth * (74 / 402) * capHeight / capWidth / visible.h * position.height,
 });
 
+// Full sprite placement also keeps parts that extend past the body's opaque bounds.
+export const getHeldWeaponPosition = (position: Position, visible: IconBounds, imageWidth: number, imageHeight: number): Position => ({
+  x: position.x - visible.x / visible.w * position.width,
+  y: position.y - visible.y / visible.h * position.height,
+  width: imageWidth / visible.w * position.width,
+  height: imageHeight / visible.h * position.height,
+});
+
 export const drawCharacter = (
   ctx: CanvasRenderingContext2D,
   position: Position,
   characterImage: HTMLImageElement | null,
   appearanceColor = '#d4a574',
   capImage: HTMLImageElement | null = null,
-  clothingImages: HTMLImageElement[] = []
+  clothingImages: HTMLImageElement[] = [],
+  heldWeaponImage: HTMLImageElement | null = null
 ) => {
   if (characterImage && characterImage.complete && characterImage.naturalWidth > 0 && characterImage.naturalHeight > 0) {
     const visible = getVisibleBounds(characterImage);
@@ -56,6 +65,11 @@ export const drawCharacter = (
           ctx.drawImage(layer, visible.x, visible.y, visible.w, visible.h, position.x, position.y, position.width, position.height);
         }
       }
+    }
+    // Draw full sprite, not just the body's alpha bounds: the weapon extends beyond the hand.
+    if (heldWeaponImage?.complete && heldWeaponImage.naturalWidth > 0 && heldWeaponImage.naturalHeight > 0) {
+      const weaponPosition = getHeldWeaponPosition(position, visible, characterImage.naturalWidth, characterImage.naturalHeight);
+      ctx.drawImage(heldWeaponImage, weaponPosition.x, weaponPosition.y, weaponPosition.width, weaponPosition.height);
     }
     if (capImage?.complete && capImage.naturalWidth > 0 && capImage.naturalHeight > 0) {
       const cap = getCapPosition(position, visible, characterImage.naturalWidth, characterImage.naturalHeight, capImage.naturalWidth, capImage.naturalHeight);

@@ -1,3 +1,4 @@
+import { heldWeaponPath } from '../../game/heldWeapon';
 import { clothingVisualPath, equippedClothingVisuals } from '../../game/clothingVisuals';
 import React, { useState, useEffect, useCallback } from "react";
 import styles from "../../style/PrisonCanvas/PrisonCanvas.module.scss";
@@ -121,6 +122,7 @@ export const FallenCanvas: React.FC<PrisonCanvasProps & {
 }) => {
   const { dispatch, state } = useGame();
   const [backgroundImage, setBackgroundImage] = useState<HTMLImageElement | null>(null);
+  const [heldWeapon, setHeldWeapon] = useState<{ id: string; image: HTMLImageElement } | null>(null);
   const [clothingImages, setClothingImages] = useState<HTMLImageElement[]>([]);
   const [capImage, setCapImage] = useState<HTMLImageElement | null>(null);
   const [characterImage, setCharacterImage] = useState<HTMLImageElement | null>(null);
@@ -142,6 +144,17 @@ export const FallenCanvas: React.FC<PrisonCanvasProps & {
     image.src = '/characters/survivor-cap-v2.png';
     return () => { image.onload = null; image.onerror = null; };
   }, []);
+
+  useEffect(() => {
+    const path = heldWeaponPath(state.weapon.id);
+    if (!path) { setHeldWeapon(null); return; }
+    const image = new Image();
+    const id = state.weapon.id;
+    image.onload = () => setHeldWeapon({ id, image });
+    image.onerror = () => setHeldWeapon(null);
+    image.src = path;
+    return () => { image.onload = null; image.onerror = null; };
+  }, [state.weapon.id]);
 
   const clothingKey = equippedClothingVisuals(state.equipmentIds).join(',');
   useEffect(() => {
@@ -363,7 +376,8 @@ export const FallenCanvas: React.FC<PrisonCanvasProps & {
     () => setShowStore(true),
     state.equipmentIds.includes('shop_cap') ? capImage : null,
     () => setShowCasino(true),
-    clothingImages
+    clothingImages,
+    heldWeapon?.id === state.weapon.id ? heldWeapon.image : null
   );
 
   return (
