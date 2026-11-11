@@ -7,4 +7,4 @@ const ids = [
   'shop_knuckles', 'shop_bat', 'shop_pistol', 'shop_smg', 'shop_rifle',
 ] as const;
 export const heldWeaponPath = (id: string): string | undefined =>
-  ids.some(known => known === id) ? `/characters/weapons/${id}.svg` : undefined;
+  ids.some(known => known === id) ? `/characters/weapons/${id}.png` : undefined;

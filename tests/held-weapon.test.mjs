@@ -19,8 +19,9 @@ test('all existing and store weapons have safe, distinct, full-size hand overlay
   const paths = new Set();
   for (const weapon of all) {
     const path = heldWeaponPath(weapon.id); assert.ok(path, weapon.id); paths.add(path);
-    const svg = await readFile(`public${path}`, 'utf8');
-    assert.match(svg, /viewBox="0 0 402 600"/); assert.match(svg, /<path|<circle/);
+    const png = await readFile(`public${path}`);
+    assert.deepEqual([...png.subarray(0, 8)], [137, 80, 78, 71, 13, 10, 26, 10]);
+    assert.equal(png.readUInt32BE(16), 402); assert.equal(png.readUInt32BE(20), 600);
   }
   assert.equal(paths.size, all.length);
   assert.equal(heldWeaponPath('__proto__'), undefined); assert.equal(heldWeaponPath('../weapon'), undefined);
@@ -34,7 +35,7 @@ test('switching equipped weapon and reloading changes the overlay without mutati
   state = gameReducer(state, { type: 'EQUIP_SHOP_WEAPON', weaponId: 'shop_bat' });
   assert.notEqual(heldWeaponPath(state.weapon.id), starter); assert.equal(state.gold, spent);
   state = hydrateState(JSON.parse(JSON.stringify(state)));
-  assert.equal(heldWeaponPath(state.weapon.id), '/characters/weapons/shop_bat.svg');
+  assert.equal(heldWeaponPath(state.weapon.id), '/characters/weapons/shop_bat.png');
   state = gameReducer(state, { type: 'EQUIP_SHOP_WEAPON', weaponId: 'rusty_pistol' });
   assert.equal(heldWeaponPath(state.weapon.id), starter);
 });
@@ -59,5 +60,5 @@ test('canvas draws weapon above clothing without affecting old calls or unavaila
   assert.equal(draws.length, 3); assert.equal(draws[0][0], character); assert.equal(draws[1][0], clothing); assert.equal(draws[2][0], weapon);
   assert.deepEqual(draws[2], [weapon, 10, 20, 201, 300]);
   assert.equal(renderToStaticMarkup(React.createElement(HeldWeapon, { weaponId: 'invalid', className: 'weapon' })), '');
-  assert.match(renderToStaticMarkup(React.createElement(HeldWeapon, { weaponId: 'shop_bat', className: 'weapon' })), /characters\/weapons\/shop_bat.svg/);
+  assert.match(renderToStaticMarkup(React.createElement(HeldWeapon, { weaponId: 'shop_bat', className: 'weapon' })), /characters\/weapons\/shop_bat.png/);
 });
