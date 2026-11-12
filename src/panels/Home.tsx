@@ -20,6 +20,8 @@ import { RoomModal } from './Room';
 import { ClanModal } from './Clan';
 import { loginRewardStatus } from '../game/loginRewards';
 import loginStyles from '../style/LoginReward.module.scss';
+import extraStyles from '../style/ExtraRaids.module.scss';
+import { EXTRA_MAP_RAIDS } from '../game/extraMapRaids';
 
 interface HomeProps {
   id: string;
@@ -40,6 +42,7 @@ export const Home = ({ id }: HomeProps) => {
   const gameLayer = useRef<HTMLDivElement>(null);
   const [tutorialPreview, setTutorialPreview] = useState('');
   const [tutorialMap, setTutorialMap] = useState(false);
+  const [showExtraRaids, setShowExtraRaids] = useState(false);
   const tutorialId = tutorialActive ? TUTORIAL_STEPS[tutorialViewStep(state.tutorialVersion, state.tutorialStep)]?.id : undefined;
   useEffect(() => {
     setTutorialPreview(tutorialId === 'daily' ? 'daily' : ['fist', 'weapon', 'fist-block', 'block', 'fist-heal-1', 'fist-heal-2', 'heal', 'rage'].includes(tutorialId ?? '') ? 'battle' : '');
@@ -149,7 +152,7 @@ export const Home = ({ id }: HomeProps) => {
         }}
         onGoDistrict={() => dispatch({ type: 'TOGGLE_MAP' })}
         showMap={state.showMap || tutorialMap}
-        mapRaids={state.mapRaids}
+        mapRaids={state.mapRaids.filter((raid) => !EXTRA_MAP_RAIDS.some((extra) => extra.id === raid.id))}
         onRaidClick={handleRaidClick}
         notifications={state.notifications}
         showNotifications={state.showNotifications}
@@ -167,6 +170,24 @@ export const Home = ({ id }: HomeProps) => {
         lastMessage={state.lastMessage}
       />
 
+
+      {state.showMap && !state.showRaidModal && <button className={extraStyles.open} type="button" onClick={() => setShowExtraRaids(true)}>🚗 Новые локации</button>}
+      {state.showMap && showExtraRaids && !state.showRaidModal && <div className={extraStyles.backdrop} onClick={() => setShowExtraRaids(false)}>
+        <section className={extraStyles.panel} role="dialog" aria-modal="true" aria-label="Новые локации рейда" onClick={(event) => event.stopPropagation()}>
+          <header><div><small>КАРТА ВЫЛАЗОК</small><h2>Новые локации</h2></div><button type="button" onClick={() => setShowExtraRaids(false)} aria-label="Закрыть">✕</button></header>
+          <p>Уровень машины: {state.carLevel}. Улучшайте её в профиле, чтобы открыть новые маршруты.</p>
+          <div className={extraStyles.list}>{EXTRA_MAP_RAIDS.map((definition) => {
+            const raid = state.mapRaids.find((entry) => entry.id === definition.id) ?? definition;
+            const locked = state.carLevel < (definition.requiredCarLevel ?? 1);
+            const ready = raid.isRunning && raid.endTime && Date.now() >= raid.endTime;
+            return <button type="button" key={raid.id} onClick={() => { setShowExtraRaids(false); handleRaidClick(raid.id); }}>
+              <strong>{locked && !raid.isRunning ? '🔒' : raid.isRunning ? '⏳' : '📍'} {raid.name}</strong>
+              <span>Машина {definition.requiredCarLevel} ур. · {raid.type === 'red' ? '30' : '15'} мин · {raid.energyCost} энергии</span>
+              <span>{ready ? 'Награда готова' : raid.isRunning ? 'Рейд идёт' : locked ? 'Маршрут закрыт' : `Награда: ${raid.rewards.matches} спичек, ${raid.rewards.materials} материалов`}</span>
+            </button>;
+          })}</div>
+        </section>
+      </div>}
 
       {showProfile && <SurvivorProfile
         onClose={closeProfileOnly}

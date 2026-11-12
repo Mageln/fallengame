@@ -1,3 +1,4 @@
+import { EXTRA_MAP_RAIDS } from './extraMapRaids';
 import { emptyCasino } from './casino';
 import { TUTORIAL_VERSION } from './tutorial';
 import { TUTORIAL, DAILY_QUESTS, STARTER_WEAPON, DEFAULT_STATS } from './constants';
@@ -203,6 +204,7 @@ export const createInitialState = (): GameState => ({
       isRunning: false,
       completed: false,
     },
+    ...EXTRA_MAP_RAIDS.map((raid) => ({ ...raid, rewards: { ...raid.rewards } })),
   ],
   currentLocation: 'location1',
   unlockedRooms: ['location1'],

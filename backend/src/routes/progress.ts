@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { Prisma } from '@prisma/client';
 import { prisma } from '../prisma.js';
 import { requireVkUser } from '../vkAuth.js';
-import { applyDailyReset, createInitialState } from '../generated/game.js';
+import { applyDailyReset, createInitialState, normalizeMapRaids } from '../generated/game.js';
 import { advanceCombat, applyCombatAction } from '../progressCombat.js';
 import { restoreEnergy } from '../progressEnergy.js';
 import { parseProgressAction } from '../progressAction.js';
@@ -41,7 +41,7 @@ progressRouter.get('/', async (_req, res) => {
     if (!coopEnabled) {
       if (hasCoopBattle(progress.state as Record<string, unknown>)) throw new CoopDisabled();
       const regenerated = restoreEnergy(progress.state as Record<string, unknown>, progress.energyUpdatedAt, new Date());
-      return res.json({ state: advanceCombat(regenerated.state, Date.now()), revision: progress.revision });
+      return res.json({ state: advanceCombat(normalizeMapRaids(regenerated.state), Date.now()), revision: progress.revision });
     }
     const snapshot = await prisma.$transaction(async (tx) => {
       const locked = await lockProgress(tx, vkId);
@@ -50,7 +50,7 @@ progressRouter.get('/', async (_req, res) => {
       await syncCoopBattle(tx, locked.state, vkId, now);
       const claimed = await claimCoopRewards(tx, vkId);
       const refreshed = restoreEnergy(claimed.state, locked.energyUpdatedAt, new Date(now));
-      const state = await syncCoopBattle(tx, advanceCombat(refreshed.state, now), vkId, now);
+      const state = await syncCoopBattle(tx, advanceCombat(normalizeMapRaids(refreshed.state), now), vkId, now);
       return { state, revision: claimed.revision };
     });
     return res.json(snapshot);

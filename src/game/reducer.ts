@@ -1,3 +1,4 @@
+import { normalizeMapRaids } from './extraMapRaids';
 import { addBossKey, BOSS_KEY_PRICES, bossRequiresKey, normalizeBossKeys } from './bossKeys';
 import { normalizeCasino, reduceCasino } from './casino';
 import { TUTORIAL_STEPS, TUTORIAL_VERSION, tutorialIsActive, tutorialViewStep } from './tutorial';
@@ -151,7 +152,7 @@ const computeClanWarGold = (win: boolean, streak: number): number => {
 
 export const hydrateState = (state: GameState): GameState => {
   // Normalize old saves that may lack new fields
-  let normalized: GameState = { ...state, casino: normalizeCasino(state.casino), bossKeys: normalizeBossKeys(state.bossKeys) };
+  let normalized: GameState = { ...normalizeMapRaids(state), casino: normalizeCasino(state.casino), bossKeys: normalizeBossKeys(state.bossKeys) };
   
   if (!normalized.inventory) {
     normalized = { ...normalized, inventory: [] };
@@ -324,6 +325,7 @@ export const hydrateState = (state: GameState): GameState => {
 
 export const gameReducer = (state: GameState, action: GameAction): GameState => {
   if (action.type !== 'HYDRATE_STATE') {
+    state = normalizeMapRaids(state);
     // Server snapshots from before the new skills also pass through this path.
     if (!state.profileSkills || state.profileSkills.weapon === undefined || state.profileSkills.heal === undefined) {
       state = { ...state, profileSkills: normalizeProfileSkills(state.profileSkills) };

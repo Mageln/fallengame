@@ -247,6 +247,7 @@ export interface MapRaid {
   name: string;
   description: string;
   energyCost: number;
+  requiredCarLevel?: number;
   rewards: {
     bullets: number;
     matches: number;

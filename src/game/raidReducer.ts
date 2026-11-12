@@ -35,6 +35,9 @@ export const reduceRaid = (state: GameState, action: RaidAction): GameState => {
             lastMessage: `${mapRaid.name}: рейд уже идёт.`,
           };
         }
+        if (state.carLevel < (mapRaid.requiredCarLevel ?? 1)) {
+          return msg(state, `Для рейда «${mapRaid.name}» нужна машина ${mapRaid.requiredCarLevel} уровня.`);
+        }
         if (state.energy < mapRaid.energyCost) {
           return msg(state, `Не хватает энергии: нужно ${mapRaid.energyCost}, у вас ${state.energy}.`);
         }

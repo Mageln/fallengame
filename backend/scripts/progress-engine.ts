@@ -10,3 +10,5 @@ export { BOSSES } from '../../src/game/bosses';
 export { bossExperience } from '../../src/game/experience';
 
 export { nextBossKeyFor } from '../../src/game/bossKeys';
+
+export { normalizeMapRaids } from '../../src/game/extraMapRaids';

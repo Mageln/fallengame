@@ -1,0 +1,13 @@
+.open { position: absolute; z-index: 20; top: 68px; right: 14px; padding: 10px 12px; color: #f0dfb6; background: #423021; border: 1px solid #c9a227; border-radius: 7px; font-weight: bold; cursor: pointer; }
+.backdrop { position: fixed; z-index: 10010; inset: 0; display: grid; place-items: center; padding: 12px; background: rgba(12, 11, 9, .9); color: #d8d0c0; font-family: 'Courier New', monospace; }
+.panel { box-sizing: border-box; width: min(600px, 100%); max-height: 90dvh; overflow: auto; padding: 20px; border: 3px ridge #6b4a2f; background: #24251e; box-shadow: 0 14px 44px #000; }
+.panel header { display: flex; align-items: center; justify-content: space-between; border-bottom: 1px dashed #9c653a; }
+.panel h2 { margin: 6px 0 14px; font: 24px Impact, sans-serif; }
+.panel small { color: #c9a227; }
+.panel button { color: #d8d0c0; background: #34271f; border: 1px solid #6b4a2f; cursor: pointer; font: inherit; }
+.panel header button { padding: 10px; }
+.panel button:focus-visible, .open:focus-visible { outline: 2px solid #d6bd70; outline-offset: 2px; }
+.panel p { font-size: 13px; line-height: 1.5; }
+.list { display: grid; gap: 8px; }
+.list button { display: grid; gap: 5px; width: 100%; padding: 12px; text-align: left; }
+.list button span { color: #c7b99c; font-size: 12px; }
