@@ -14,6 +14,10 @@ export const SHOP_WEAPONS: ShopWeapon[] = [
   weapon('shop_pistol', 'Пистолет дозорного', '🔫', 'firearm', 16, 'uncommon', { gold: 900, premium: 60 }),
   weapon('shop_smg', 'Пистолет-пулемёт', '🔫', 'firearm', 21, 'rare', { gold: 1500, premium: 95 }),
   weapon('shop_rifle', 'Автомат рейдера', '🔫', 'firearm', 28, 'epic', { gold: 2400, premium: 150 }),
+  weapon('shop_branch', 'Заострённая ветка', '🪵', 'melee', 5, 'common', { gold: 150, premium: 10 }),
+  weapon('shop_deagle', 'Desert Eagle', '🔫', 'firearm', 24, 'rare', { gold: 1800, premium: 120 }),
+  weapon('shop_m4a4', 'M4A4', '🔫', 'firearm', 30, 'epic', { gold: 2800, premium: 180 }),
+  weapon('shop_awp', 'AWP', '🎯', 'firearm', 38, 'epic', { gold: 3500, premium: 230 }),
 ];
 const clothing = (id: string, name: string, icon: string, slot: ShopClothing['slot'], stamina: number, damage: number, luck: number, rarity: InventoryItem['rarity'], price: Price, currencies: ShopClothing['currencies'] = ['gold', 'premium'], effect?: ClothingEffect): ShopClothing => ({
   item: { id, name, icon, rarity, staminaBonus: stamina, damageBonus: damage, luckBonus: luck, costBullets: 0 }, slot, image: id === 'shop_cap' ? '/characters/survivor-cap-v2.png' : `/icon/shop/${id}.svg`, price, currencies, effect,

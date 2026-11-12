@@ -1,5 +1,7 @@
 // Asset paths are selected from an allowlist, never from saved or remote input.
 const images: Readonly<Record<string, string>> = {
+  shop_branch: '/weapon/vetka.jpg', shop_deagle: '/weapon/deagle.jpg',
+  shop_m4a4: '/weapon/m4a4.jpg', shop_awp: '/weapon/awp.jpg',
   shop_knuckles: '/weapon/shop_knuckles.jpg', shop_bat: '/weapon/shop_bat.jpg',
   shop_pistol: '/weapon/shop_pistol.jpg', shop_smg: '/weapon/shop_smg.jpg', shop_rifle: '/weapon/shop_rifle.jpg',
   rusty_pistol: '/weapon/shop_pistol.jpg', rusty_crowbar: '/weapon/rusty_crowbar.jpg',

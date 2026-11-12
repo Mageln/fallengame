@@ -398,3 +398,15 @@ test('server enforces premium-only animated clothing purchases and equips them a
   assert.equal(gameReducer(state, parse('premium')).premiumGold, 80);
   assert.equal(parseProgressAction({ type: 'BUY_SHOP_ITEM', category: 'clothing', itemId: 'head_inferno', currency: 'premium', price: 0 }), null);
 });
+
+test('server handles public weapon purchases using server-side prices and supports equipping', () => {
+  for (const [itemId, cost] of [['shop_branch', 150], ['shop_deagle', 1800], ['shop_m4a4', 2800], ['shop_awp', 3500]]) {
+    let state = { ...baseInitialState(), gold: 10000 };
+    const action = parseProgressAction({ type: 'BUY_SHOP_ITEM', category: 'weapon', itemId, currency: 'gold' });
+    assert.ok(action); state = gameReducer(state, action);
+    assert.equal(state.gold, 10000 - cost);
+    state = gameReducer(state, parseProgressAction({ type: 'EQUIP_SHOP_WEAPON', weaponId: itemId }));
+    assert.equal(state.weapon.id, itemId);
+    assert.equal(parseProgressAction({ ...action, price: 0 }), null);
+  }
+});

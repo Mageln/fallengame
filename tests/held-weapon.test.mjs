@@ -71,3 +71,19 @@ test('equipped weapons use a replacement hand sprite and unknown weapons keep th
   const body = await readFile('public/characters/survivor-no-right-hand.png');
   assert.equal(body.readUInt32BE(16), 402); assert.equal(body.readUInt32BE(20), 600);
 });
+
+test('all four public weapons can be purchased and selected with their own artwork', () => {
+  for (const [id, path] of [
+    ['shop_awp', '/weapon/awp.jpg'], ['shop_deagle', '/weapon/deagle.jpg'],
+    ['shop_m4a4', '/weapon/m4a4.jpg'], ['shop_branch', '/weapon/vetka.jpg'],
+  ]) {
+    const item = SHOP_WEAPONS.find(entry => entry.weapon.id === id);
+    assert.ok(item); assert.equal(item.image, path);
+    let state = { ...createInitialState(), gold: 10000 };
+    state = gameReducer(state, { type: 'BUY_SHOP_ITEM', category: 'weapon', itemId: id, currency: 'gold' });
+    assert.equal(state.gold, 10000 - item.price.gold);
+    state = gameReducer(state, { type: 'EQUIP_SHOP_WEAPON', weaponId: id });
+    assert.equal(state.weapon.id, id); assert.equal(heldWeaponPath(id), `/characters/weapons/${id}.png`);
+    assert.equal(hydrateState(JSON.parse(JSON.stringify(state))).weapon.id, id);
+  }
+});

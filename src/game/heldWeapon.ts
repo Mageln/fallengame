@@ -5,6 +5,7 @@ const ids = [
   'urban_machete', 'cold_dawn_katana', 'sawed_off', 'ppsh_violin', 'akm_veteran',
   'mosin_quiet', 'nail_launcher', 'pipe_shotgun', 'cleaner_flamer', 'molotov', 'hedgehog_grenade',
   'shop_knuckles', 'shop_bat', 'shop_pistol', 'shop_smg', 'shop_rifle',
+  'shop_awp', 'shop_deagle', 'shop_m4a4', 'shop_branch',
 ] as const;
 export const heldWeaponPath = (id: string): string | undefined =>
   ids.some(known => known === id) ? `/characters/weapons/${id}.png` : undefined;
