@@ -64,9 +64,10 @@ test('canvas draws weapon above clothing without affecting old calls or unavaila
 });
 
 
-test('knuckles use a replacement hand sprite; other weapons keep the original body', async () => {
+test('equipped weapons use a replacement hand sprite and unknown weapons keep the original body', async () => {
   assert.equal(characterSpritePath('shop_knuckles'), '/characters/survivor-no-right-hand.png');
-  for (const id of ['shop_bat', 'nailed_bat', 'rusty_pistol', 'unknown']) assert.equal(characterSpritePath(id), '/pers1.png');
+  for (const weapon of [...WEAPONS, ...SHOP_WEAPONS.map(entry => entry.weapon)]) assert.equal(characterSpritePath(weapon.id), '/characters/survivor-no-right-hand.png');
+  assert.equal(characterSpritePath('unknown'), '/pers1.png');
   const body = await readFile('public/characters/survivor-no-right-hand.png');
   assert.equal(body.readUInt32BE(16), 402); assert.equal(body.readUInt32BE(20), 600);
 });
