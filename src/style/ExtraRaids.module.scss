@@ -11,3 +11,9 @@
 .list { display: grid; gap: 8px; }
 .list button { display: grid; gap: 5px; width: 100%; padding: 12px; text-align: left; }
 .list button span { color: #c7b99c; font-size: 12px; }
+.map { position: relative; width: 100%; aspect-ratio: 16 / 9; min-height: 260px; background-color: #111; background-size: 100% 100%; background-position: center; overflow: hidden; border: 1px solid #6b4a2f; }
+.panel .marker { position: absolute; transform: translate(-50%, -50%); width: min(145px, 38%); padding: 3px; border: 0; background: transparent; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 3px; font-size: 11px; text-shadow: 0 1px 3px #000, 0 1px 5px #000; }
+.marker b { display: grid; place-items: center; width: 37px; height: 37px; font-size: 20px; border-radius: 50%; border: 2px solid #ffbb31; background: rgba(110, 70, 0, .85); box-shadow: 0 0 12px #d28d00; }
+.marker.red b { border-color: #ff5555; background: rgba(130, 20, 20, .85); box-shadow: 0 0 12px #b72828; }
+.marker span, .marker small { color: white; background: rgba(0, 0, 0, .8); border-radius: 3px; padding: 2px 4px; }
+@media (max-width: 450px) { .panel { padding: 12px; } .map { aspect-ratio: auto; height: min(64dvh, 500px); } .panel .marker { font-size: 10px; } }

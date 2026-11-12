@@ -6,16 +6,16 @@ const vite = await createServer({ server: { middlewareMode: true, hmr: false }, 
 after(() => vite.close());
 const { createInitialState } = await vite.ssrLoadModule('/src/game/initialState.ts');
 const { gameReducer, hydrateState } = await vite.ssrLoadModule('/src/game/reducer.ts');
-const { EXTRA_MAP_RAIDS, normalizeMapRaids } = await vite.ssrLoadModule('/src/game/extraMapRaids.ts');
+const { EXTRA_MAP_RAIDS, RAID_REGIONS, normalizeMapRaids } = await vite.ssrLoadModule('/src/game/extraMapRaids.ts');
 
 test('old saves gain four new routes without resetting existing raids or danger tasks', () => {
   const original = createInitialState();
   const old = { ...original, mapRaids: original.mapRaids.slice(0, 7).map((r, i) => i === 0 ? { ...r, isRunning: true, startTime: 10, endTime: 9999999999999 } : r), raidTaskProgress: { raid_1: ['first'] } };
   const migrated = hydrateState(old);
-  assert.equal(migrated.mapRaids.length, 11);
+  assert.equal(migrated.mapRaids.length, 23);
   assert.equal(migrated.mapRaids[0].endTime, 9999999999999);
   assert.deepEqual(migrated.raidTaskProgress, { raid_1: ['first'] });
-  assert.equal(normalizeMapRaids(migrated).mapRaids.length, 11);
+  assert.equal(normalizeMapRaids(migrated).mapRaids.length, 23);
 });
 
 test('new routes enforce each car threshold without spending energy; old routes remain open', () => {
@@ -44,4 +44,25 @@ test('saved routes retain progress but cannot change the rules or duplicate rewa
   const normalized = normalizeMapRaids(modified).mapRaids.find(r => r.id === raid.id);
   assert.equal(normalized.requiredCarLevel, 10); assert.equal(normalized.rewards.matches, raid.rewards.matches);
   assert.equal(normalized.startTime, 1); assert.equal(normalized.endTime, 2);
+});
+
+
+test('each location has its own map and four distinct raids', async () => {
+  const { access } = await import('node:fs/promises');
+  assert.deepEqual(RAID_REGIONS.map(r => r.carLevel), [10, 20, 35, 50]);
+  assert.equal(new Set(EXTRA_MAP_RAIDS.map(r => r.id)).size, 16);
+  for (const region of RAID_REGIONS) {
+    await access(`public${region.image}`);
+    assert.equal(region.raids.length, 4);
+    for (const id of region.raids) assert.equal(EXTRA_MAP_RAIDS.find(r => r.id === id).requiredCarLevel, region.carLevel);
+  }
+});
+
+test('existing region raid timers and task progress survive migration to four points', () => {
+  const state = createInitialState();
+  const old = { ...state, mapRaids: state.mapRaids.filter(r => !RAID_REGIONS.flatMap(region => region.raids.slice(1)).includes(r.id)).map(r => r.id === 'raid_railway' ? { ...r, isRunning: true, startTime: 1, endTime: 1234 } : r), raidTaskProgress: { raid_railway: ['a'] } };
+  const result = hydrateState(old);
+  assert.equal(result.mapRaids.find(r => r.id === 'raid_railway').endTime, 1234);
+  assert.deepEqual(result.raidTaskProgress.raid_railway, ['a']);
+  assert.equal(result.mapRaids.length, 23);
 });
