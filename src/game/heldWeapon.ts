@@ -8,3 +8,7 @@ const ids = [
 ] as const;
 export const heldWeaponPath = (id: string): string | undefined =>
   ids.some(known => known === id) ? `/characters/weapons/${id}.png` : undefined;
+
+// Кастет использует отдельную кисть; для остальных видов исходный персонаж не меняется.
+export const characterSpritePath = (weaponId: string): string =>
+  weaponId === 'shop_knuckles' ? '/characters/survivor-no-right-hand.png' : '/pers1.png';

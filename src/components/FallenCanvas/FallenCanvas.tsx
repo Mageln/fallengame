@@ -1,4 +1,4 @@
-import { heldWeaponPath } from '../../game/heldWeapon';
+import { characterSpritePath, heldWeaponPath } from '../../game/heldWeapon';
 import { clothingVisualPath, equippedClothingVisuals } from '../../game/clothingVisuals';
 import React, { useState, useEffect, useCallback } from "react";
 import styles from "../../style/PrisonCanvas/PrisonCanvas.module.scss";
@@ -225,16 +225,19 @@ export const FallenCanvas: React.FC<PrisonCanvasProps & {
   useEffect(() => {
     const bgFile = resolveBackground(state.currentLocation, state.selectedSkins, state.unlockedRooms);
     const bgImg = new Image();
-    const charImg = new Image();
-
     bgImg.onload = () => setBackgroundImage(bgImg);
     bgImg.onerror = () => setBackgroundImage(null);
     bgImg.src = `/${bgFile}`;
+    return () => { bgImg.onload = null; bgImg.onerror = null; };
+  }, [state.currentLocation, state.selectedSkins, state.unlockedRooms]);
 
+  useEffect(() => {
+    const charImg = new Image();
     charImg.onload = () => setCharacterImage(charImg);
     charImg.onerror = () => setCharacterImage(null);
-    charImg.src = '/pers1.png';
-  }, [state.currentLocation, state.selectedSkins, state.unlockedRooms]);
+    charImg.src = characterSpritePath(state.weapon.id);
+    return () => { charImg.onload = null; charImg.onerror = null; };
+  }, [state.weapon.id]);
 
   // Загружаем карту
   useEffect(() => {

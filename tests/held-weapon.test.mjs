@@ -8,7 +8,7 @@ const vite = await createServer({ server: { middlewareMode: true, hmr: false }, 
 after(() => vite.close());
 const { WEAPONS } = await vite.ssrLoadModule('/src/game/constants.ts');
 const { SHOP_WEAPONS } = await vite.ssrLoadModule('/src/game/shopCatalog.ts');
-const { heldWeaponPath } = await vite.ssrLoadModule('/src/game/heldWeapon.ts');
+const { heldWeaponPath, characterSpritePath } = await vite.ssrLoadModule('/src/game/heldWeapon.ts');
 const { HeldWeapon } = await vite.ssrLoadModule('/src/components/HeldWeapon.tsx');
 const { drawCharacter, getHeldWeaponPosition } = await vite.ssrLoadModule('/src/components/FallenCanvas/drawCharacter.ts');
 const { gameReducer, hydrateState } = await vite.ssrLoadModule('/src/game/reducer.ts');
@@ -61,4 +61,12 @@ test('canvas draws weapon above clothing without affecting old calls or unavaila
   assert.deepEqual(draws[2], [weapon, 10, 20, 201, 300]);
   assert.equal(renderToStaticMarkup(React.createElement(HeldWeapon, { weaponId: 'invalid', className: 'weapon' })), '');
   assert.match(renderToStaticMarkup(React.createElement(HeldWeapon, { weaponId: 'shop_bat', className: 'weapon' })), /characters\/weapons\/shop_bat.png/);
+});
+
+
+test('knuckles use a replacement hand sprite; other weapons keep the original body', async () => {
+  assert.equal(characterSpritePath('shop_knuckles'), '/characters/survivor-no-right-hand.png');
+  for (const id of ['shop_bat', 'nailed_bat', 'rusty_pistol', 'unknown']) assert.equal(characterSpritePath(id), '/pers1.png');
+  const body = await readFile('public/characters/survivor-no-right-hand.png');
+  assert.equal(body.readUInt32BE(16), 402); assert.equal(body.readUInt32BE(20), 600);
 });
