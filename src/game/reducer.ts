@@ -1,4 +1,4 @@
-import { normalizeMapRaids } from './extraMapRaids';
+import { normalizeMapRaids, RAID_REGIONS } from './extraMapRaids';
 import { addBossKey, BOSS_KEY_PRICES, bossRequiresKey, normalizeBossKeys } from './bossKeys';
 import { normalizeCasino, reduceCasino } from './casino';
 import { TUTORIAL_STEPS, TUTORIAL_VERSION, tutorialIsActive, tutorialViewStep } from './tutorial';
@@ -602,6 +602,13 @@ export const gameReducer = (state: GameState, action: GameAction): GameState => 
     case 'LEAVE_BATTLE':
     case 'ABANDON_BOSS':
       return reduceBattle(state, action);
+    case 'UNLOCK_RAID_REGION': {
+      const region = RAID_REGIONS.find((entry) => entry.id === action.regionId);
+      if (!region) return state;
+      if (state.carLevel < region.carLevel) return msg(state, `Для локации «${region.name}» нужна машина ${region.carLevel} уровня. Сейчас: ${state.carLevel}.`);
+      if (state.unlockedRaidRegions?.includes(region.id)) return state;
+      return { ...state, unlockedRaidRegions: [...(state.unlockedRaidRegions ?? []), region.id], lastMessage: `Локация «${region.name}» открыта!` };
+    }
     case 'OPEN_MAP_RAID':
     case 'START_RAID':
     case 'RAID_SCOUT':

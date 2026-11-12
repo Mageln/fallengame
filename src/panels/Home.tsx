@@ -42,9 +42,11 @@ export const Home = ({ id }: HomeProps) => {
   const gameLayer = useRef<HTMLDivElement>(null);
   const [tutorialPreview, setTutorialPreview] = useState('');
   const [tutorialMap, setTutorialMap] = useState(false);
-  const [showExtraRaids, setShowExtraRaids] = useState(false);
-  const [regionId, setRegionId] = useState<string | null>(null);
-  const region = RAID_REGIONS.find((entry) => entry.id === regionId);
+  const [mapPage, setMapPage] = useState(0);
+  const [unlockAttempt, setUnlockAttempt] = useState(false);
+  const region = mapPage > 0 ? RAID_REGIONS[mapPage - 1] : undefined;
+  const locked = !!region && !state.unlockedRaidRegions?.includes(region.id);
+  useEffect(() => { if (!state.showMap) { setMapPage(0); setUnlockAttempt(false); } }, [state.showMap]);
   const tutorialId = tutorialActive ? TUTORIAL_STEPS[tutorialViewStep(state.tutorialVersion, state.tutorialStep)]?.id : undefined;
   useEffect(() => {
     setTutorialPreview(tutorialId === 'daily' ? 'daily' : ['fist', 'weapon', 'fist-block', 'block', 'fist-heal-1', 'fist-heal-2', 'heal', 'rage'].includes(tutorialId ?? '') ? 'battle' : '');
@@ -154,7 +156,10 @@ export const Home = ({ id }: HomeProps) => {
         }}
         onGoDistrict={() => dispatch({ type: 'TOGGLE_MAP' })}
         showMap={state.showMap || tutorialMap}
-        mapRaids={state.mapRaids.filter((raid) => !EXTRA_MAP_RAIDS.some((extra) => extra.id === raid.id))}
+        mapRaids={state.mapRaids.filter((raid) => region
+          ? (region.raids as readonly string[]).includes(raid.id)
+          : !EXTRA_MAP_RAIDS.some((extra) => extra.id === raid.id))}
+        raidMapImage={region?.image}
         onRaidClick={handleRaidClick}
         notifications={state.notifications}
         showNotifications={state.showNotifications}
@@ -173,29 +178,28 @@ export const Home = ({ id }: HomeProps) => {
       />
 
 
-      {state.showMap && !state.showRaidModal && <button className={extraStyles.open} type="button" onClick={() => setShowExtraRaids(true)}>🚗 Новые локации</button>}
-      {state.showMap && showExtraRaids && !state.showRaidModal && <div className={extraStyles.backdrop} onClick={() => setShowExtraRaids(false)}>
-        <section className={extraStyles.panel} role="dialog" aria-modal="true" aria-label={region?.name ?? 'Новые локации рейда'} onClick={(event) => event.stopPropagation()}>
-          <header><div><small>КАРТА ВЫЛАЗОК</small><h2>{region?.name ?? 'Новые локации'}</h2></div><button type="button" onClick={() => { if (region) setRegionId(null); else setShowExtraRaids(false); }}>{region ? '← К локациям' : '✕'}</button></header>
-          {!region ? <><p>Уровень машины: {state.carLevel}. Улучшайте её в профиле, чтобы открыть новые маршруты.</p>
-            <div className={extraStyles.list}>{RAID_REGIONS.map((entry) => <button type="button" key={entry.id} onClick={() => setRegionId(entry.id)}>
-              <strong>{state.carLevel < entry.carLevel ? '🔒' : '🗺️'} {entry.name}</strong><span>Машина {entry.carLevel} ур. · 4 рейда</span>
-            </button>)}</div></> : <>
-            <p>Машина: {state.carLevel} / {region.carLevel} ур. {state.carLevel < region.carLevel ? 'Маршрут закрыт — улучшите машину.' : 'Выберите точку рейда на карте.'}</p>
-            <div className={extraStyles.map} style={{ backgroundImage: `url(${region.image})` }}>
-              {region.raids.map((id) => {
-                const definition = EXTRA_MAP_RAIDS.find((raid) => raid.id === id)!;
-                const raid = state.mapRaids.find((entry) => entry.id === id) ?? definition;
-                const locked = state.carLevel < region.carLevel && !raid.isRunning;
-                const ready = raid.isRunning && !!raid.endTime && Date.now() >= raid.endTime;
-                return <button type="button" key={raid.id} className={`${extraStyles.marker} ${raid.type === 'red' ? extraStyles.red : extraStyles.yellow}`} style={{ left: `${definition.x}%`, top: `${definition.y}%` }} onClick={() => { setShowExtraRaids(false); handleRaidClick(raid.id); }} aria-label={`${raid.name}: ${locked ? `машина ${region.carLevel} уровня` : ready ? 'награда готова' : raid.isRunning ? 'рейд идёт' : `${raid.energyCost} энергии`}`}>
-                  <b>{locked ? '🔒' : ready ? '💰' : raid.isRunning ? '⏳' : '⚠'}</b><span>{raid.name}</span><small>{locked ? `${region.carLevel} ур.` : ready ? 'Готово' : raid.isRunning ? 'В рейде' : `${raid.energyCost} ⚡`}</small>
-                </button>;
-              })}
-            </div>
-          </>}
-        </section>
-      </div>}
+      {state.showMap && !state.showRaidModal && <>
+        <div className={extraStyles.title} aria-live="polite">{region?.name ?? 'Карта районов'} · {mapPage + 1}/{RAID_REGIONS.length + 1}</div>
+        {region && locked && <button type="button" className={extraStyles.closeMap} onClick={closeMapOnly}>← Назад</button>}
+        {region && locked && <div className={extraStyles.lockOverlay}>
+          <svg className={extraStyles.chains} viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+            <defs><pattern id="raid-chain" width="12" height="12" patternUnits="userSpaceOnUse"><rect x="0.5" y="3" width="10" height="6" rx="3" fill="#272725" stroke="#a09d90" strokeWidth="1.5"/><rect x="6.5" y="3" width="10" height="6" rx="3" fill="none" stroke="#d0c9b8" strokeWidth="1"/></pattern></defs>
+            <line x1="0" y1="0" x2="100" y2="100" stroke="#181816" strokeWidth="6"/><line x1="0" y1="0" x2="100" y2="100" stroke="url(#raid-chain)" strokeWidth="4"/>
+            <line x1="100" y1="0" x2="0" y2="100" stroke="#181816" strokeWidth="6"/><line x1="100" y1="0" x2="0" y2="100" stroke="url(#raid-chain)" strokeWidth="4"/>
+          </svg>
+          <div className={extraStyles.lockBox}>
+            <div className={extraStyles.lockIcon} aria-hidden="true">🔒</div>
+            <strong>Локация закрыта</strong>
+            <span>Машина: {state.carLevel} / {region.carLevel} ур.</span>
+            <button type="button" onClick={() => { setUnlockAttempt(true); dispatch({ type: 'UNLOCK_RAID_REGION', regionId: region.id }); }}>ОТКРЫТЬ ЛОКАЦИЮ</button>
+            {unlockAttempt && state.carLevel < region.carLevel && <p role="status">Нужна машина {region.carLevel} уровня. Улучшите её в профиле.</p>}
+          </div>
+        </div>}
+        <nav className={extraStyles.navigation} aria-label="Переключение карт рейдов">
+          <button type="button" disabled={mapPage === 0} onClick={() => { setMapPage((page) => page - 1); setUnlockAttempt(false); }}>← Назад</button>
+          <button type="button" disabled={mapPage === RAID_REGIONS.length} onClick={() => { setMapPage((page) => page + 1); setUnlockAttempt(false); }}>Вперёд →</button>
+        </nav>
+      </>}
 
       {showProfile && <SurvivorProfile
         onClose={closeProfileOnly}

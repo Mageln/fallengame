@@ -15,7 +15,7 @@ const noArguments = new Set([
   'RADIO_HELP', 'FORGE_ITEM', 'UNFORGE_ITEM', 'CASINO_SLOTS',
 ]);
 const idArguments: Record<string, string> = {
-  ENTER_DISTRICT: 'districtId', DO_TASK: 'taskId',
+  ENTER_DISTRICT: 'districtId', DO_TASK: 'taskId', UNLOCK_RAID_REGION: 'regionId',
   BUY_EQUIPMENT: 'itemId', EQUIP_SHOP_WEAPON: 'weaponId', CLAIM_QUEST_REWARD: 'questId',
   CRAFT_ITEM: 'recipeId', CHANGE_LOCATION: 'locationId',
   START_ARENA: 'opponentId', START_BOSS_FIGHT: 'bossId', BUY_BOSS_ATTACK: 'bossId', BUY_BOSS_KEY: 'bossId',

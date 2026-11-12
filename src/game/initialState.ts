@@ -91,6 +91,7 @@ export const createInitialState = (): GameState => ({
   activeRaidId: null,
   notifications: [],
   showNotifications: false,
+  unlockedRaidRegions: [],
   mapRaids: [
     {
       id: 'raid_1',

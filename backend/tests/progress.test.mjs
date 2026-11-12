@@ -410,3 +410,14 @@ test('server handles public weapon purchases using server-side prices and suppor
     assert.equal(parseProgressAction({ ...action, price: 0 }), null);
   }
 });
+
+test('server validates map unlock level and rejects extra client arguments', () => {
+  const action = parseProgressAction({ type: 'UNLOCK_RAID_REGION', regionId: 'railway' });
+  assert.ok(action);
+  assert.equal(parseProgressAction({ type: 'UNLOCK_RAID_REGION', regionId: 'railway', carLevel: 100 }), null);
+  let state = { ...baseInitialState(), carLevel: 9, energy: 100 };
+  state = gameReducer(state, action);
+  assert.ok(!state.unlockedRaidRegions.includes('railway'));
+  state = gameReducer({ ...state, carLevel: 10 }, action);
+  assert.ok(state.unlockedRaidRegions.includes('railway'));
+});

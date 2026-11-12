@@ -23,7 +23,9 @@ test('new routes enforce each car threshold without spending energy; old routes 
     const base = { ...createInitialState(), energy: 100, carLevel: raid.requiredCarLevel - 1 };
     const locked = gameReducer(base, { type: 'START_RAID', raidId: raid.id });
     assert.equal(locked.energy, 100); assert.equal(locked.mapRaids.find(r => r.id === raid.id).isRunning, false);
-    const unlocked = gameReducer({ ...base, carLevel: raid.requiredCarLevel }, { type: 'START_RAID', raidId: raid.id });
+    const region = RAID_REGIONS.find(r => r.raids.includes(raid.id));
+    const eligible = gameReducer({ ...base, carLevel: raid.requiredCarLevel }, { type: 'UNLOCK_RAID_REGION', regionId: region.id });
+    const unlocked = gameReducer(eligible, { type: 'START_RAID', raidId: raid.id });
     assert.equal(unlocked.energy, 100 - raid.energyCost); assert.equal(unlocked.mapRaids.find(r => r.id === raid.id).isRunning, true);
     const running = unlocked.mapRaids.find(r => r.id === raid.id);
     assert.equal(running.endTime - running.startTime, (raid.type === 'red' ? 30 : 15) * 60000);
@@ -65,4 +67,30 @@ test('existing region raid timers and task progress survive migration to four po
   assert.equal(result.mapRaids.find(r => r.id === 'raid_railway').endTime, 1234);
   assert.deepEqual(result.raidTaskProgress.raid_railway, ['a']);
   assert.equal(result.mapRaids.length, 23);
+});
+
+
+test('map unlock checks car level, persists, and refuses bypass or unknown region', () => {
+  for (const region of RAID_REGIONS) {
+    const base = { ...createInitialState(), carLevel: region.carLevel - 1, energy: 100 };
+    const locked = gameReducer(base, { type: 'UNLOCK_RAID_REGION', regionId: region.id });
+    assert.ok(!locked.unlockedRaidRegions.includes(region.id));
+    assert.equal(locked.energy, 100);
+    const bypass = gameReducer({ ...base, carLevel: region.carLevel }, { type: 'START_RAID', raidId: region.raids[0] });
+    assert.equal(bypass.energy, 100);
+    const open = gameReducer({ ...base, carLevel: region.carLevel }, { type: 'UNLOCK_RAID_REGION', regionId: region.id });
+    assert.ok(open.unlockedRaidRegions.includes(region.id));
+    assert.ok(hydrateState(JSON.parse(JSON.stringify(open))).unlockedRaidRegions.includes(region.id));
+  }
+  const state = createInitialState();
+  assert.equal(gameReducer(state, { type: 'UNLOCK_RAID_REGION', regionId: 'unknown' }), state);
+});
+
+test('legacy active and completed region raids remain accessible after migration', () => {
+  const state = createInitialState();
+  delete state.unlockedRaidRegions;
+  state.mapRaids = state.mapRaids.map(r => r.id === 'raid_farm' ? { ...r, isRunning: true, endTime: 1234 } : r);
+  const migrated = hydrateState(state);
+  assert.ok(migrated.unlockedRaidRegions.includes('farm'));
+  assert.equal(migrated.mapRaids.find(r => r.id === 'raid_farm').endTime, 1234);
 });

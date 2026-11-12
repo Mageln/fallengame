@@ -42,6 +42,14 @@ for (const region of RAID_REGIONS) {
 }
 
 export const normalizeMapRaids = (state: GameState): GameState => {
+  // Existing players keep access to routes on which they have already made progress.
+  if (!Array.isArray(state.unlockedRaidRegions)) {
+    const unlockedRaidRegions = RAID_REGIONS.filter((region) => region.raids.some((id) => {
+      const raid = state.mapRaids?.find((entry) => entry.id === id);
+      return raid?.isRunning || raid?.completed || (state.raidTaskProgress?.[id]?.length ?? 0) > 0;
+    })).map((region) => region.id);
+    state = { ...state, unlockedRaidRegions };
+  }
   const existing = Array.isArray(state.mapRaids) ? state.mapRaids : [];
   const ids = new Set(EXTRA_MAP_RAIDS.map((raid) => raid.id));
   const legacy = existing.filter((raid) => !ids.has(raid.id));

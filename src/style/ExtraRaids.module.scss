@@ -1,19 +1,11 @@
-.open { position: absolute; z-index: 20; top: 68px; right: 14px; padding: 10px 12px; color: #f0dfb6; background: #423021; border: 1px solid #c9a227; border-radius: 7px; font-weight: bold; cursor: pointer; }
-.backdrop { position: fixed; z-index: 10010; inset: 0; display: grid; place-items: center; padding: 12px; background: rgba(12, 11, 9, .9); color: #d8d0c0; font-family: 'Courier New', monospace; }
-.panel { box-sizing: border-box; width: min(600px, 100%); max-height: 90dvh; overflow: auto; padding: 20px; border: 3px ridge #6b4a2f; background: #24251e; box-shadow: 0 14px 44px #000; }
-.panel header { display: flex; align-items: center; justify-content: space-between; border-bottom: 1px dashed #9c653a; }
-.panel h2 { margin: 6px 0 14px; font: 24px Impact, sans-serif; }
-.panel small { color: #c9a227; }
-.panel button { color: #d8d0c0; background: #34271f; border: 1px solid #6b4a2f; cursor: pointer; font: inherit; }
-.panel header button { padding: 10px; }
-.panel button:focus-visible, .open:focus-visible { outline: 2px solid #d6bd70; outline-offset: 2px; }
-.panel p { font-size: 13px; line-height: 1.5; }
-.list { display: grid; gap: 8px; }
-.list button { display: grid; gap: 5px; width: 100%; padding: 12px; text-align: left; }
-.list button span { color: #c7b99c; font-size: 12px; }
-.map { position: relative; width: 100%; aspect-ratio: 16 / 9; min-height: 260px; background-color: #111; background-size: 100% 100%; background-position: center; overflow: hidden; border: 1px solid #6b4a2f; }
-.panel .marker { position: absolute; transform: translate(-50%, -50%); width: min(145px, 38%); padding: 3px; border: 0; background: transparent; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 3px; font-size: 11px; text-shadow: 0 1px 3px #000, 0 1px 5px #000; }
-.marker b { display: grid; place-items: center; width: 37px; height: 37px; font-size: 20px; border-radius: 50%; border: 2px solid #ffbb31; background: rgba(110, 70, 0, .85); box-shadow: 0 0 12px #d28d00; }
-.marker.red b { border-color: #ff5555; background: rgba(130, 20, 20, .85); box-shadow: 0 0 12px #b72828; }
-.marker span, .marker small { color: white; background: rgba(0, 0, 0, .8); border-radius: 3px; padding: 2px 4px; }
-@media (max-width: 450px) { .panel { padding: 12px; } .map { aspect-ratio: auto; height: min(64dvh, 500px); } .panel .marker { font-size: 10px; } }
+.title { position: absolute; z-index: 20; top: 112px; left: 50%; transform: translateX(-50%); width: max-content; max-width: 86%; padding: 7px 12px; text-align: center; color: #f1e7cb; background: rgba(15, 17, 14, .88); border: 1px solid #806c3b; border-radius: 5px; font: bold 13px Arial, sans-serif; pointer-events: none; }
+.navigation { position: absolute; z-index: 24; bottom: max(14px, env(safe-area-inset-bottom)); left: 12px; right: 12px; display: flex; justify-content: space-between; pointer-events: none; }
+.navigation button, .lockBox button { pointer-events: auto; min-height: 44px; padding: 8px 15px; border: 1px solid #bb9b43; border-radius: 5px; color: #fff0c4; background: #453221; font: bold 14px Arial, sans-serif; cursor: pointer; box-shadow: 0 2px 9px #000; }
+.navigation button:disabled { opacity: .4; cursor: default; }
+.navigation button:focus-visible, .lockBox button:focus-visible { outline: 2px solid #f1d567; outline-offset: 2px; }
+.lockOverlay { position: absolute; z-index: 22; inset: 56px 0 0; overflow: hidden; background: rgba(0, 0, 0, .57); display: grid; place-items: center; }
+.chains { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.lockBox { position: relative; display: grid; justify-items: center; gap: 8px; max-width: min(290px, 86vw); padding: 14px 18px; color: #f2e4c0; background: rgba(24, 24, 20, .94); border: 2px solid #8d7c55; border-radius: 8px; box-shadow: 0 4px 24px #000; text-align: center; font: 14px Arial, sans-serif; }
+.lockIcon { font-size: 62px; line-height: 1; filter: drop-shadow(0 3px 5px #000); }
+.lockBox p { margin: 0; color: #f4c67a; font-size: 12px; line-height: 1.35; }
+.closeMap { position: absolute; z-index: 24; top: 65px; left: 20px; min-height: 40px; padding: 6px 15px; border: 1px solid #ff6666; border-radius: 8px; background: rgba(150, 40, 40, .9); color: white; font: bold 14px Arial, sans-serif; cursor: pointer; }

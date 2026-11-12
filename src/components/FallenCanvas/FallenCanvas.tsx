@@ -68,6 +68,7 @@ export const FallenCanvas: React.FC<PrisonCanvasProps & {
   onGoDistrict?: () => void;
   showMap?: boolean;
   mapRaids?: MapRaid[];
+  raidMapImage?: string;
   playerName?: string;
   avatarUrl?: string;
   lastMessage?: string;
@@ -108,6 +109,7 @@ export const FallenCanvas: React.FC<PrisonCanvasProps & {
   onGoDistrict,
   onCloseMap,
   mapRaids = [],
+  raidMapImage = '/map/map.jpg',
   playerName = 'Игрок',
   avatarUrl,
   lastMessage = '',
@@ -241,12 +243,14 @@ export const FallenCanvas: React.FC<PrisonCanvasProps & {
 
   // Загружаем карту
   useEffect(() => {
+    setMapImage(null);
     const mapImg = new Image();
     mapImg.crossOrigin = 'anonymous';
     mapImg.onload = () => setMapImage(mapImg);
     mapImg.onerror = () => setMapImage(null);
-    mapImg.src = '/map/map.jpg';
-  }, []);
+    mapImg.src = raidMapImage;
+    return () => { mapImg.onload = null; mapImg.onerror = null; };
+  }, [raidMapImage]);
 
   // Загружаем фон верхней панели
   useEffect(() => {

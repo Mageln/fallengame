@@ -493,6 +493,7 @@ export interface GameState {
   // id рейда, окно которого сейчас открыто (рейд при этом может идти в фоне)
   activeRaidId: string | null;
   mapRaids: MapRaid[];
+  unlockedRaidRegions?: string[];
   notifications: GameNotification[];
   showNotifications: boolean;
   // ── Убежище (комната) ──
@@ -551,6 +552,7 @@ export type GameAction =
   | { type: 'LEAVE_BATTLE' }
   | { type: 'ABANDON_BOSS' }
   | { type: 'OPEN_MAP_RAID'; raidId: string }
+  | { type: 'UNLOCK_RAID_REGION'; regionId: string }
   | { type: 'START_RAID'; raidId: string }
   | { type: 'RAID_SCOUT' }
   | { type: 'RAID_BYPASS' }

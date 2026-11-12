@@ -1,3 +1,4 @@
+import { RAID_REGIONS } from './extraMapRaids';
 import { msg, spend, recordResources, recordClanEvent } from './reducerShared';
 import { RAIDS, INVENTORY_ITEMS, DAILY_QUESTS } from './constants';
 import { lootDrop } from './formulas';
@@ -38,6 +39,8 @@ export const reduceRaid = (state: GameState, action: RaidAction): GameState => {
         if (state.carLevel < (mapRaid.requiredCarLevel ?? 1)) {
           return msg(state, `Для рейда «${mapRaid.name}» нужна машина ${mapRaid.requiredCarLevel} уровня.`);
         }
+        const region = RAID_REGIONS.find((entry) => (entry.raids as readonly string[]).includes(mapRaid.id));
+        if (region && !state.unlockedRaidRegions?.includes(region.id)) return msg(state, `Сначала откройте локацию «${region.name}» на карте.`);
         if (state.energy < mapRaid.energyCost) {
           return msg(state, `Не хватает энергии: нужно ${mapRaid.energyCost}, у вас ${state.energy}.`);
         }
