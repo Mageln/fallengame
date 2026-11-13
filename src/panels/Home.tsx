@@ -183,8 +183,8 @@ export const Home = ({ id }: HomeProps) => {
         {region && locked && <button type="button" className={extraStyles.closeMap} onClick={closeMapOnly}>← Назад</button>}
         {region && locked && <div className={extraStyles.lockOverlay}>
           <div className={extraStyles.chains} aria-hidden="true"><i/><i/></div>
+          <img className={extraStyles.lockIcon} src="/icon/raids/lock.svg" alt="" aria-hidden="true" />
           <div className={extraStyles.lockBox}>
-            <img className={extraStyles.lockIcon} src="/icon/raids/lock.svg" alt="" aria-hidden="true" />
             <strong>Локация закрыта</strong>
             <span>Машина: {state.carLevel} / {region.carLevel} ур.</span>
             <button type="button" onClick={() => { setUnlockAttempt(true); dispatch({ type: 'UNLOCK_RAID_REGION', regionId: region.id }); }}>ОТКРЫТЬ ЛОКАЦИЮ</button>

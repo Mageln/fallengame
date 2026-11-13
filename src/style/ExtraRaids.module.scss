@@ -7,7 +7,7 @@
 .chains { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
 .chains i { position: absolute; top: 50%; left: 50%; width: 220vmax; height: 32px; background: url('/icon/raids/chain.svg') repeat-x center / 48px 32px; filter: drop-shadow(0 3px 3px #000); transform: translate(-50%, -50%) rotate(35deg); }
 .chains i + i { transform: translate(-50%, -50%) rotate(-35deg); }
-.lockBox { position: relative; display: grid; justify-items: center; gap: 8px; max-width: min(290px, 86vw); padding: 14px 18px; color: #f2e4c0; text-shadow: 0 2px 4px #000, 0 0 8px #000; text-align: center; font: 14px Arial, sans-serif; }
-.lockIcon { width: 80px; height: 96px; filter: drop-shadow(0 3px 5px #000); }
+.lockBox { position: absolute; top: calc(50% + 52px); left: 50%; transform: translateX(-50%); display: grid; justify-items: center; gap: 8px; max-width: min(290px, 86vw); padding: 14px 18px; color: #f2e4c0; text-shadow: 0 2px 4px #000, 0 0 8px #000; text-align: center; font: 14px Arial, sans-serif; }
+.lockIcon { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 80px; height: 96px; filter: drop-shadow(0 3px 5px #000); }
 .lockBox p { margin: 0; color: #f4c67a; font-size: 12px; line-height: 1.35; }
 .closeMap { position: absolute; z-index: 24; top: 65px; left: 20px; min-height: 40px; padding: 6px 15px; border: 1px solid #ff6666; border-radius: 8px; background: rgba(150, 40, 40, .9); color: white; font: bold 14px Arial, sans-serif; cursor: pointer; }
