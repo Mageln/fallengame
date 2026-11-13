@@ -182,13 +182,9 @@ export const Home = ({ id }: HomeProps) => {
         <div className={extraStyles.title} aria-live="polite">{region?.name ?? 'Карта районов'} · {mapPage + 1}/{RAID_REGIONS.length + 1}</div>
         {region && locked && <button type="button" className={extraStyles.closeMap} onClick={closeMapOnly}>← Назад</button>}
         {region && locked && <div className={extraStyles.lockOverlay}>
-          <svg className={extraStyles.chains} viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-            <defs><pattern id="raid-chain" width="12" height="12" patternUnits="userSpaceOnUse"><rect x="0.5" y="3" width="10" height="6" rx="3" fill="#272725" stroke="#a09d90" strokeWidth="1.5"/><rect x="6.5" y="3" width="10" height="6" rx="3" fill="none" stroke="#d0c9b8" strokeWidth="1"/></pattern></defs>
-            <line x1="0" y1="0" x2="100" y2="100" stroke="#181816" strokeWidth="6"/><line x1="0" y1="0" x2="100" y2="100" stroke="url(#raid-chain)" strokeWidth="4"/>
-            <line x1="100" y1="0" x2="0" y2="100" stroke="#181816" strokeWidth="6"/><line x1="100" y1="0" x2="0" y2="100" stroke="url(#raid-chain)" strokeWidth="4"/>
-          </svg>
+          <div className={extraStyles.chains} aria-hidden="true"><i/><i/></div>
           <div className={extraStyles.lockBox}>
-            <div className={extraStyles.lockIcon} aria-hidden="true">🔒</div>
+            <img className={extraStyles.lockIcon} src="/icon/raids/lock.svg" alt="" aria-hidden="true" />
             <strong>Локация закрыта</strong>
             <span>Машина: {state.carLevel} / {region.carLevel} ур.</span>
             <button type="button" onClick={() => { setUnlockAttempt(true); dispatch({ type: 'UNLOCK_RAID_REGION', regionId: region.id }); }}>ОТКРЫТЬ ЛОКАЦИЮ</button>
