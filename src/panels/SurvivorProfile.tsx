@@ -1,3 +1,5 @@
+import { StaffBadge } from '../components/StaffBadge';
+import { ModerationPanel } from '../components/ModerationPanel';
 import { characterSpritePath } from '../game/heldWeapon';
 import { HeldWeapon } from '../components/HeldWeapon';
 import { WeaponImage } from '../components/WeaponImage';
@@ -23,7 +25,7 @@ interface Props {
 const format = (n: number) => new Intl.NumberFormat('ru-RU').format(n);
 
 export const SurvivorProfile = ({ onClose, onWorkshop, onBosses, onInventory, onClan }: Props) => {
-  const { state, dispatch, derived, vkUser } = useGame();
+  const { state, dispatch, derived, vkUser, staffRole, serverMode } = useGame();
   const [tab, setTab] = useState<Tab>('file');
   const [feedback, setFeedback] = useState<string | null>(null);
   useEffect(() => {
@@ -53,7 +55,7 @@ export const SurvivorProfile = ({ onClose, onWorkshop, onBosses, onInventory, on
         <div className={styles.hero}>
           <div className={styles.portrait}><span className={styles.portraitLabel}>ЛИЧНОЕ ДЕЛО / 01</span>{vkUser?.photo_200 ? <img src={vkUser.photo_200} alt="Аватар VK" /> : <span className={styles.characterPortrait}><img className={styles.characterImage} src={characterSpritePath(state.weapon.id)} alt="Персонаж выжившего" /><ClothingLayers equipmentIds={state.equipmentIds} className={styles.clothingOverlay} />{state.equipmentIds.includes('shop_cap') && <img className={styles.capOverlay} src="/characters/survivor-cap-v2.png" alt="" />}<HeldWeapon weaponId={state.weapon.id} className={styles.clothingOverlay} /></span>}<span className={styles.portraitFooter}>ПОСЛЕДНИЙ РУБЕЖ</span></div>
           <div className={styles.identity}>
-            <span className={styles.sectionLabel}>● СТАТУС: ВЫЖИВШИЙ</span><h3>{name}</h3>{badge && <span className={styles.sectionLabel}>{badge.icon} {badge.name}</span>}
+            <span className={styles.sectionLabel}>● СТАТУС: ВЫЖИВШИЙ</span><h3>{name}<StaffBadge role={staffRole} /></h3>{badge && <span className={styles.sectionLabel}>{badge.icon} {badge.name}</span>}
             <div className={styles.tags}><span>УРОВЕНЬ {format(state.level)}</span><span>★ {format(state.experience)} ОПЫТА</span></div>
             <p className={styles.caption}>Опыт накапливается за боссов и рейды. Уровень повышается отдельно за патроны.</p>
             <div className={styles.meter}><div><span>ЗДОРОВЬЕ</span><strong>{format(state.health)} / {format(state.maxHealth)}</strong></div><progress value={state.health} max={state.maxHealth} aria-label="Здоровье" /></div>
@@ -61,6 +63,7 @@ export const SurvivorProfile = ({ onClose, onWorkshop, onBosses, onInventory, on
             <div className={styles.location}>⌖ {district} <span>/</span> 🏠 {room}</div>
           </div>
         </div>
+        {serverMode && (staffRole === 'admin' || staffRole === 'moderator') && <ModerationPanel />}
         <article className={styles.upgrade}>
           <div><small>ТЕКУЩИЙ УРОВЕНЬ · {format(state.level)}</small><h3>Уровень персонажа</h3><p>+1 уровень и +3 припасов. Опыт не расходуется.</p></div>
           <button type="button" disabled={state.bullets < levelUpCost(state.level)} onClick={() => { dispatch({ type: 'UPGRADE_LEVEL' }); setFeedback(state.lastMessage); }}>ПОВЫСИТЬ · {format(levelUpCost(state.level))} <ResourceIcon name="bullets" /></button>

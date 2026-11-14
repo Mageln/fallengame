@@ -1,0 +1,9 @@
+.panel { margin: 18px 0; padding: 16px; background: #26211b; border: 1px solid #826645; color: #e8dcc4; }
+.panel h3 { color: #edcb7b; margin: 0 0 8px; }
+.panel p { font-size: 12px; line-height: 1.5; }
+.panel label { display: grid; gap: 5px; margin: 10px 0; font-size: 12px; }
+.panel input, .panel textarea, .panel select { box-sizing: border-box; width: 100%; padding: 9px; background: #121411; color: white; border: 1px solid #796346; font: inherit; }
+.panel textarea { min-height: 65px; resize: vertical; }
+.actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.actions button { padding: 10px; color: #f2dfbb; background: #683123; border: 1px solid #b28c54; cursor: pointer; }
+.actions button:disabled { opacity: .5; }

@@ -1,3 +1,6 @@
+import { StaffBadge } from '../components/StaffBadge';
+import { getStaffRoles, type StaffRole } from '../services/moderation';
+import { useGame } from '../game/GameContext';
 import { useEffect, useRef, useState } from 'react';
 import { getVkFriendsPage, inviteVkFriends, type VkUser } from '../services/vkApi';
 import styles from '../style/Friends.module.scss';
@@ -6,6 +9,16 @@ const errorText = (error: unknown): string => error instanceof Error ? error.mes
 
 export const FriendsPanel = ({ onClose }: { onClose: () => void }) => {
   const [friends, setFriends] = useState<VkUser[]>([]);
+  const { serverMode } = useGame();
+  const [roles, setRoles] = useState<Record<string, StaffRole>>({});
+  useEffect(() => {
+    if (!serverMode || !friends.length) return;
+    let active = true;
+    const ids = friends.map((friend) => Number(friend.id)).filter((id) => Number.isInteger(id) && id > 0);
+    const batches = Array.from({ length: Math.ceil(ids.length / 100) }, (_, index) => ids.slice(index * 100, index * 100 + 100));
+    Promise.all(batches.map(getStaffRoles)).then((entries) => { if (active) setRoles(Object.assign({}, ...entries)); }).catch(() => { if (active) setRoles({}); });
+    return () => { active = false; };
+  }, [friends, serverMode]);
   const [nextOffset, setNextOffset] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -48,7 +61,7 @@ export const FriendsPanel = ({ onClose }: { onClose: () => void }) => {
       <p>Друзья VK, доступные приложению. Их игровой уровень и установка игры здесь не определяются.</p>
       {loading ? <p>Ищем сигналы друзей…</p> : friends.length ? <ul>{friends.map((friend) => <li key={friend.id}>
         {friend.photo_200 ? <img src={friend.photo_200} alt="" /> : <span aria-hidden="true">👤</span>}
-        <div><strong>{friend.first_name} {friend.last_name}</strong></div>
+        <div><strong>{friend.first_name} {friend.last_name}</strong><StaffBadge role={roles[friend.id] ?? 'player'} /></div>
         <span className={friend.online ? styles.online : styles.offline}>{friend.online === undefined ? 'Статус неизвестен' : friend.online ? '● В сети' : '○ Не в сети'}</span>
         <a href={`https://vk.com/id${friend.id}`} target="_blank" rel="noopener noreferrer">Профиль ↗</a>
       </li>)}</ul> : !error ? <p className={styles.empty}>Друзей не найдено. Список зависит от доступа и настроек приватности VK.</p> : null}

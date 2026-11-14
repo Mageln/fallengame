@@ -6,7 +6,8 @@ import { clanDirectoryKey, loadClanDirectory, loadStateSync, saveClanDirectory, 
 import { getVkUser, getVkUserId, VkUser } from '../services/vkApi';
 import { DailyQuestProgress, GameAction, GameState } from './types';
 import { BACKEND_URL } from '../config/vkConfig';
-import { createServerProgress } from './serverProgress';
+import { createServerProgress, ProgressError } from './serverProgress';
+import { getStaffRole, type StaffRole } from '../services/moderation';
 import {
   critChance,
   totalDamage,
@@ -33,6 +34,7 @@ interface GameContextValue {
   derived: DerivedState;
   vkUser: VkUser | null;
   isLoading: boolean;
+  staffRole: StaffRole;
   serverMode: boolean;
 }
 
@@ -52,6 +54,13 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
   const hydratedRef = useRef(false);
   const [serverError, setServerError] = useState('');
   const [serverReady, setServerReady] = useState(false);
+  const [staffRole, setStaffRole] = useState<StaffRole>('player');
+  useEffect(() => {
+    if (!serverMode || !serverReady) { setStaffRole('player'); return; }
+    let active = true;
+    getStaffRole().then((role) => { if (active) setStaffRole(role); }).catch(() => { if (active) setStaffRole('player'); });
+    return () => { active = false; };
+  }, [serverReady]);
   const server = useRef(createServerProgress(BACKEND_URL, window.location.search));
 
   const loadServer = useCallback(async () => {
@@ -76,6 +85,7 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
       dispatchLocal({ type: 'HYDRATE_STATE', state: saved });
     }).catch((error: unknown) => {
       setServerError(error instanceof Error ? error.message : 'Не удалось выполнить действие.');
+      if (error instanceof ProgressError && error.status === 403) setServerReady(false);
     });
   }, []);
 
@@ -180,8 +190,9 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
       vkUser,
       isLoading,
       serverMode,
+      staffRole,
     }),
-    [state, vkUser, isLoading, dispatch]
+    [state, vkUser, isLoading, dispatch, staffRole]
   );
 
   return <GameContext.Provider value={value}>

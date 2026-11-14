@@ -25,6 +25,14 @@ export const createServerProgress = (baseUrl: string, launchParams: string, requ
       throw new ProgressError('Нет связи с сервером. Результат последнего действия неизвестен; обновите состояние.');
     }
     if (!response.ok) {
+      if (response.status === 403) {
+        const data = await response.json().catch(() => ({})) as { code?: string; reason?: string; expiresAt?: string | null };
+        if (data.code === 'PLAYER_BANNED') {
+          const until = data.expiresAt ? ` до ${new Date(data.expiresAt).toLocaleString('ru-RU')}` : ' бессрочно';
+          throw new ProgressError(`Доступ заблокирован${until}. Причина: ${data.reason ?? 'не указана'}.`, 403);
+        }
+        throw new ProgressError('Доступ запрещён.', 403);
+      }
       if (response.status === 400) throw new ProgressError('Это действие пока недоступно в серверном режиме.', 400);
       if (response.status === 409) throw new ProgressError('Прогресс изменился на другом устройстве. Обновите состояние.', 409);
       if (response.status === 401 || response.status === 503) throw new ProgressError('Не удалось авторизоваться в VK или сервер не настроен.', response.status);

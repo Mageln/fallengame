@@ -24,7 +24,7 @@ function handleModuleDirectivesPlugin() {
 export default defineConfig(({ mode }) => {
   const proxyTarget = loadEnv(mode, process.cwd(), '').BACKEND_PROXY_TARGET;
   return {
-  server: proxyTarget ? { proxy: { '/api/progress': { target: proxyTarget, changeOrigin: true }, '/api/shop': { target: proxyTarget, changeOrigin: true } } } : undefined,
+  server: proxyTarget ? { proxy: { '/api/progress': { target: proxyTarget, changeOrigin: true }, '/api/moderation': { target: proxyTarget, changeOrigin: true }, '/api/shop': { target: proxyTarget, changeOrigin: true } } } : undefined,
   base: './',
 
   plugins: [

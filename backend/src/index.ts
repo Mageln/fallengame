@@ -1,4 +1,5 @@
 import express from 'express';
+import { moderationRouter } from './routes/moderation.js';
 import cors from 'cors';
 import { userRouter } from './routes/user.js';
 import { gameRouter } from './routes/game.js';
@@ -18,6 +19,7 @@ app.use(cors({
 app.use(express.json());
 
 // Routes
+app.use('/api/moderation', moderationRouter);
 app.use('/api/progress', progressRouter);
 app.use('/api/user', userRouter);
 app.use('/api/game', gameRouter);

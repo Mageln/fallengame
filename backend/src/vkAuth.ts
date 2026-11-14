@@ -19,11 +19,19 @@ export const verifyVkLaunch = (raw: string | undefined, secret: string | undefin
   return received.length === actual.length && timingSafeEqual(received, actual) ? vkId : null;
 };
 
-export const requireVkUser: RequestHandler = (req, res, next) => {
+export const requireVkUser: RequestHandler = async (req, res, next) => {
   const secret = process.env.VK_APP_SECRET;
   if (!secret) { res.status(503).json({ error: 'Авторизация VK не настроена.' }); return; }
   const vkId = verifyVkLaunch(req.header('x-vk-launch-params'), secret);
   if (!vkId) { res.status(401).json({ error: 'Недействительные параметры запуска VK.' }); return; }
-  res.locals.vkId = vkId;
-  next();
+  try {
+    const { prisma } = await import('./prisma.js');
+    const rows = await prisma.$queryRaw<{ reason: string; expiresAt: Date | null }[]>`SELECT "reason", "expiresAt" FROM "PlayerBan" WHERE "vkId" = ${vkId} AND ("expiresAt" IS NULL OR "expiresAt" > CURRENT_TIMESTAMP)`;
+    if (rows[0]) { res.status(403).json({ code: 'PLAYER_BANNED', error: 'Доступ к игре заблокирован.', reason: rows[0].reason, expiresAt: rows[0].expiresAt }); return; }
+    res.locals.vkId = vkId;
+    next();
+  } catch (error) {
+    console.error('Ban check failed:', error);
+    res.status(503).json({ error: 'Проверка блокировки недоступна.' });
+  }
 };

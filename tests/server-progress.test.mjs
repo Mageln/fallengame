@@ -82,3 +82,16 @@ test('skill upgrade sends only an action and accepts server-confirmed state', as
   assert.equal(upgraded.bullets, 50);
   assert.equal(upgraded.profileSkills.heal, 1);
 });
+
+test('ban response displays the reason and stops further commands until reload', async () => {
+  let calls = 0;
+  const client = createServerProgress('', '?signed', async (_url, init) => {
+    calls++;
+    if (init.method === 'GET') return snapshot(1);
+    return new Response(JSON.stringify({ code: 'PLAYER_BANNED', reason: 'Нарушение правил', expiresAt: null }), { status: 403 });
+  });
+  await client.load();
+  await assert.rejects(client.act({ type: 'NEXT_TUTORIAL' }), /бессрочно.*Нарушение правил/);
+  await assert.rejects(client.act({ type: 'SKIP_TUTORIAL' }), /Сначала обновите/);
+  assert.equal(calls, 2);
+});
