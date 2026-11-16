@@ -36,7 +36,7 @@ test('switching equipped weapon and reloading changes the overlay without mutati
   assert.notEqual(heldWeaponPath(state.weapon.id), starter); assert.equal(state.gold, spent);
   state = hydrateState(JSON.parse(JSON.stringify(state)));
   assert.equal(heldWeaponPath(state.weapon.id), '/characters/weapons/shop_bat.png');
-  state = gameReducer(state, { type: 'EQUIP_SHOP_WEAPON', weaponId: 'rusty_pistol' });
+  state = gameReducer(state, { type: 'EQUIP_SHOP_WEAPON', weaponId: 'shop_knuckles' });
   assert.equal(heldWeaponPath(state.weapon.id), starter);
 });
 

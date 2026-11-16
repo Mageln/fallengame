@@ -457,6 +457,7 @@ export interface GameState {
   unlockedRooms: string[];
   weapon: Weapon;
   storedWeapons: Weapon[]; // купленное и снятое оружие с сохранением прочности
+  rustyPistolRewardVersion?: number;
   equipmentIds: string[];
   inventory: InventorySlot[];
   craftingRecipes: string[];

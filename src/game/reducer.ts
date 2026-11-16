@@ -30,6 +30,8 @@ import { CLAN_CREATE_GOLD,
   WEAPON_MAX_LEVEL,
   DAILY_QUESTS,
   normalizeWeapon,
+  STARTER_WEAPON,
+  getWeapon,
   DEFAULT_STATS,
 } from './constants';
 import {
@@ -150,9 +152,22 @@ const computeClanWarGold = (win: boolean, streak: number): number => {
   return CLAN_WAR_GOLD_LOSS;
 };
 
+// One-time migration: remove the former starter and replace it with knuckles.
+export const migrateStarterWeapon = (state: GameState): GameState => {
+  if (state.rustyPistolRewardVersion === 1) return state;
+  const stored = Array.isArray(state.storedWeapons) ? state.storedWeapons.filter(Boolean) : [];
+  const equippedOld = state.weapon?.id === 'rusty_pistol' || (!state.weapon?.id && state.weapon?.name === 'Ржавый пистолет');
+  const storedOld = stored.some((weapon) => weapon.id === 'rusty_pistol');
+  const knuckles = stored.find((weapon) => weapon.id === 'shop_knuckles');
+  const remaining = stored.filter((weapon) => weapon.id !== 'rusty_pistol' && (!equippedOld || weapon.id !== 'shop_knuckles'));
+  if (!equippedOld && storedOld && state.weapon?.id !== 'shop_knuckles' && !knuckles) remaining.push({ ...STARTER_WEAPON, mods: [] });
+  return { ...state, weapon: equippedOld ? (knuckles ?? { ...STARTER_WEAPON, mods: [] }) : state.weapon,
+    storedWeapons: remaining, rustyPistolRewardVersion: 1 };
+};
+
 export const hydrateState = (state: GameState): GameState => {
   // Normalize old saves that may lack new fields
-  let normalized: GameState = { ...normalizeMapRaids(state), casino: normalizeCasino(state.casino), bossKeys: normalizeBossKeys(state.bossKeys) };
+  let normalized: GameState = { ...normalizeMapRaids(migrateStarterWeapon(state)), casino: normalizeCasino(state.casino), bossKeys: normalizeBossKeys(state.bossKeys) };
   
   if (!normalized.inventory) {
     normalized = { ...normalized, inventory: [] };
@@ -325,7 +340,7 @@ export const hydrateState = (state: GameState): GameState => {
 
 export const gameReducer = (state: GameState, action: GameAction): GameState => {
   if (action.type !== 'HYDRATE_STATE') {
-    state = normalizeMapRaids(state);
+    state = normalizeMapRaids(migrateStarterWeapon(state));
     // Server snapshots from before the new skills also pass through this path.
     if (!state.profileSkills || state.profileSkills.weapon === undefined || state.profileSkills.heal === undefined) {
       state = { ...state, profileSkills: normalizeProfileSkills(state.profileSkills) };
@@ -832,6 +847,8 @@ export const gameReducer = (state: GameState, action: GameAction): GameState => 
       const status = loginRewardStatus(loginRewards);
       if (!status.available) return msg(state, 'Награда за сегодняшний вход уже получена.');
       const reward = LOGIN_REWARDS[status.day - 1];
+      const givePistol = status.day === 7 && state.weapon.id !== 'rusty_pistol' && !state.storedWeapons.some((weapon) => weapon.id === 'rusty_pistol');
+      const pistol = getWeapon('rusty_pistol')!;
       return {
         ...state,
         bullets: state.bullets + reward.bullets,
@@ -839,7 +856,8 @@ export const gameReducer = (state: GameState, action: GameAction): GameState => 
         matches: state.matches + reward.matches,
         medkits: state.medkits + reward.medkits,
         loginRewards: { lastClaimDate: status.today, streak: status.day },
-        lastMessage: `Награда за вход · день ${status.day}: +${reward.bullets} патронов${reward.gold ? `, +${reward.gold} припасов` : ''}${reward.matches ? `, +${reward.matches} спичек` : ''}${reward.medkits ? `, +${reward.medkits} аптечек` : ''}.`,
+        storedWeapons: givePistol ? [...state.storedWeapons, { ...pistol, mods: [] }] : state.storedWeapons,
+        lastMessage: `Награда за вход · день ${status.day}: +${reward.bullets} патронов${reward.gold ? `, +${reward.gold} припасов` : ''}${reward.matches ? `, +${reward.matches} спичек` : ''}${reward.medkits ? `, +${reward.medkits} аптечек` : ''}${givePistol ? ', ржавый пистолет' : ''}.`,
       };
     }
     case 'CLAIM_DAILY_QUEST_BONUS': {

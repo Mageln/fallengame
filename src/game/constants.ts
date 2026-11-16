@@ -1,3 +1,4 @@
+import { SHOP_WEAPONS } from './shopCatalog';
 import { TUTORIAL_STEPS } from './tutorial';
 import { SHOP_CLOTHING } from './shopCatalog';
 import { InventoryItem, DailyQuest, Rarity, Weapon, WeaponMod, WeaponType, Zombie, ShelterItem, ShelterItemId, RoomSkin } from './types';
@@ -426,7 +427,7 @@ export const getWeapon = (id: string): Weapon | undefined => WEAPONS.find((w) =>
 
 // Стартовое оружие нового игрока.
 export const STARTER_WEAPON: Weapon = {
-  ...getWeapon('rusty_pistol')!,
+  ...SHOP_WEAPONS.find(({ weapon }) => weapon.id === 'shop_knuckles')!.weapon,
 };
 
 // Стартовые характеристики героя.

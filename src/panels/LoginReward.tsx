@@ -22,6 +22,7 @@ export const LoginReward = ({ onClose }: { onClose: () => void }) => {
       return <article key={day} className={`${styles.day} ${current ? styles.current : ''} ${claimed ? styles.claimed : ''}`}>
         <small>ДЕНЬ {day}</small><strong>{claimed ? '✓' : day === 7 ? '🎁' : '📦'}</strong>
         <span><ResourceIcon name="bullets" /> {reward.bullets}</span>{reward.gold > 0 && <span><ResourceIcon name="supplies" /> {reward.gold}</span>}{reward.matches > 0 && <span><ResourceIcon name="matches" /> {reward.matches}</span>}{reward.medkits > 0 && <span><ResourceIcon name="medkits" /> {reward.medkits}</span>}
+        {day === 7 && <span>🔫 Ржавый пистолет</span>}
         {current && <em>{status.available ? 'СЕГОДНЯ' : 'ПОЛУЧЕНО'}</em>}
       </article>;
     })}</div>

@@ -393,12 +393,12 @@ test('shop purchases charge chosen currency once, preserve weapons on swap and m
   state = act(state, 'EQUIP_SHOP_WEAPON', { weaponId: 'shop_bat' });
   assert.equal(state.weapon.id, 'shop_bat');
   state = { ...state, weapon: { ...state.weapon, durability: 37, level: 2 } };
-  state = act(state, 'EQUIP_SHOP_WEAPON', { weaponId: 'rusty_pistol' });
+  state = act(state, 'EQUIP_SHOP_WEAPON', { weaponId: 'shop_knuckles' });
   state = act(hydrateState(state), 'EQUIP_SHOP_WEAPON', { weaponId: 'shop_bat' });
   assert.equal(state.weapon.durability, 37);
   assert.equal(state.weapon.level, 2);
   const battle = act(state, 'START_BOSS_FIGHT', { bossId: '2' });
-  assert.equal(act(battle, 'EQUIP_SHOP_WEAPON', { weaponId: 'rusty_pistol' }).weapon.id, 'shop_bat');
+  assert.equal(act(battle, 'EQUIP_SHOP_WEAPON', { weaponId: 'shop_knuckles' }).weapon.id, 'shop_bat');
   assert.equal(act(state, 'BUY_SHOP_ITEM', { category: 'weapon', itemId: 'shop_rifle', currency: 'other' }), state);
 });
 
@@ -567,6 +567,7 @@ test('seven-day login rewards can be claimed once per local day and cycle after 
       assert.equal(state.matches, before.matches + LOGIN_REWARDS[i].matches);
       assert.equal(state.medkits, before.medkits + LOGIN_REWARDS[i].medkits);
       assert.equal(state.premiumGold, before.premiumGold);
+      assert.equal(state.storedWeapons.filter(w => w.id === 'rusty_pistol').length, i === 6 ? 1 : 0);
       const again = act(state, 'CLAIM_LOGIN_REWARD');
       assert.equal(again.bullets, state.bullets);
       assert.equal(again.gold, state.gold);
@@ -650,4 +651,28 @@ test('district boss battle needs no health, medkits or working weapon and has no
   assert.ok(state.battle);
   assert.equal(state.battle.outcome, 'fighting');
   assert.ok(state.battle.playerHp >= 1);
+});
+
+
+test('old starter is replaced once and day-seven pistol survives reload and future cycles', async () => {
+  const { getWeapon } = await vite.ssrLoadModule('/src/game/constants.ts');
+  const fresh = createInitialState();
+  assert.equal(fresh.weapon.id, 'shop_knuckles');
+  const old = { ...fresh, weapon: { ...getWeapon('rusty_pistol'), level: 3 }, storedWeapons: [] };
+  delete old.rustyPistolRewardVersion;
+  const migrated = hydrateState(old);
+  assert.equal(migrated.weapon.id, 'shop_knuckles');
+  assert.equal(migrated.rustyPistolRewardVersion, 1);
+  const storedOld = { ...old, weapon: { ...fresh.weapon, id: 'shop_bat' }, storedWeapons: [old.weapon] };
+  const migratedStored = hydrateState(storedOld);
+  assert.equal(migratedStored.weapon.id, 'shop_bat');
+  assert.deepEqual(migratedStored.storedWeapons.map(w => w.id), ['shop_knuckles']);
+  let earned = { ...migrated, loginRewards: { lastClaimDate: todayLocal(Date.now() - 86400000), streak: 6 } };
+  earned = act(earned, 'CLAIM_LOGIN_REWARD');
+  assert.equal(earned.storedWeapons.filter(w => w.id === 'rusty_pistol').length, 1);
+  earned = hydrateState(earned);
+  assert.equal(earned.storedWeapons.filter(w => w.id === 'rusty_pistol').length, 1);
+  earned = { ...earned, loginRewards: { lastClaimDate: todayLocal(Date.now() - 86400000), streak: 6 } };
+  earned = act(earned, 'CLAIM_LOGIN_REWARD');
+  assert.equal(earned.storedWeapons.filter(w => w.id === 'rusty_pistol').length, 1);
 });

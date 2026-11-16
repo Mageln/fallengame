@@ -11,3 +11,5 @@ export function bossExperience(hp: number): number;
 export function nextBossKeyFor(bossId: string): string | null;
 
 export function normalizeMapRaids(state: Record<string, unknown>): Record<string, unknown>;
+
+export function migrateStarterWeapon(state: Record<string, unknown>): Record<string, unknown>;

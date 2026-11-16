@@ -37,10 +37,10 @@ export const createInitialState = (): GameState => ({
   carLevel: 1,
   currentDistrict: 'southgate',
   unlockedDistricts: ['southgate'],
-  // Полноценный стартовый ствол: раньше тут был объект без id/icon/type/ammo,
-  // из-за чего боевая математика не знала дальность, точность и боезапас.
+  // Стартовое оружие — кастет.
   weapon: { ...STARTER_WEAPON },
   storedWeapons: [],
+  rustyPistolRewardVersion: 1,
   equipmentIds: [],
   inventory: [],
   craftingRecipes: ['repair_kit', 'medkit_bundle'],
