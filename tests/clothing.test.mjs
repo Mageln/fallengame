@@ -127,7 +127,7 @@ test('animated suit is bought with either currency and hides clothing only visua
     state = act(state, 'EQUIP_ITEM', { slotIndex: state.inventory.findIndex(s => s.itemId === suit.item.id) });
     assert.ok(state.equipmentIds.includes('shop_jacket'));
     assert.ok(hasEquippedSuit(state.equipmentIds));
-    assert.deepEqual(equippedClothingVisuals(state.equipmentIds), ['suit_fire', 'suit_fire_glow']);
+    assert.deepEqual(equippedClothingVisuals(state.equipmentIds), ['suit_fire', 'suit_fire_lines']);
     state = hydrateState(JSON.parse(JSON.stringify(state)));
     assert.ok(state.equipmentIds.includes('suit_fire'));
     state = act(state, 'EQUIP_ITEM', { slotIndex: state.inventory.findIndex(s => s.itemId === suit.item.id) });
@@ -135,23 +135,24 @@ test('animated suit is bought with either currency and hides clothing only visua
     assert.deepEqual(equippedClothingVisuals(state.equipmentIds), ['shop_jacket']);
   }
   const html = renderToStaticMarkup(React.createElement(ClothingLayers, { equipmentIds: ['shop_cap', 'suit_fire'], className: 'layer' }));
-  assert.match(html, /suit_fire.png/); assert.match(html, /suit_fire_glow.png/); assert.match(html, /animated-embers/);
-  assert.equal(clothingEffect('suit_fire_glow'), 'fire');
-  for (const id of ['suit_fire', 'suit_fire_glow']) {
-    const image = await readFile(`public${clothingVisualPath(id)}`);
-    assert.equal(image.readUInt32BE(16), 402); assert.equal(image.readUInt32BE(20), 600);
-  }
+  assert.match(html, /suit_fire.png/); assert.match(html, /suit_fire_lines.webp/);
+  assert.doesNotMatch(html, /animated-clothing/); assert.doesNotMatch(html, /animated-embers/);
+  assert.equal(clothingEffect('suit_fire_lines'), undefined);
+  const png = await readFile(`public${clothingVisualPath('suit_fire')}`);
+  assert.equal(png.readUInt32BE(16), 402); assert.equal(png.readUInt32BE(20), 600);
+  const webp = await readFile(`public${clothingVisualPath('suit_fire_lines')}`);
+  assert.equal(webp.subarray(0, 4).toString(), 'RIFF'); assert.equal(webp.subarray(8, 12).toString(), 'WEBP');
+  assert.ok(webp.includes(Buffer.from('ANIM')), 'линии должны мигать за счёт анимации внутри файла');
 });
 
-test('canvas draws suit and animated embers before held weapon at full sprite size', () => {
+test('canvas draws the static suit before the weapon and leaves blinking lines to the DOM layer', () => {
   const calls = [];
   const ctx = { drawImage: (...args) => calls.push(args), save: () => {}, restore: () => {} };
   const image = { complete: true, naturalWidth: 402, naturalHeight: 600 };
   const suit = { ...image, dataset: { clothingId: 'suit_fire' } };
-  const glow = { ...image, dataset: { clothingId: 'suit_fire_glow' } };
+  const lines = { ...image, dataset: { clothingId: 'suit_fire_lines' } };
   const weapon = { ...image };
-  drawCharacter(ctx, { x: 0, y: 0, width: 201, height: 300 }, image, '#fff', null, [suit, glow], weapon);
-  assert.deepEqual(calls.map(c => c[0]), [image, suit, glow, weapon]);
+  drawCharacter(ctx, { x: 0, y: 0, width: 201, height: 300 }, image, '#fff', null, [suit, lines], weapon);
+  assert.deepEqual(calls.map(c => c[0]), [image, suit, weapon]);
   assert.equal(calls[1].length, 5);
-  assert.equal(calls[2].length, 5);
 });

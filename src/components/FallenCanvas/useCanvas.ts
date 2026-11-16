@@ -1,11 +1,12 @@
 import { clothingEffect } from '../../game/clothingVisuals';
 import { tutorialCarouselOffset } from './tutorialTargets';
 import type { TutorialCanvas } from './tutorialTargets';
-import { useRef, useEffect, useCallback } from 'react';
+import { useRef, useEffect, useCallback, useState } from 'react';
 import type { BattleState } from '../../game/types';
 import { GameIcons, Task } from './types';
 import { drawBackground } from './drawBackground';
-import { drawCharacter, getCharacterPosition } from './drawCharacter';
+import type { Position } from './types';
+import { drawCharacter, getCharacterPosition, getHeldWeaponPosition } from './drawCharacter';
 import { getVisibleBounds } from './iconBounds';
 import { updateParticles, drawParticles } from './particles';
 import { drawUI, ButtonPosition, ProfileData, UIFlags, BossData, MapRaid, RIGHT_PANEL_MAX_OFFSET, HoverAnim, BOSS_VISIBLE } from './drawUI';
@@ -253,6 +254,12 @@ export const useCanvas = (
       ? getVisibleBounds(characterImage) : null;
     const characterPosition = getCharacterPosition(w, h, bounds ? bounds.w / bounds.h : undefined);
     drawCharacter(ctx, characterPosition, characterImage, appearanceColor, capImage, clothingImages, heldWeaponImage);
+    // Прямоугольник полного спрайта для DOM-слоя мигающих линий костюма.
+    const hasSuit = clothingImages.some(image => image.dataset?.clothingId === 'suit_fire');
+    const rect = hasSuit && bounds && characterImage ? getHeldWeaponPosition(characterPosition, bounds, characterImage.naturalWidth, characterImage.naturalHeight) : null;
+    const rounded = rect ? { x: Math.round(rect.x), y: Math.round(rect.y), width: Math.round(rect.width), height: Math.round(rect.height) } : null;
+    const prev = suitRectRef.current;
+    if (JSON.stringify(prev) !== JSON.stringify(rounded)) { suitRectRef.current = rounded; setSuitLinesRect(rounded); }
     
     updateParticles();
     drawParticles(ctx);
@@ -318,6 +325,9 @@ export const useCanvas = (
     };
     needsRenderRef.current = false;
   }, [backgroundImage, characterImage, capImage, clothingImages, heldWeaponImage, icons, energy, maxEnergy, authority, spicki, bullets, gold, premiumGold, zhetons, tasks, appearanceColor, currentLocation, carLevel, level, districtName, playerName, avatarImage, showProfile, showBossModal, showMap, showRoomModal, unlockedRooms, battle, profileData, bosses, medkits, grenades, mapRaids, mapImage, topBarImage, bossImage, mapMessage, unreadNotifications, lockedRoomsRemain]);
+
+  const [suitLinesRect, setSuitLinesRect] = useState<Position | null>(null);
+  const suitRectRef = useRef<Position | null>(null);
 
   // Всегда актуальная версия render для обработчика кликов
   renderRef.current = render;
@@ -639,5 +649,6 @@ export const useCanvas = (
     handleMouseMove,
     handleMouseLeave,
     handleWheel,
+    suitLinesRect,
   };
 };

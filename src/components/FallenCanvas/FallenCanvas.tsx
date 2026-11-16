@@ -302,7 +302,7 @@ export const FallenCanvas: React.FC<PrisonCanvasProps & {
 
   const lockedRoomsRemain = getNextLockedRoom(state.unlockedRooms) !== null;
 
-  const { canvasRef, handleCanvasClick, handleMouseMove, handleMouseLeave, handleWheel } = useCanvas(
+  const { canvasRef, handleCanvasClick, handleMouseMove, handleMouseLeave, handleWheel, suitLinesRect } = useCanvas(
     backgroundImage,
     characterImage,
     icons,
@@ -398,6 +398,7 @@ export const FallenCanvas: React.FC<PrisonCanvasProps & {
         onMouseLeave={handleMouseLeave}
         onWheel={handleWheel}
       />
+      {suitLinesRect && <img className={styles.suitLines} src="/characters/clothing/suit_fire_lines.webp" style={{ left: suitLinesRect.x, top: suitLinesRect.y, width: suitLinesRect.width, height: suitLinesRect.height }} alt="" aria-hidden="true" />}
       
       {/* Панель уведомлений (открывается кликом по колокольчику в верхней панели) */}
       {showNotifications && (

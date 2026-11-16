@@ -46,7 +46,7 @@ export const SHOP_CLOTHING: ShopClothing[] = [
 ];
 export const SHOP_SUITS = [{
   item: { id: 'suit_fire', name: 'Костюм «Пепельный страж»', icon: '🔥', rarity: 'epic', staminaBonus: 0, damageBonus: 0, luckBonus: 0, costBullets: 0 } as InventoryItem,
-  slot: 'suit' as const, image: '/characters/clothing/suit_fire.png', price: { gold: 5000, premium: 300 }, currencies: ['gold', 'premium'] as const, effect: 'fire' as const,
+  slot: 'suit' as const, image: '/characters/clothing/suit_fire_card.webp', price: { gold: 5000, premium: 300 }, currencies: ['gold', 'premium'] as const, effect: 'fire' as const,
 }];
 export const clothingSlot = (id: string): ShopClothing['slot'] | 'suit' | undefined =>
   SHOP_SUITS.find((entry) => entry.item.id === id)?.slot ??
