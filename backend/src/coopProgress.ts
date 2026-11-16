@@ -2,6 +2,7 @@ import type { Prisma } from '@prisma/client';
 import { BOSSES, bossExperience, nextBossKeyFor } from './generated/game.js';
 import { applyCombatAction } from './progressCombat.js';
 import { joinCoopBoss, takeCoopDamage } from './coopBoss.js';
+import { recordScore } from './leaderboards.js';
 
 type State = Record<string, any>;
 type Action = Record<string, unknown>;
@@ -53,6 +54,7 @@ export const applyCoopProgressAction = async (tx: Prisma.TransactionClient, stat
   // revision is locked and server-issued; retrying a stale command cannot hit twice.
   const hit = await takeCoopDamage(tx, priorBattle.coopEncounterId, vkId, `revision-${revision}`, damage);
   if (hit.duplicate || hit.damage !== damage) throw new Error('Shared hit did not match the validated action');
+  await recordScore(tx, vkId, hit.damage, 0, new Date(now));
   // bossKilled() belongs to the old solo path: remove its room roll and reward.
   current = hit.status === 'dead' ? { ...next, lastRoomRoll: state.lastRoomRoll, pendingRoomDrop: state.pendingRoomDrop,
     battle: { ...next.battle, outcome: 'fighting', reward: null, endedAt: null } } : next;

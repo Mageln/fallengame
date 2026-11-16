@@ -1,3 +1,4 @@
+import { Leaderboard } from '../components/Leaderboard';
 import { hasEquippedSuit } from '../game/clothingVisuals';
 import { characterSpritePath } from '../game/heldWeapon';
 import { HeldWeapon } from '../components/HeldWeapon';
@@ -53,6 +54,7 @@ export const BossHub = ({ onClose }: { onClose: () => void }) => {
       <div className={styles.wallet}><span><ResourceIcon name="caps" /> Крышки: {state.caps}</span><span><ResourceIcon name="supplies" /> Припасы: {state.gold}</span><span><ResourceIcon name="premium" /> Премиум-золото: {state.premiumGold}</span>{BOSS_ATTACK_CONFIG.timedLimits ? <span>{resetAt !== undefined && resetAt > now ? `Обновление через ${remainingUntilReset(resetAt, now)}` : 'Период начнётся при нападении'}</span> : <span>⚔ Без ограничений · тестовый режим</span>}</div>
       {battle?.source === 'boss' && <button type="button" className={styles.primary} onClick={() => dispatch({ type: 'OPEN_BATTLE' })}>{battle.outcome === 'fighting' ? '↩ ВЕРНУТЬСЯ В ТЕКУЩИЙ БОЙ' : '↩ ОТКРЫТЬ ИТОГИ БОЯ'}</button>}
       {battle && battle.source !== 'boss' && <p className={styles.notice}>Сначала завершите текущий бой на экране игры.</p>}
+      <Leaderboard kind="boss" />
       <div className={styles.roster}>
         {BOSSES.filter(boss => BOSS_KEY_ORDER.some(id => id === boss.id)).sort((a, b) => BOSS_KEY_ORDER.findIndex(id => id === a.id) - BOSS_KEY_ORDER.findIndex(id => id === b.id)).map((boss) => {
           const entry = entryFor(boss.id);

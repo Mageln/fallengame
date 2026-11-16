@@ -64,3 +64,33 @@ test('two server players share one boss and receive rewards exactly once', async
     assert.equal(rewards.length, 2); assert.ok(rewards.every(r => r.claimedAt));
   } finally { await db.close(); }
 });
+
+test('coop hits record weekly and all-time leaderboard scores exactly once', async () => {
+  process.env.LEADERBOARDS_ENABLED = 'true';
+  const db = new PGlite();
+  try {
+    await db.exec('CREATE TABLE "PlayerProgress" ("vkId" INTEGER PRIMARY KEY, "state" JSONB NOT NULL, "revision" INTEGER NOT NULL DEFAULT 0, "updatedAt" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP)');
+    await db.exec(await readFile('backend/prisma/migrations/20261107_shared_boss/migration.sql', 'utf8'));
+    await db.exec(await readFile('backend/prisma/migrations/20261108_boss_keys/migration.sql', 'utf8'));
+    await db.exec(await readFile('backend/prisma/migrations/20261110_leaderboards/migration.sql', 'utf8'));
+    for (const id of [101, 202]) await db.query('INSERT INTO "PlayerProgress" ("vkId", "state\") VALUES ($1, $2::jsonb)', [id, JSON.stringify({ ...createInitialState(), bossKeys: { '1': 1 } })]);
+    let now = Date.now();
+    const act = (vkId, action) => db.transaction(async raw => {
+      const tx = adapter(raw);
+      const p = (await raw.query('SELECT "state", "revision" FROM "PlayerProgress" WHERE "vkId"=$1 FOR NO KEY UPDATE', [vkId])).rows[0];
+      const result = await applyCoopProgressAction(tx, p.state, action, vkId, p.revision, now += 300);
+      await raw.query('UPDATE "PlayerProgress" SET "state"=$1::jsonb, "revision"="revision"+1 WHERE "vkId"=$2', [JSON.stringify(result), vkId]);
+      return syncCoopBattle(tx, result, vkId, now);
+    });
+    await act(101, { type: 'START_BOSS_FIGHT', bossId: '1' });
+    const hit = await act(101, { type: 'BOSS_SKILL', skillId: 'jab' });
+    assert.ok(hit.battle.damageDealt > 0);
+    const rows = (await db.query('SELECT "period", "bossDamage", "arenaWins" FROM "LeaderboardScore" WHERE "vkId"=101 ORDER BY "period"')).rows;
+    assert.equal(rows.length, 2);
+    for (const row of rows) { assert.equal(Number(row.bossDamage), hit.battle.damageDealt); assert.equal(Number(row.arenaWins), 0); }
+    const replay = await act(101, { type: 'BOSS_TICK' });
+    assert.equal(replay.battle.damageDealt, hit.battle.damageDealt);
+    const after = (await db.query('SELECT SUM("bossDamage"::bigint) AS total FROM "LeaderboardScore" WHERE "vkId"=101')).rows[0];
+    assert.equal(Number(after.total), hit.battle.damageDealt * 2);
+  } finally { await db.close(); delete process.env.LEADERBOARDS_ENABLED; }
+});

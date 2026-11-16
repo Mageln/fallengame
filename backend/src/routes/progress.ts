@@ -6,6 +6,7 @@ import { applyDailyReset, createInitialState, normalizeMapRaids, migrateStarterW
 import { advanceCombat, applyCombatAction } from '../progressCombat.js';
 import { restoreEnergy } from '../progressEnergy.js';
 import { parseProgressAction } from '../progressAction.js';
+import { recordScore, scoreDelta } from '../leaderboards.js';
 import { claimCoopRewards } from '../coopBoss.js';
 import { applyCoopProgressAction, syncCoopBattle } from '../coopProgress.js';
 
@@ -78,6 +79,8 @@ progressRouter.post('/action', async (req, res) => {
         const regenerated = restoreEnergy(current.state, current.energyUpdatedAt, now);
         const refreshed = applyDailyReset(migrateStarterWeapon(regenerated.state));
         const state = await applyCoopProgressAction(tx, refreshed, action, vkId, revision, now.getTime());
+        const delta = scoreDelta(refreshed, state, action);
+        await recordScore(tx, vkId, delta.damage, delta.arenaWins, now);
         await tx.$executeRaw`
           UPDATE "PlayerProgress" SET "state" = ${JSON.stringify(state)}::jsonb,
             "energyUpdatedAt" = ${regenerated.anchor}, "revision" = "revision" + 1, "updatedAt" = CURRENT_TIMESTAMP
@@ -97,11 +100,15 @@ progressRouter.post('/action', async (req, res) => {
     const regenerated = restoreEnergy(current.state as Record<string, unknown>, current.energyUpdatedAt, now);
     const refreshed = applyDailyReset(migrateStarterWeapon(regenerated.state));
     const state = applyCombatAction(refreshed, action, now.getTime());
-    const updated = await prisma.playerProgress.updateMany({
-      where: { vkId, revision },
-      data: { state: state as Prisma.InputJsonValue, energyUpdatedAt: regenerated.anchor, revision: { increment: 1 } },
+    await prisma.$transaction(async (tx) => {
+      const updated = await tx.playerProgress.updateMany({
+        where: { vkId, revision },
+        data: { state: state as Prisma.InputJsonValue, energyUpdatedAt: regenerated.anchor, revision: { increment: 1 } },
+      });
+      if (!updated.count) throw new ProgressConflict();
+      const delta = scoreDelta(refreshed, state, action);
+      await recordScore(tx, vkId, delta.damage, delta.arenaWins, now);
     });
-    if (!updated.count) return res.status(409).json({ error: 'Сохранение изменилось. Загрузите его заново.' });
     return res.json({ state, revision: revision + 1 });
   } catch (error) {
     if (error instanceof ProgressConflict) return res.status(409).json({ error: 'Сохранение изменилось. Загрузите его заново.' });

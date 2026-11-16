@@ -1,0 +1,7 @@
+.board { margin: 12px 0; padding: 12px; border: 1px solid #73573b; background: #211d17; color: #ded3bd; font-size: 12px; }
+.board h3 { color: #eac77c; margin: 12px 0 4px; }.board p { line-height: 1.5; color: #bdb29d; }
+.board button { font: inherit; cursor: pointer; color: #ebd4aa; background: #483421; border: 1px solid #846240; padding: 8px 10px; }
+.board button:focus-visible { outline: 2px solid #ffd975; outline-offset: 2px; }
+.board button[aria-pressed='true'] { color: #1c160e; background: #d4ae60; }
+.controls { display: flex; flex-wrap: wrap; gap: 6px; }.list { list-style: none; padding: 0; margin: 10px 0; max-height: 260px; overflow-y: auto; }
+.list li { display: flex; justify-content: space-between; gap: 12px; padding: 7px; border-bottom: 1px solid #4a392b; overflow-wrap: anywhere; }.list strong { color: #f5c77b; }.me { color: #f8d46d !important; background: #4b3a23; }

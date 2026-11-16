@@ -1,4 +1,5 @@
 import express from 'express';
+import { leaderboardRouter } from './routes/leaderboards.js';
 import { moderationRouter } from './routes/moderation.js';
 import cors from 'cors';
 import { userRouter } from './routes/user.js';
@@ -20,6 +21,7 @@ app.use(express.json());
 
 // Routes
 app.use('/api/moderation', moderationRouter);
+app.use('/api/leaderboards', leaderboardRouter);
 app.use('/api/progress', progressRouter);
 app.use('/api/user', userRouter);
 app.use('/api/game', gameRouter);

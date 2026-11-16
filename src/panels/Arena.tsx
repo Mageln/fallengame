@@ -1,3 +1,4 @@
+import { Leaderboard } from '../components/Leaderboard';
 import { hasEquippedSuit } from '../game/clothingVisuals';
 import { characterSpritePath } from '../game/heldWeapon';
 import { HeldWeapon } from '../components/HeldWeapon';
@@ -35,6 +36,7 @@ export const Arena = ({ onClose }: { onClose: () => void }) => {
       {!battle ? <>
         <p className={styles.notice}>Выбирайте противника: его здоровье подстраивается под вашу силу. Вы не выбываете при потере здоровья; аптечки не нужны. Боевая энергия нужна для приёмов, патроны и прочность не расходуются.</p>
         {state.battle && <p className={styles.notice}>Сначала завершите текущий бой.</p>}
+        <Leaderboard kind="arena" />
         <div className={styles.roster}>{ARENA_OPPONENTS.map((opponent) => <article className={styles.bossCard} key={opponent.id}>
           <div className={styles.bossPortrait}><img src={getArenaArt(opponent.id).face} alt={`Портрет: ${opponent.name}`} /></div><div className={styles.bossInfo}><h3>{opponent.name}</h3><p>{opponent.description}</p><span>Награда за победу: <ResourceIcon name="supplies" /> {opponent.gold} припасов · <ResourceIcon name="bullets" /> {opponent.bullets} патронов</span></div>
           <button type="button" data-tutorial-target={`arena-${opponent.id}`} disabled={attempts === 0 || !!state.battle} onClick={() => dispatch({ type: 'START_ARENA', opponentId: opponent.id })}>В БОЙ</button>
