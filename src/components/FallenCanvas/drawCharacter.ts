@@ -61,9 +61,13 @@ export const drawCharacter = (
           const reduced = typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
           const pulse = reduced ? 0.35 : (Math.sin(performance.now() / 270) + 1) / 2;
           ctx.save();
-          if (layerId === 'suit_fire_glow') ctx.globalAlpha = reduced ? .7 : .55 + pulse * .45;
+          if (layerId === 'suit_fire_glow') {
+            // Additive blending makes the ember aura read as light, not paint.
+            ctx.globalCompositeOperation = 'lighter';
+            ctx.globalAlpha = reduced ? .8 : .7 + pulse * .3;
+            ctx.shadowBlur = 8 + pulse * 14;
+          } else ctx.shadowBlur = 5 + pulse * 16;
           ctx.shadowColor = EFFECT_COLORS[effect];
-          ctx.shadowBlur = 5 + pulse * 16;
           drawLayer();
           ctx.restore();
         } else {
