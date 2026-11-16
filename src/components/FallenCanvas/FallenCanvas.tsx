@@ -1,5 +1,5 @@
 import { characterSpritePath, heldWeaponPath } from '../../game/heldWeapon';
-import { clothingVisualPath, equippedClothingVisuals } from '../../game/clothingVisuals';
+import { clothingVisualPath, equippedClothingVisuals, hasEquippedSuit } from '../../game/clothingVisuals';
 import React, { useState, useEffect, useCallback } from "react";
 import styles from "../../style/PrisonCanvas/PrisonCanvas.module.scss";
 import { PrisonCanvasProps } from "./types";
@@ -381,7 +381,7 @@ export const FallenCanvas: React.FC<PrisonCanvasProps & {
     state.premiumGold,
     () => setTopUpResource('premium'),
     () => setShowStore(true),
-    state.equipmentIds.includes('shop_cap') ? capImage : null,
+    state.equipmentIds.includes('shop_cap') && !hasEquippedSuit(state.equipmentIds) ? capImage : null,
     () => setShowCasino(true),
     clothingImages,
     heldWeapon?.id === state.weapon.id ? heldWeapon.image : null

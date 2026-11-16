@@ -1,4 +1,4 @@
-import { SHOP_CLOTHING, SHOP_WEAPONS, clothingSlot } from './shopCatalog';
+import { SHOP_CLOTHING, SHOP_SUITS, SHOP_WEAPONS, clothingSlot } from './shopCatalog';
 import { INVENTORY_SLOTS, INVENTORY_ITEMS, CRAFTING_RECIPES, DAILY_QUESTS, SHOP } from './constants';
 import { msg, recordClanEvent } from './reducerShared';
 import type { GameAction, GameState } from './types';
@@ -9,9 +9,9 @@ export const reduceInventory = (state: GameState, action: InventoryAction): Game
   switch (action.type) {
     case 'BUY_SHOP_ITEM': {
       if (action.currency !== 'gold' && action.currency !== 'premium') return state;
-      if (action.category !== 'weapon' && action.category !== 'clothing') return state;
+      if (action.category !== 'weapon' && action.category !== 'clothing' && action.category !== 'suit') return state;
       const weapon = action.category === 'weapon' ? SHOP_WEAPONS.find((entry) => entry.weapon.id === action.itemId) : undefined;
-      const clothing = action.category === 'clothing' ? SHOP_CLOTHING.find((entry) => entry.item.id === action.itemId) : undefined;
+      const clothing = action.category === 'clothing' ? SHOP_CLOTHING.find((entry) => entry.item.id === action.itemId) : action.category === 'suit' ? SHOP_SUITS.find((entry) => entry.item.id === action.itemId) : undefined;
       const entry = weapon ?? clothing;
       if (!entry) return state;
       if (clothing && !clothing.currencies.includes(action.currency)) return msg(state, 'Эта валюта не подходит для покупки предмета.');

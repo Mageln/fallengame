@@ -421,3 +421,14 @@ test('server validates map unlock level and rejects extra client arguments', () 
   state = gameReducer({ ...state, carLevel: 10 }, action);
   assert.ok(state.unlockedRaidRegions.includes('railway'));
 });
+
+test('server validates animated suit purchase and uses authoritative price', () => {
+  const initial = { ...createInitialState(), gold: 6000, premiumGold: 500 };
+  const action = parseProgressAction({ type: 'BUY_SHOP_ITEM', category: 'suit', itemId: 'suit_fire', currency: 'gold' });
+  assert.ok(action);
+  assert.equal(parseProgressAction({ ...action, price: 0 }), null);
+  const purchased = gameReducer(initial, action);
+  assert.equal(purchased.gold, 1000);
+  assert.ok(purchased.inventory.some(item => item.itemId === 'suit_fire'));
+  assert.equal(gameReducer(purchased, action).gold, 1000);
+});

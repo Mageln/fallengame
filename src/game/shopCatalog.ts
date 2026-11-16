@@ -44,5 +44,10 @@ export const SHOP_CLOTHING: ShopClothing[] = [
   clothing('feet_inferno', 'Ботинки пепельного огня', '🔥', 'feet', 20, 6, 6, 'epic', { gold: 0, premium: 150 }, ['premium'], 'fire'),
   clothing('feet_cosmic', 'Ботинки звёздного дозора', '✨', 'feet', 20, 3, 14, 'epic', { gold: 0, premium: 170 }, ['premium'], 'cosmic'),
 ];
-export const clothingSlot = (id: string): ShopClothing['slot'] | undefined =>
+export const SHOP_SUITS = [{
+  item: { id: 'suit_fire', name: 'Костюм «Пепельный страж»', icon: '🔥', rarity: 'epic', staminaBonus: 0, damageBonus: 0, luckBonus: 0, costBullets: 0 } as InventoryItem,
+  slot: 'suit' as const, image: '/characters/clothing/suit_fire.png', price: { gold: 5000, premium: 300 }, currencies: ['gold', 'premium'] as const, effect: 'fire' as const,
+}];
+export const clothingSlot = (id: string): ShopClothing['slot'] | 'suit' | undefined =>
+  SHOP_SUITS.find((entry) => entry.item.id === id)?.slot ??
   SHOP_CLOTHING.find((entry) => entry.item.id === id)?.slot ?? ({ helmet: 'head', vest: 'body', tactical_vest: 'body', legendary_armor: 'body', boots: 'feet' } as Record<string, ShopClothing['slot']>)[id];

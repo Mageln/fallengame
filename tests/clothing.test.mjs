@@ -108,3 +108,50 @@ test('premium clothing uses animated styles in overlays and glow when rendered o
   assert.equal(calls[1], 'save'); assert.equal(calls[2][0], item); assert.equal(calls[3], 'restore');
   assert.equal(ctx.shadowColor, '#4cdfff');
 });
+
+test('animated suit is bought with either currency and hides clothing only visually', async () => {
+  const { SHOP_SUITS } = await vite.ssrLoadModule('/src/game/shopCatalog.ts');
+  const { hasEquippedSuit, clothingEffect } = await vite.ssrLoadModule('/src/game/clothingVisuals.ts');
+  const suit = SHOP_SUITS[0];
+  assert.equal(suit.item.id, 'suit_fire');
+  for (const currency of ['gold', 'premium']) {
+    const initial = { ...createInitialState(), gold: 10000, premiumGold: 1000 };
+    const balance = currency === 'gold' ? 'gold' : 'premiumGold';
+    const short = act({ ...initial, [balance]: suit.price[currency] - 1 }, 'BUY_SHOP_ITEM', { category: 'suit', itemId: suit.item.id, currency });
+    assert.equal(short.inventory.length, 0);
+    let state = act(initial, 'BUY_SHOP_ITEM', { category: 'suit', itemId: suit.item.id, currency });
+    assert.equal(state[balance], initial[balance] - suit.price[currency]);
+    assert.equal(act(state, 'BUY_SHOP_ITEM', { category: 'suit', itemId: suit.item.id, currency })[balance], state[balance]);
+    state = act(state, 'BUY_SHOP_ITEM', { category: 'clothing', itemId: 'shop_jacket', currency: 'gold' });
+    state = act(state, 'EQUIP_ITEM', { slotIndex: state.inventory.findIndex(s => s.itemId === 'shop_jacket') });
+    state = act(state, 'EQUIP_ITEM', { slotIndex: state.inventory.findIndex(s => s.itemId === suit.item.id) });
+    assert.ok(state.equipmentIds.includes('shop_jacket'));
+    assert.ok(hasEquippedSuit(state.equipmentIds));
+    assert.deepEqual(equippedClothingVisuals(state.equipmentIds), ['suit_fire', 'suit_fire_glow']);
+    state = hydrateState(JSON.parse(JSON.stringify(state)));
+    assert.ok(state.equipmentIds.includes('suit_fire'));
+    state = act(state, 'EQUIP_ITEM', { slotIndex: state.inventory.findIndex(s => s.itemId === suit.item.id) });
+    assert.ok(!hasEquippedSuit(state.equipmentIds));
+    assert.deepEqual(equippedClothingVisuals(state.equipmentIds), ['shop_jacket']);
+  }
+  const html = renderToStaticMarkup(React.createElement(ClothingLayers, { equipmentIds: ['shop_cap', 'suit_fire'], className: 'layer' }));
+  assert.match(html, /suit_fire.png/); assert.match(html, /suit_fire_glow.png/); assert.match(html, /animated-embers/);
+  assert.equal(clothingEffect('suit_fire_glow'), 'fire');
+  for (const id of ['suit_fire', 'suit_fire_glow']) {
+    const image = await readFile(`public${clothingVisualPath(id)}`);
+    assert.equal(image.readUInt32BE(16), 402); assert.equal(image.readUInt32BE(20), 600);
+  }
+});
+
+test('canvas draws suit and animated embers before held weapon at full sprite size', () => {
+  const calls = [];
+  const ctx = { drawImage: (...args) => calls.push(args), save: () => {}, restore: () => {} };
+  const image = { complete: true, naturalWidth: 402, naturalHeight: 600 };
+  const suit = { ...image, dataset: { clothingId: 'suit_fire' } };
+  const glow = { ...image, dataset: { clothingId: 'suit_fire_glow' } };
+  const weapon = { ...image };
+  drawCharacter(ctx, { x: 0, y: 0, width: 201, height: 300 }, image, '#fff', null, [suit, glow], weapon);
+  assert.deepEqual(calls.map(c => c[0]), [image, suit, glow, weapon]);
+  assert.equal(calls[1].length, 5);
+  assert.equal(calls[2].length, 5);
+});

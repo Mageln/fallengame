@@ -5,5 +5,5 @@ import './ClothingLayers.scss';
 export const ClothingLayers = ({ equipmentIds, className }: { equipmentIds: readonly string[]; className: string }) =>
   <>{equippedClothingVisuals(equipmentIds).map(id => {
     const effect = clothingEffect(id);
-    return <img key={id} className={`${className}${effect ? ' animated-clothing' : ''}`} style={effect ? { '--clothing-glow': EFFECT_COLORS[effect] } as CSSProperties : undefined} src={clothingVisualPath(id)} alt="" aria-hidden="true" />;
+    return <img key={id} className={`${className}${effect ? id === 'suit_fire_glow' ? ' animated-clothing animated-embers' : ' animated-clothing' : ''}`} style={effect ? { '--clothing-glow': EFFECT_COLORS[effect] } as CSSProperties : undefined} src={clothingVisualPath(id)} alt="" aria-hidden="true" />;
   })}</>;

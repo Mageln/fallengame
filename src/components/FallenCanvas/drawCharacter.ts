@@ -52,17 +52,22 @@ export const drawCharacter = (
     );
     for (const layer of clothingImages) {
       if (layer.complete && layer.naturalWidth > 0 && layer.naturalHeight > 0) {
-        const effect = clothingEffect(layer.dataset?.clothingId ?? '');
+        const layerId = layer.dataset?.clothingId ?? '';
+        const effect = clothingEffect(layerId);
+        const fullSuit = layerId === 'suit_fire' || layerId === 'suit_fire_glow';
+        const suitPosition = fullSuit ? getHeldWeaponPosition(position, visible, characterImage.naturalWidth, characterImage.naturalHeight) : null;
+        const drawLayer = () => suitPosition ? ctx.drawImage(layer, suitPosition.x, suitPosition.y, suitPosition.width, suitPosition.height) : ctx.drawImage(layer, visible.x, visible.y, visible.w, visible.h, position.x, position.y, position.width, position.height);
         if (effect) {
           const reduced = typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
           const pulse = reduced ? 0.35 : (Math.sin(performance.now() / 270) + 1) / 2;
           ctx.save();
+          if (layerId === 'suit_fire_glow') ctx.globalAlpha = reduced ? .7 : .55 + pulse * .45;
           ctx.shadowColor = EFFECT_COLORS[effect];
           ctx.shadowBlur = 5 + pulse * 16;
-          ctx.drawImage(layer, visible.x, visible.y, visible.w, visible.h, position.x, position.y, position.width, position.height);
+          drawLayer();
           ctx.restore();
         } else {
-          ctx.drawImage(layer, visible.x, visible.y, visible.w, visible.h, position.x, position.y, position.width, position.height);
+          drawLayer();
         }
       }
     }

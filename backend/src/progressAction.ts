@@ -58,7 +58,7 @@ export const parseProgressAction = (value: unknown): Record<string, unknown> | n
     return { type: action.type, [key]: action[key] };
   }
   if (action.type === 'BUY_SHOP_ITEM' && keys === 'category,currency,itemId,type' &&
-      (action.category === 'weapon' || action.category === 'clothing') &&
+      (action.category === 'weapon' || action.category === 'clothing' || action.category === 'suit') &&
       (action.currency === 'gold' || action.currency === 'premium') &&
       typeof action.itemId === 'string' && action.itemId.length > 0 && action.itemId.length <= 100) {
     return { type: action.type, category: action.category, currency: action.currency, itemId: action.itemId };

@@ -1,6 +1,6 @@
 import { SHOP_WEAPONS } from './shopCatalog';
 import { TUTORIAL_STEPS } from './tutorial';
-import { SHOP_CLOTHING } from './shopCatalog';
+import { SHOP_CLOTHING, SHOP_SUITS } from './shopCatalog';
 import { InventoryItem, DailyQuest, Rarity, Weapon, WeaponMod, WeaponType, Zombie, ShelterItem, ShelterItemId, RoomSkin } from './types';
 
 export const WEAPON_MAX_LEVEL = 10;
@@ -170,7 +170,7 @@ const RAW_MATERIALS: InventoryItem[] = [
   { id: 'barricade', name: 'Баррикада', rarity: 'common', staminaBonus: 0, damageBonus: 0, luckBonus: 0, costBullets: 0, icon: '🧱' },
 ];
 
-export const INVENTORY_ITEMS: InventoryItem[] = [...SHOP, ...SHOP_CLOTHING.map((entry) => entry.item), ...RAW_MATERIALS];
+export const INVENTORY_ITEMS: InventoryItem[] = [...SHOP, ...SHOP_CLOTHING.map((entry) => entry.item), ...SHOP_SUITS.map((entry) => entry.item), ...RAW_MATERIALS];
 
 export const CRAFTING_RECIPES = [
   {
