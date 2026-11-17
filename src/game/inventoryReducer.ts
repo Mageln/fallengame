@@ -1,4 +1,4 @@
-import { SHOP_CLOTHING, SHOP_SUITS, SHOP_WEAPONS, clothingSlot } from './shopCatalog';
+import { SHOP_CLOTHING, SHOP_SUITS, SHOP_WEAPONS, clothingSlot, isLegacyClothingId } from './shopCatalog';
 import { INVENTORY_SLOTS, INVENTORY_ITEMS, CRAFTING_RECIPES, DAILY_QUESTS, SHOP } from './constants';
 import { msg, recordClanEvent } from './reducerShared';
 import type { GameAction, GameState } from './types';
@@ -15,6 +15,7 @@ export const reduceInventory = (state: GameState, action: InventoryAction): Game
       const entry = weapon ?? clothing;
       if (!entry) return state;
       if (clothing && !clothing.currencies.includes(action.currency)) return msg(state, 'Эта валюта не подходит для покупки предмета.');
+      if (clothing && isLegacyClothingId(clothing.item.id)) return msg(state, 'Эта одежда снята с продажи.');
       if (weapon && (state.weapon.id === action.itemId || state.storedWeapons.some((w) => w.id === action.itemId))) return msg(state, 'Оружие уже куплено.');
       if (clothing && (state.inventory.some((slot) => slot.itemId === action.itemId) || state.equipmentIds.includes(action.itemId))) return msg(state, 'Предмет уже куплен.');
       if (clothing && state.inventory.length >= INVENTORY_SLOTS) return msg(state, 'Инвентарь заполнен.');

@@ -20,7 +20,7 @@ export const SHOP_WEAPONS: ShopWeapon[] = [
   weapon('shop_awp', 'AWP', '🎯', 'firearm', 38, 'epic', { gold: 3500, premium: 230 }),
 ];
 const clothing = (id: string, name: string, icon: string, slot: ShopClothing['slot'], stamina: number, damage: number, luck: number, rarity: InventoryItem['rarity'], price: Price, currencies: ShopClothing['currencies'] = ['gold', 'premium'], effect?: ClothingEffect): ShopClothing => ({
-  item: { id, name, icon, rarity, staminaBonus: stamina, damageBonus: damage, luckBonus: luck, costBullets: 0 }, slot, image: id === 'shop_cap' ? '/characters/survivor-cap-v2.png' : `/icon/shop/${id}.svg`, price, currencies, effect,
+  item: { id, name, icon, rarity, staminaBonus: stamina, damageBonus: damage, luckBonus: luck, costBullets: 0 }, slot, image: id === 'shop_cap' ? '/characters/survivor-cap-v2.png' : id.startsWith('mil_') ? `/characters/clothing/${id}.png` : `/icon/shop/${id}.svg`, price, currencies, effect,
 });
 export const SHOP_CLOTHING: ShopClothing[] = [
   clothing('shop_cap', 'Кепка разведчика', '🧢', 'head', 8, 0, 12, 'common', { gold: 180, premium: 15 }),
@@ -43,7 +43,19 @@ export const SHOP_CLOTHING: ShopClothing[] = [
   clothing('feet_guard', 'Берцы дозорного', '🥾', 'feet', 18, 3, 4, 'rare', { gold: 650, premium: 0 }, ['gold']),
   clothing('feet_inferno', 'Ботинки пепельного огня', '🔥', 'feet', 20, 6, 6, 'epic', { gold: 0, premium: 150 }, ['premium'], 'fire'),
   clothing('feet_cosmic', 'Ботинки звёздного дозора', '✨', 'feet', 20, 3, 14, 'epic', { gold: 0, premium: 170 }, ['premium'], 'cosmic'),
+  // Военная линейка зомбиапокалипсиса: сборная солянка выжившего, продаётся частями.
+  clothing('mil_scout_head', 'Каска разведчика «Сталкер»', '🪖', 'head', 8, 1, 6, 'rare', { gold: 900, premium: 70 }),
+  clothing('mil_scout_body', 'Разгрузка разведчика', '🎽', 'body', 12, 2, 5, 'rare', { gold: 1200, premium: 90 }),
+  clothing('mil_scout_legs', 'Камуфляж разведчика', '👖', 'legs', 10, 1, 6, 'rare', { gold: 1000, premium: 80 }),
+  clothing('mil_scout_feet', 'Ботинки разведчика', '🥾', 'feet', 9, 1, 7, 'rare', { gold: 850, premium: 65 }),
+  clothing('mil_assault_head', 'Шлем штурмовика «Бастион»', '⛑️', 'head', 14, 2, 2, 'epic', { gold: 1800, premium: 130 }),
+  clothing('mil_assault_body', 'Плитник штурмовика', '🦺', 'body', 20, 4, 1, 'epic', { gold: 2400, premium: 170 }),
+  clothing('mil_assault_legs', 'Поножи штурмовика «Бастион»', '👖', 'legs', 16, 3, 1, 'epic', { gold: 2000, premium: 150 }),
+  clothing('mil_assault_feet', 'Берцы штурмовика', '🥾', 'feet', 14, 2, 2, 'epic', { gold: 1700, premium: 120 }),
 ];
+// Старая одежда снята с продажи, но купленное ранее остаётся рабочим и видимым.
+export const isLegacyClothingId = (id: string): boolean => SHOP_CLOTHING.some(entry => entry.item.id === id && !entry.item.id.startsWith('mil_'));
+export const shopClothingEntries = (): ShopClothing[] => SHOP_CLOTHING.filter(entry => entry.item.id.startsWith('mil_'));
 export const SHOP_SUITS = [{
   item: { id: 'suit_fire', name: 'Костюм «Пепельный страж»', icon: '🔥', rarity: 'epic', staminaBonus: 0, damageBonus: 0, luckBonus: 0, costBullets: 0 } as InventoryItem,
   slot: 'suit' as const, image: '/characters/clothing/suit_fire_card.webp', price: { gold: 5000, premium: 300 }, currencies: ['gold', 'premium'] as const, effect: 'fire' as const,

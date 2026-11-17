@@ -15,9 +15,23 @@ const { LOCATIONS, ROOM_SKINS, resolveBackground } = await vite.ssrLoadModule('/
 const { drawCharacter } = await vite.ssrLoadModule('/src/components/FallenCanvas/drawCharacter.ts');
 const act = (s, type, args) => gameReducer(s, { type, ...args });
 
-test('clothing catalog has five items per slot and valid purchasable assets', async () => {
-  assert.equal(SHOP_CLOTHING.length, 20);
-  for (const slot of ['head', 'body', 'legs', 'feet']) assert.equal(SHOP_CLOTHING.filter(e => e.slot === slot).length, 5);
+test('clothing catalog keeps legacy items working and sells two military sets by parts', async () => {
+  const { shopClothingEntries, isLegacyClothingId } = await vite.ssrLoadModule('/src/game/shopCatalog.ts');
+  assert.equal(SHOP_CLOTHING.length, 28);
+  const military = shopClothingEntries();
+  assert.equal(military.length, 8);
+  for (const slot of ['head', 'body', 'legs', 'feet']) {
+    assert.equal(SHOP_CLOTHING.filter(e => e.slot === slot && !e.item.id.startsWith('mil_')).length, 5);
+    assert.equal(military.filter(e => e.slot === slot).length, 2);
+  }
+  for (const entry of military) {
+    assert.deepEqual(entry.currencies, ['gold', 'premium']);
+    assert.equal(entry.effect, undefined);
+    const png = await readFile(`public${entry.image}`);
+    assert.equal(png.readUInt32BE(16), 402); assert.equal(png.readUInt32BE(20), 600);
+    assert.equal(clothingVisualPath(entry.item.id), entry.image);
+  }
+  assert.ok(isLegacyClothingId('shop_cap')); assert.ok(!isLegacyClothingId('mil_scout_body'));
   assert.deepEqual(new Set(SHOP_CLOTHING.map(e => e.slot)), new Set(['head', 'body', 'legs', 'feet']));
   assert.equal(clothingSlot('shop_pants'), 'legs'); assert.equal(clothingSlot('shop_boots'), 'feet');
   for (const item of SHOP_CLOTHING) {
@@ -25,15 +39,17 @@ test('clothing catalog has five items per slot and valid purchasable assets', as
     if (item.effect) assert.deepEqual(item.currencies, ['premium']);
     await access(`public${item.image}`);
   }
-  for (const id of equippedClothingVisuals(SHOP_CLOTHING.map(e => e.item.id))) {
+  for (const id of equippedClothingVisuals(SHOP_CLOTHING.filter(e => !e.item.id.startsWith('mil_')).map(e => e.item.id))) {
     const svg = await readFile(`public${clothingVisualPath(id)}`, 'utf8');
     assert.match(svg, /viewBox="0 0 402 600"/);
   }
 });
 
-test('purchases, equip, replacement, reload and unequip preserve other slots', () => {
+test('military parts purchase, equip, replacement, reload and unequip preserve other slots', () => {
   let state = { ...createInitialState(), gold: 10000 };
-  for (const id of ['shop_cap', 'shop_helmet', 'shop_jacket', 'shop_armor', 'shop_pants', 'shop_boots']) {
+  const legacy = act(state, 'BUY_SHOP_ITEM', { category: 'clothing', itemId: 'shop_cap', currency: 'gold' });
+  assert.equal(legacy.gold, state.gold); assert.equal(legacy.inventory.length, 0);
+  for (const id of ['mil_scout_head', 'mil_scout_body', 'mil_scout_legs', 'mil_scout_feet', 'mil_assault_body']) {
     const price = SHOP_CLOTHING.find(e => e.item.id === id).price.gold;
     const before = state.gold;
     state = act(state, 'BUY_SHOP_ITEM', { category: 'clothing', itemId: id, currency: 'gold' });
@@ -41,18 +57,17 @@ test('purchases, equip, replacement, reload and unequip preserve other slots', (
     const again = act(state, 'BUY_SHOP_ITEM', { category: 'clothing', itemId: id, currency: 'gold' });
     assert.equal(again.gold, state.gold);
   }
-  for (const id of ['shop_helmet', 'shop_jacket', 'shop_pants', 'shop_boots']) {
-    const index = state.inventory.findIndex(s => s.itemId === id);
-    state = act(state, 'EQUIP_ITEM', { slotIndex: index });
+  for (const id of ['mil_scout_head', 'mil_scout_body', 'mil_scout_legs', 'mil_scout_feet']) {
+    state = act(state, 'EQUIP_ITEM', { slotIndex: state.inventory.findIndex(s => s.itemId === id) });
   }
-  assert.deepEqual(new Set(state.equipmentIds.filter(id => id.startsWith('shop_'))), new Set(['shop_helmet', 'shop_jacket', 'shop_pants', 'shop_boots']));
+  assert.deepEqual(new Set(state.equipmentIds.filter(id => id.startsWith('mil_'))), new Set(['mil_scout_head', 'mil_scout_body', 'mil_scout_legs', 'mil_scout_feet']));
   state = hydrateState(JSON.parse(JSON.stringify(state)));
-  assert.deepEqual(equippedClothingVisuals(state.equipmentIds), ['shop_pants', 'shop_boots', 'shop_jacket', 'shop_helmet']);
-  state = act(state, 'EQUIP_ITEM', { slotIndex: state.inventory.findIndex(s => s.itemId === 'shop_armor') });
-  assert.ok(!state.equipmentIds.includes('shop_jacket')); assert.ok(state.equipmentIds.includes('shop_armor'));
-  assert.ok(state.equipmentIds.includes('shop_pants')); assert.ok(state.equipmentIds.includes('shop_boots'));
-  state = act(state, 'UNEQUIP_ITEM', { slotIndex: state.inventory.findIndex(s => s.itemId === 'shop_pants') });
-  assert.ok(!equippedClothingVisuals(state.equipmentIds).includes('shop_pants'));
+  assert.deepEqual(equippedClothingVisuals(state.equipmentIds), ['mil_scout_legs', 'mil_scout_feet', 'mil_scout_body', 'mil_scout_head']);
+  state = act(state, 'EQUIP_ITEM', { slotIndex: state.inventory.findIndex(s => s.itemId === 'mil_assault_body') });
+  assert.ok(!state.equipmentIds.includes('mil_scout_body')); assert.ok(state.equipmentIds.includes('mil_assault_body'));
+  assert.ok(state.equipmentIds.includes('mil_scout_legs')); assert.ok(state.equipmentIds.includes('mil_scout_feet'));
+  state = act(state, 'UNEQUIP_ITEM', { slotIndex: state.inventory.findIndex(s => s.itemId === 'mil_scout_legs') });
+  assert.ok(!equippedClothingVisuals(state.equipmentIds).includes('mil_scout_legs'));
 });
 
 test('character overlay renders only equipped known items in matching order and coordinates', () => {
@@ -75,25 +90,27 @@ test('new room backgrounds exist and existing room skin IDs resolve to new image
 });
 
 
-test('each new item enforces its currency, balance, equip and persistence', () => {
-  for (const entry of SHOP_CLOTHING.filter(e => e.currencies.length === 1)) {
-    const id = entry.item.id; const currency = entry.currencies[0];
-    const wrong = currency === 'gold' ? 'premium' : 'gold';
-    const initial = { ...createInitialState(), gold: 100000, premiumGold: 100000 };
-    const rejected = act(initial, 'BUY_SHOP_ITEM', { category: 'clothing', itemId: id, currency: wrong });
-    assert.equal(rejected.gold, initial.gold); assert.equal(rejected.premiumGold, initial.premiumGold);
-    assert.ok(!rejected.inventory.some(item => item.itemId === id));
-    const balanceField = currency === 'gold' ? 'gold' : 'premiumGold';
-    const insufficient = act({ ...initial, [balanceField]: entry.price[currency] - 1 }, 'BUY_SHOP_ITEM', { category: 'clothing', itemId: id, currency });
-    assert.ok(!insufficient.inventory.some(item => item.itemId === id));
-    let state = act(initial, 'BUY_SHOP_ITEM', { category: 'clothing', itemId: id, currency });
-    assert.equal(state[balanceField], initial[balanceField] - entry.price[currency]);
-    state = act(state, 'EQUIP_ITEM', { slotIndex: state.inventory.findIndex(item => item.itemId === id) });
-    state = hydrateState(JSON.parse(JSON.stringify(state)));
-    assert.ok(state.equipmentIds.includes(id));
-    assert.ok(equippedClothingVisuals(state.equipmentIds).includes(id));
-    const again = act(state, 'BUY_SHOP_ITEM', { category: 'clothing', itemId: id, currency });
-    assert.equal(again[balanceField], state[balanceField]);
+test('military parts sell for either currency with balance checks; legacy items are withdrawn', () => {
+  for (const entry of SHOP_CLOTHING.filter(e => e.item.id.startsWith('mil_'))) {
+    for (const currency of ['gold', 'premium']) {
+      const balanceField = currency === 'gold' ? 'gold' : 'premiumGold';
+      const initial = { ...createInitialState(), gold: 100000, premiumGold: 100000 };
+      const insufficient = act({ ...initial, [balanceField]: entry.price[currency] - 1 }, 'BUY_SHOP_ITEM', { category: 'clothing', itemId: entry.item.id, currency });
+      assert.ok(!insufficient.inventory.some(item => item.itemId === entry.item.id));
+      let state = act(initial, 'BUY_SHOP_ITEM', { category: 'clothing', itemId: entry.item.id, currency });
+      assert.equal(state[balanceField], initial[balanceField] - entry.price[currency]);
+      state = act(state, 'EQUIP_ITEM', { slotIndex: state.inventory.findIndex(item => item.itemId === entry.item.id) });
+      state = hydrateState(JSON.parse(JSON.stringify(state)));
+      assert.ok(state.equipmentIds.includes(entry.item.id));
+      assert.ok(equippedClothingVisuals(state.equipmentIds).includes(entry.item.id));
+    }
+  }
+  const initial = { ...createInitialState(), gold: 100000, premiumGold: 100000 };
+  for (const entry of SHOP_CLOTHING.filter(e => !e.item.id.startsWith('mil_'))) {
+    for (const currency of ['gold', 'premium']) {
+      const rejected = act(initial, 'BUY_SHOP_ITEM', { category: 'clothing', itemId: entry.item.id, currency });
+      assert.equal(rejected.gold, initial.gold); assert.equal(rejected.premiumGold, initial.premiumGold);
+    }
   }
 });
 
@@ -122,17 +139,17 @@ test('animated suit is bought with either currency and hides clothing only visua
     let state = act(initial, 'BUY_SHOP_ITEM', { category: 'suit', itemId: suit.item.id, currency });
     assert.equal(state[balance], initial[balance] - suit.price[currency]);
     assert.equal(act(state, 'BUY_SHOP_ITEM', { category: 'suit', itemId: suit.item.id, currency })[balance], state[balance]);
-    state = act(state, 'BUY_SHOP_ITEM', { category: 'clothing', itemId: 'shop_jacket', currency: 'gold' });
-    state = act(state, 'EQUIP_ITEM', { slotIndex: state.inventory.findIndex(s => s.itemId === 'shop_jacket') });
+    state = act(state, 'BUY_SHOP_ITEM', { category: 'clothing', itemId: 'mil_scout_body', currency: 'gold' });
+    state = act(state, 'EQUIP_ITEM', { slotIndex: state.inventory.findIndex(s => s.itemId === 'mil_scout_body') });
     state = act(state, 'EQUIP_ITEM', { slotIndex: state.inventory.findIndex(s => s.itemId === suit.item.id) });
-    assert.ok(state.equipmentIds.includes('shop_jacket'));
+    assert.ok(state.equipmentIds.includes('mil_scout_body'));
     assert.ok(hasEquippedSuit(state.equipmentIds));
     assert.deepEqual(equippedClothingVisuals(state.equipmentIds), ['suit_fire', 'suit_fire_lines']);
     state = hydrateState(JSON.parse(JSON.stringify(state)));
     assert.ok(state.equipmentIds.includes('suit_fire'));
     state = act(state, 'EQUIP_ITEM', { slotIndex: state.inventory.findIndex(s => s.itemId === suit.item.id) });
     assert.ok(!hasEquippedSuit(state.equipmentIds));
-    assert.deepEqual(equippedClothingVisuals(state.equipmentIds), ['shop_jacket']);
+    assert.deepEqual(equippedClothingVisuals(state.equipmentIds), ['mil_scout_body']);
   }
   const html = renderToStaticMarkup(React.createElement(ClothingLayers, { equipmentIds: ['shop_cap', 'suit_fire'], className: 'layer' }));
   assert.match(html, /suit_fire.png/); assert.match(html, /suit_fire_lines.webp/);

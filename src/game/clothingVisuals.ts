@@ -8,6 +8,6 @@ export const hasEquippedSuit = (ids: readonly string[]): boolean => ids.includes
 export const equippedClothingVisuals = (ids: readonly string[]): string[] =>
   hasEquippedSuit(ids) ? ['suit_fire', 'suit_fire_lines'] : SHOP_CLOTHING.filter(entry => entry.item.id !== 'shop_cap' && ids.includes(entry.item.id))
     .sort((a, b) => layerOrder[a.slot] - layerOrder[b.slot]).map(entry => entry.item.id);
-export const clothingVisualPath = (id: string): string => `/characters/clothing/${id}.${id === 'suit_fire' ? 'png' : id === 'suit_fire_lines' ? 'webp' : 'svg'}`;
+export const clothingVisualPath = (id: string): string => `/characters/clothing/${id}.${id === 'suit_fire' || id.startsWith('mil_') ? 'png' : id === 'suit_fire_lines' ? 'webp' : 'svg'}`;
 export const clothingEffect = (id: string): ClothingEffect | undefined => SHOP_CLOTHING.find(entry => entry.item.id === id)?.effect;
 export const EFFECT_COLORS: Record<ClothingEffect, string> = { fire: '#ff6423', electric: '#4cdfff', toxic: '#a1ff42', cosmic: '#d88fff' };

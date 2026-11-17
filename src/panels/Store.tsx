@@ -2,7 +2,7 @@ import { WeaponImage } from '../components/WeaponImage';
 import { ResourceIcon, ResourceText } from '../components/ResourceIcon';
 import { useEffect, useState } from 'react';
 import { useGame } from '../game/GameContext';
-import { SHOP_CLOTHING, SHOP_SUITS, SHOP_WEAPONS } from '../game/shopCatalog';
+import { SHOP_SUITS, SHOP_WEAPONS, shopClothingEntries } from '../game/shopCatalog';
 import styles from '../style/Store.module.scss';
 
 type Tab = 'weapon' | 'clothing' | 'suit';
@@ -23,7 +23,7 @@ export const StoreModal = ({ onClose }: { onClose: () => void }) => {
   const items = tab === 'weapon'
     ? SHOP_WEAPONS.map((entry) => ({ id: entry.weapon.id, name: entry.weapon.name, image: entry.image, price: entry.price, currencies: ['gold', 'premium'] as readonly ('gold' | 'premium')[], effect: undefined, slotLabel: undefined, description: `Урон +${entry.weapon.baseDamage} · ${entry.weapon.ammoType === 'none' ? 'ближний бой' : 'огнестрельное'} · прочность ${entry.weapon.maxDurability}`, owned: state.weapon.id === entry.weapon.id || state.storedWeapons.some((w) => w.id === entry.weapon.id), equipped: state.weapon.id === entry.weapon.id }))
     : tab === 'suit' ? SHOP_SUITS.map((entry) => ({ id: entry.item.id, name: entry.item.name, image: entry.image, price: entry.price, currencies: entry.currencies, effect: entry.effect, slotLabel: 'КОСТЮМ', description: 'Цельный костюм с мерцанием углей. Внешний вид: без бонусов к характеристикам.', owned: state.inventory.some(s => s.itemId === entry.item.id) || state.equipmentIds.includes(entry.item.id), equipped: state.equipmentIds.includes(entry.item.id) }))
-    : [...SHOP_CLOTHING].sort((a, b) => Object.keys(slotLabels).indexOf(a.slot) - Object.keys(slotLabels).indexOf(b.slot)).map((entry) => ({ id: entry.item.id, name: entry.item.name, image: entry.image, price: entry.price, currencies: entry.currencies, effect: entry.effect, slotLabel: slotLabels[entry.slot], description: `Выносливость +${entry.item.staminaBonus} · урон +${entry.item.damageBonus} · удача +${entry.item.luckBonus}`, owned: state.inventory.some((s) => s.itemId === entry.item.id) || state.equipmentIds.includes(entry.item.id), equipped: state.equipmentIds.includes(entry.item.id) }));
+    : [...shopClothingEntries()].sort((a, b) => Object.keys(slotLabels).indexOf(a.slot) - Object.keys(slotLabels).indexOf(b.slot)).map((entry) => ({ id: entry.item.id, name: entry.item.name, image: entry.image, price: entry.price, currencies: entry.currencies, effect: entry.effect, slotLabel: slotLabels[entry.slot], description: `Выносливость +${entry.item.staminaBonus} · урон +${entry.item.damageBonus} · удача +${entry.item.luckBonus}`, owned: state.inventory.some((s) => s.itemId === entry.item.id) || state.equipmentIds.includes(entry.item.id), equipped: state.equipmentIds.includes(entry.item.id) }));
   const equip = (id: string) => {
     if (tab === 'weapon') dispatch({ type: 'EQUIP_SHOP_WEAPON', weaponId: id });
     else {

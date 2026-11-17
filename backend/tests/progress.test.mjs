@@ -233,18 +233,22 @@ test('server combat applies fist, luck and block skill effects', () => {
   } finally { Math.random = random; }
 });
 
-test('server purchases and equips the cap without duplicating or replacing balance', () => {
-  let state = { ...createInitialState(), gold: 1000 };
+test('server purchases military parts, equips them and rejects legacy clothing', () => {
+  let state = { ...createInitialState(), gold: 5000 };
   const buy = (itemId) => parseProgressAction({ type: 'BUY_SHOP_ITEM', category: 'clothing', currency: 'gold', itemId });
   const equip = (slotIndex) => parseProgressAction({ type: 'EQUIP_ITEM', slotIndex });
-  state = applyCombatAction(state, buy('shop_helmet'), Date.now());
+  const legacy = applyCombatAction(state, buy('shop_helmet'), Date.now());
+  assert.equal(legacy.gold, 5000); assert.equal(legacy.inventory.length, 0);
+  state = applyCombatAction(state, buy('mil_scout_body'), Date.now());
+  assert.equal(state.gold, 3800);
   state = applyCombatAction(state, equip(0), Date.now());
-  state = applyCombatAction(state, buy('shop_cap'), Date.now());
-  assert.equal(state.gold, 170);
-  assert.deepEqual(state.equipmentIds, ['shop_cap']);
+  assert.deepEqual(state.equipmentIds, ['mil_scout_body']);
+  state = applyCombatAction(state, buy('mil_assault_body'), Date.now());
+  state = applyCombatAction(state, equip(1), Date.now());
+  assert.deepEqual(state.equipmentIds, ['mil_assault_body']);
   assert.equal(state.inventory[0].equipped, false);
   assert.equal(state.inventory[1].equipped, true);
-  assert.equal(applyCombatAction(state, buy('shop_cap'), Date.now()).gold, 170);
+  assert.equal(applyCombatAction(state, buy('mil_scout_body'), Date.now()).gold, 1400);
 });
 
 test('server arena validates commands and grants a win only once', () => {
@@ -385,18 +389,20 @@ test('server validates boss key purchase and enforces price, ownership and consu
   assert.equal(state.battle, null); assert.equal(state.bossKeys['1'], 0);
 });
 
-test('server enforces premium-only animated clothing purchases and equips them after reload', () => {
+test('server rejects legacy animated clothing and sells military parts for premium at server price', () => {
   let state = { ...baseInitialState(), gold: 10000, premiumGold: 200 };
-  const parse = (currency) => parseProgressAction({ type: 'BUY_SHOP_ITEM', category: 'clothing', itemId: 'head_inferno', currency });
-  const wrong = gameReducer(state, parse('gold'));
-  assert.equal(wrong.gold, 10000); assert.equal(wrong.inventory.length, state.inventory.length);
+  for (const currency of ['gold', 'premium']) {
+    const rejected = gameReducer(state, parseProgressAction({ type: 'BUY_SHOP_ITEM', category: 'clothing', itemId: 'head_inferno', currency }));
+    assert.equal(rejected.premiumGold, 200); assert.equal(rejected.inventory.length, state.inventory.length);
+  }
+  const parse = (currency) => parseProgressAction({ type: 'BUY_SHOP_ITEM', category: 'clothing', itemId: 'mil_assault_head', currency });
   state = gameReducer(state, parse('premium'));
-  assert.equal(state.premiumGold, 80); assert.equal(state.inventory.at(-1).itemId, 'head_inferno');
+  assert.equal(state.premiumGold, 70); assert.equal(state.inventory.at(-1).itemId, 'mil_assault_head');
   const equip = parseProgressAction({ type: 'EQUIP_ITEM', slotIndex: state.inventory.length - 1 });
   state = gameReducer(JSON.parse(JSON.stringify(state)), equip);
-  assert.ok(state.equipmentIds.includes('head_inferno'));
-  assert.equal(gameReducer(state, parse('premium')).premiumGold, 80);
-  assert.equal(parseProgressAction({ type: 'BUY_SHOP_ITEM', category: 'clothing', itemId: 'head_inferno', currency: 'premium', price: 0 }), null);
+  assert.ok(state.equipmentIds.includes('mil_assault_head'));
+  assert.equal(gameReducer(state, parse('premium')).premiumGold, 70);
+  assert.equal(parseProgressAction({ type: 'BUY_SHOP_ITEM', category: 'clothing', itemId: 'mil_assault_head', currency: 'premium', price: 0 }), null);
 });
 
 test('server handles public weapon purchases using server-side prices and supports equipping', () => {

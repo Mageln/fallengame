@@ -402,21 +402,22 @@ test('shop purchases charge chosen currency once, preserve weapons on swap and m
   assert.equal(act(state, 'BUY_SHOP_ITEM', { category: 'weapon', itemId: 'shop_rifle', currency: 'other' }), state);
 });
 
-test('clothes are purchasable with premium, equip bonuses and replace same slot', async () => {
+test('military clothes are purchasable with premium, equip bonuses and replace same slot', async () => {
   const { totalStamina } = await vite.ssrLoadModule('/src/game/formulas.ts');
-  let state = { ...createInitialState(), gold: 1000, premiumGold: 100 };
-  state = act(state, 'BUY_SHOP_ITEM', { category: 'clothing', itemId: 'shop_cap', currency: 'premium' });
-  assert.equal(state.premiumGold, 85);
-  assert.deepEqual(state.equipmentIds, ['shop_cap']);
+  let state = { ...createInitialState(), gold: 5000, premiumGold: 100 };
+  state = act(state, 'BUY_SHOP_ITEM', { category: 'clothing', itemId: 'mil_scout_head', currency: 'premium' });
+  assert.equal(state.premiumGold, 30);
+  state = act(state, 'EQUIP_ITEM', { slotIndex: 0 });
+  assert.deepEqual(state.equipmentIds, ['mil_scout_head']);
   assert.equal(state.inventory[0].equipped, true);
   assert.equal(totalStamina(state), totalStamina(createInitialState()) + 8);
-  state = act(state, 'BUY_SHOP_ITEM', { category: 'clothing', itemId: 'shop_helmet', currency: 'gold' });
+  state = act(state, 'BUY_SHOP_ITEM', { category: 'clothing', itemId: 'mil_assault_head', currency: 'gold' });
   state = act(state, 'EQUIP_ITEM', { slotIndex: 1 });
-  assert.deepEqual(state.equipmentIds, ['shop_helmet']);
+  assert.deepEqual(state.equipmentIds, ['mil_assault_head']);
   assert.equal(state.inventory[0].equipped, false);
-  assert.equal(totalStamina(state), totalStamina(createInitialState()) + 20);
+  assert.equal(totalStamina(state), totalStamina(createInitialState()) + 14);
   const full = { ...state, inventory: Array.from({ length: 20 }, () => ({ itemId: 'scrap_metal', equipped: false })) };
-  assert.equal(act(full, 'BUY_SHOP_ITEM', { category: 'clothing', itemId: 'shop_jacket', currency: 'gold' }).gold, full.gold);
+  assert.equal(act(full, 'BUY_SHOP_ITEM', { category: 'clothing', itemId: 'mil_scout_body', currency: 'gold' }).gold, full.gold);
 });
 
 test('shop weapons improve boss arena damage', () => {
@@ -611,25 +612,26 @@ test('boss damage history keeps recent entries within a bounded log', () => {
   assert.match(defeated.battle.log.at(-1), /повержен/);
 });
 
-test('buying the cap equips it, replaces other headgear, and survives loading', () => {
-  let state = { ...createInitialState(), gold: 1000 };
-  const denied = act({ ...state, gold: 0 }, 'BUY_SHOP_ITEM', { category: 'clothing', itemId: 'shop_cap', currency: 'gold' });
-  assert.ok(!denied.equipmentIds.includes('shop_cap'));
-  state = act(state, 'BUY_SHOP_ITEM', { category: 'clothing', itemId: 'shop_helmet', currency: 'gold' });
+test('military headgear replaces same slot, survives loading and blocks duplicates', () => {
+  let state = { ...createInitialState(), gold: 5000 };
+  const denied = act({ ...state, gold: 0 }, 'BUY_SHOP_ITEM', { category: 'clothing', itemId: 'mil_scout_head', currency: 'gold' });
+  assert.ok(!denied.equipmentIds.includes('mil_scout_head'));
+  state = act(state, 'BUY_SHOP_ITEM', { category: 'clothing', itemId: 'mil_scout_head', currency: 'gold' });
   state = act(state, 'EQUIP_ITEM', { slotIndex: 0 });
-  assert.ok(state.equipmentIds.includes('shop_helmet'));
-  state = act(state, 'BUY_SHOP_ITEM', { category: 'clothing', itemId: 'shop_cap', currency: 'gold' });
-  assert.equal(state.gold, 170);
-  assert.deepEqual(state.equipmentIds, ['shop_cap']);
+  assert.ok(state.equipmentIds.includes('mil_scout_head'));
+  state = act(state, 'BUY_SHOP_ITEM', { category: 'clothing', itemId: 'mil_assault_head', currency: 'gold' });
+  assert.equal(state.gold, 5000 - 900 - 1800);
+  state = act(state, 'EQUIP_ITEM', { slotIndex: 1 });
+  assert.deepEqual(state.equipmentIds, ['mil_assault_head']);
   assert.equal(state.inventory[0].equipped, false);
   assert.equal(state.inventory[1].equipped, true);
   state = hydrateState(JSON.parse(JSON.stringify(state)));
-  assert.ok(state.equipmentIds.includes('shop_cap'));
+  assert.ok(state.equipmentIds.includes('mil_assault_head'));
   state = act(state, 'UNEQUIP_ITEM', { slotIndex: 1 });
-  assert.ok(!state.equipmentIds.includes('shop_cap'));
+  assert.ok(!state.equipmentIds.includes('mil_assault_head'));
   state = act(state, 'EQUIP_ITEM', { slotIndex: 1 });
-  assert.ok(state.equipmentIds.includes('shop_cap'));
-  const duplicate = act(state, 'BUY_SHOP_ITEM', { category: 'clothing', itemId: 'shop_cap', currency: 'gold' });
+  assert.ok(state.equipmentIds.includes('mil_assault_head'));
+  const duplicate = act(state, 'BUY_SHOP_ITEM', { category: 'clothing', itemId: 'mil_assault_head', currency: 'gold' });
   assert.equal(duplicate.gold, state.gold);
 });
 
