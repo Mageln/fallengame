@@ -1,5 +1,7 @@
+import { ResourceIcon, ResourceText } from '../components/ResourceIcon';
 import { useEffect, useState } from 'react';
 import { useGame } from '../game/GameContext';
+import { BACKEND_URL } from '../config/vkConfig';
 import {
   LOCATIONS,
   SHELTER_ITEMS,
@@ -16,16 +18,7 @@ import styles from '../style/Room.module.scss';
 
 const number = (value: number) => new Intl.NumberFormat('ru-RU').format(value);
 
-// Цвет превью по имени файла фона.
-const swatch = (bg?: string): string => {
-  if (!bg) return '#3a3a3a';
-  if (bg.includes('room1')) return '#6b4a2f';
-  if (bg.includes('room2')) return '#5a7a3a';
-  if (bg.includes('room3')) return '#8a7447';
-  if (bg.includes('room4')) return '#4a5a7a';
-  if (bg.includes('room5')) return '#55554f';
-  return '#3a3a3a';
-};
+type PaymentProduct = { id: string; name: string; currency: 'caps'; amount: number; priceVotes: number; available: false };
 
 const bossForRoom = (roomId: string) => BOSSES.find((b) => b.reward.room === roomId);
 
@@ -37,16 +30,38 @@ interface Props {
 }
 
 export const RoomModal = ({ onClose }: Props) => {
-  const { state, dispatch } = useGame();
+  const { state, dispatch, serverMode } = useGame();
   const [tab, setTab] = useState<Tab>('rooms');
   const [currentIndex, setCurrentIndex] = useState(() => Math.max(0, LOCATIONS.findIndex((room) => room.id === state.currentLocation)));
   const [showHint, setShowHint] = useState(false);
   const [hintRoomId, setHintRoomId] = useState<string | null>(null);
   const [showTopUp, setShowTopUp] = useState(false);
+  const [products, setProducts] = useState<PaymentProduct[] | null>(null);
+  const [catalogError, setCatalogError] = useState(false);
   const [confirm, setConfirm] = useState<Confirm | null>(null);
   const [previewSkinId, setPreviewSkinId] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [stamp, setStamp] = useState('');
+
+  useEffect(() => {
+    if (!serverMode || !showTopUp) return;
+    const controller = new AbortController();
+    setProducts(null);
+    setCatalogError(false);
+    void fetch(`${BACKEND_URL.replace(/\/$/, '')}/api/shop/products`, { signal: controller.signal })
+      .then(async (response) => {
+        if (!response.ok) throw new Error('Каталог недоступен');
+        const data: unknown = await response.json();
+        if (!Array.isArray(data) || !data.every((item) => item && typeof item.id === 'string' &&
+          typeof item.name === 'string' && item.currency === 'caps' && Number.isSafeInteger(item.amount) &&
+          item.amount > 0 && Number.isSafeInteger(item.priceVotes) && item.priceVotes > 0 && item.available === false)) {
+          throw new Error('Некорректный каталог');
+        }
+        setProducts(data as PaymentProduct[]);
+      })
+      .catch(() => { if (!controller.signal.aborted) setCatalogError(true); });
+    return () => controller.abort();
+  }, [serverMode, showTopUp]);
 
   useEffect(() => {
     if (!toast) return;
@@ -152,21 +167,28 @@ export const RoomModal = ({ onClose }: Props) => {
         </header>
 
         <div className={styles.balanceRow}>
-          <span className={styles.capsPill}>🥤 {number(state.caps)} крышек</span>
-          <button
+          <span className={styles.capsPill}><ResourceIcon name="caps" /> {number(state.caps)} крышек</span>
+          {!serverMode && <button
             type="button"
             className={styles.plainButton}
             title="Тест: +100 крышек"
             onClick={() => dispatch({ type: 'ADD_RESOURCE', resource: 'caps', amount: 100 })}
           >
             +
-          </button>
-          <button type="button" className={styles.plainButton} onClick={() => setShowTopUp(true)}>🥤 Пополнить</button>
+          </button>}
+          <button type="button" className={styles.plainButton} onClick={() => setShowTopUp(true)}><ResourceIcon name="caps" /> Пополнить</button>
           <button type="button" className={styles.plainButton} onClick={() => { setHintRoomId(null); setShowHint(true); }}>? Как получить?</button>
         </div>
 
+        <section className={styles.summary} aria-label="Состояние убежища">
+          <strong>ВАШЕ УБЕЖИЩЕ</strong>
+          <span>🏠 Комната: {roomName}</span>
+          <span>🛏️ Кровать: {state.shelterBed ? 'установлена · +50% к максимуму энергии при покупке' : 'не установлена'}</span>
+          <span><ResourceIcon name="energy" /> Генератор: {state.shelterGenerator ? 'работает · восстановление энергии ×2' : 'не установлен'}</span>
+        </section>
+
         <nav className={styles.tabs} role="tablist" aria-label="Разделы убежища">
-          {([['rooms', 'КОМНАТЫ'], ['shop', 'ПОЛКА'], ['skins', 'ОФОРМЛЕНИЕ']] as const).map(([id, label]) => (
+          {([['rooms', 'КОМНАТЫ'], ['shop', 'ОБОРУДОВАНИЕ'], ['skins', 'ОФОРМЛЕНИЕ']] as const).map(([id, label]) => (
             <button key={id} type="button" role="tab" aria-selected={tab === id} className={tab === id ? styles.tabActive : styles.tab} onClick={() => { setTab(id); if (id === 'skins') setPreviewSkinId(null); }}>{label}</button>
           ))}
         </nav>
@@ -201,35 +223,34 @@ export const RoomModal = ({ onClose }: Props) => {
 
           {tab === 'shop' && (
             <section className={styles.shop}>
-              <p className={styles.muted}>Полка торговца · доска заказов · цены в крышках</p>
+              <p className={styles.muted}>Улучшения действуют постоянно после покупки. Ящик и набор можно купить повторно — их содержимое выдаётся сразу. Цены указаны в крышках.</p>
               <div className={styles.shopGrid}>
                 {SHELTER_ITEMS.map((item) => {
                   const owned = item.id === 'bed' ? state.shelterBed : item.id === 'generator' ? state.shelterGenerator : false;
                   const affordable = state.caps >= item.price;
                   return (
-                    <article key={item.id} className={`${styles.shopItem} ${owned ? styles.shopOwned : ''}`} onClick={() => buyItem(item.id)}>
+                    <button type="button" key={item.id} className={`${styles.shopItem} ${owned ? styles.shopOwned : ''}`} onClick={() => buyItem(item.id)}>
                       <span className={styles.shopIcon} aria-hidden="true">{item.icon}</span>
                       <div className={styles.shopInfo}>
                         <h4>{item.name}</h4>
                         <p>{item.description}</p>
                       </div>
-                      <span className={`${styles.price} ${!affordable && !owned ? styles.priceLocked : ''}`}>{owned ? 'КУПЛЕНО' : `🥤 ${item.price}`}</span>
-                    </article>
+                      <span className={`${styles.price} ${!affordable && !owned ? styles.priceLocked : ''}`}>{owned ? 'УСТАНОВЛЕНО' : <><ResourceIcon name="caps" /> {item.price}</>}</span>
+                    </button>
                   );
                 })}
               </div>
+              {state.lastMessage && <p className={styles.status} role="status">Последнее действие: <ResourceText text={state.lastMessage} /></p>}
             </section>
           )}
 
           {tab === 'skins' && (
             <section className={styles.skins}>
-              <p className={styles.muted}>Оформление комнаты «{roomName}»</p>
+              <p className={styles.muted}>Оформление комнаты «{roomName}» меняет фон главного экрана и не влияет на характеристики. Выберите вариант, чтобы посмотреть его до покупки.</p>
 
               {previewSkin && (
                 <div className={styles.skinPreview}>
-                  <div className={styles.skinSwatch} style={{ background: swatch(previewSkin.bg) }}>
-                    <span>{previewSkin.name}</span>
-                  </div>
+                  <img className={styles.skinSwatch} src={`/${previewSkin.bg}`} alt={`Предпросмотр: ${previewSkin.name}`} />
                   <div className={styles.skinPreviewInfo}>
                     <h4>{previewSkin.name}</h4>
                     <p>{previewSkin.description}</p>
@@ -239,7 +260,7 @@ export const RoomModal = ({ onClose }: Props) => {
                       ) : (previewSkin.price === 0 || state.ownedSkins.includes(previewSkin.id)) ? (
                         <button type="button" className={styles.accept} onClick={() => applySkin(previewSkin.id)}>ПРИМЕНИТЬ</button>
                       ) : (
-                        <button type="button" className={styles.redButton} onClick={() => buySkin(previewSkin.id)}>КУПИТЬ 🥤 {previewSkin.price}</button>
+                        <button type="button" className={styles.redButton} onClick={() => buySkin(previewSkin.id)}>КУПИТЬ <ResourceIcon name="caps" /> {previewSkin.price}</button>
                       )}
                     </div>
                   </div>
@@ -258,9 +279,9 @@ export const RoomModal = ({ onClose }: Props) => {
                       className={`${styles.skinCard} ${isPreview ? styles.skinActive : ''} ${applied ? styles.skinApplied : ''}`}
                       onClick={() => setPreviewSkinId(skin.id)}
                     >
-                      <span className={styles.miniSwatch} style={{ background: swatch(skin.bg) }} aria-hidden="true" />
+                      <img className={styles.miniSwatch} src={`/${skin.bg}`} alt="" />
                       <span className={styles.skinName}>{skin.name}</span>
-                      <span className={styles.skinStatus}>{applied ? 'Применено' : owned ? 'Куплено' : `🥤 ${skin.price}`}</span>
+                      <span className={styles.skinStatus}>{applied ? 'Применено' : owned ? 'Куплено' : <><ResourceIcon name="caps" /> {skin.price}</>}</span>
                     </button>
                   );
                 })}
@@ -268,7 +289,7 @@ export const RoomModal = ({ onClose }: Props) => {
             </section>
           )}
 
-          {toast && <p className={styles.status} role="status">{toast}</p>}
+          {toast && <p className={styles.status} role="status"><ResourceText text={toast} /></p>}
         </div>
       </section>
 
@@ -279,7 +300,7 @@ export const RoomModal = ({ onClose }: Props) => {
             <p className={styles.paperEyebrow}>ЗАПИСКА № 002 · ТОЛЬКО ДЛЯ СВОИХ</p>
             <h3>📌 Как открыть убежище</h3>
             <ol className={styles.steps}>
-              {steps.map((step) => <li key={step}>{step}</li>)}
+              {steps.map((step) => <li key={step}><ResourceText text={step} /></li>)}
             </ol>
             <p className={styles.warning}>⚠️ За стеной бродят они… не задерживайся.</p>
             <div className={styles.actions}><button type="button" className={styles.redButton} onClick={() => setShowHint(false)}>ПОНЯТНО</button></div>
@@ -293,6 +314,14 @@ export const RoomModal = ({ onClose }: Props) => {
             <span className={styles.tape} aria-hidden="true" />
             <p className={styles.paperEyebrow}>ЯЩИК С ПРИПАСАМИ · ДОНАТ</p>
             <h3>📦 Пополнить крышки</h3>
+            {serverMode ? <>
+              <p role="status">Покупка пока недоступна: платежи VK ещё не подключены. Списания не будет.</p>
+              {catalogError ? <p>Не удалось загрузить каталог.</p> : products === null ? <p>Загрузка каталога…</p> :
+                <div className={styles.packList}>{products.map((product) => <div className={styles.packCard} key={product.id}>
+                  <span>{product.name}</span><strong><ResourceIcon name="caps" /> {number(product.amount)}</strong>
+                  <span className={styles.packPrice}>{number(product.priceVotes)} голосов VK · недоступно</span>
+                </div>)}</div>}
+            </> : <>
             <p>Крышки добываются за реальные деньги / редкие награды.</p>
             <div className={styles.packList}>
               {CAPS_PACKS.map((pack) => (
@@ -308,12 +337,12 @@ export const RoomModal = ({ onClose }: Props) => {
                   }}
                 >
                   <span>Пакет «{pack.id}»</span>
-                  <strong>🥤 {number(pack.caps + pack.bonus)}</strong>
+                  <strong><ResourceIcon name="caps" /> {number(pack.caps + pack.bonus)}</strong>
                   <span className={styles.packPrice}>₽ {pack.price} · тест</span>
                 </button>
               ))}
             </div>
-            <p className={styles.muted}>Тестовый режим: пакеты начисляются бесплатно. Оплата через провайдера и подтверждение сервером — позже.</p>
+            <p className={styles.muted}>Тестовый режим: пакеты начисляются бесплатно. Оплата через провайдера и подтверждение сервером — позже.</p></>}
             <div className={styles.actions}><button type="button" className={styles.plainButton} onClick={() => setShowTopUp(false)}>ЗАКРЫТЬ</button></div>
           </section>
         </div>
@@ -326,10 +355,10 @@ export const RoomModal = ({ onClose }: Props) => {
             <p className={styles.paperEyebrow}>ЗАПИСКА ТОРГОВЦА · СДЕЛКА</p>
             <h3>Подтвердить покупку</h3>
             <div className={styles.confirmLine}>
-              <span className={styles.confirmIcon} aria-hidden="true">{confirmInfo.icon}</span>
+              <span className={styles.confirmIcon} aria-hidden="true">{confirmInfo.icon === '🥤' ? <ResourceIcon name="caps" /> : confirmInfo.icon}</span>
               <div><strong>{confirmInfo.name}</strong><p>{confirmInfo.description}</p></div>
             </div>
-            <p className={styles.paperPrice}>К оплате: 🥤 {confirmInfo.price} · у вас {number(state.caps)}</p>
+            <p className={styles.paperPrice}>К оплате: <ResourceIcon name="caps" /> {confirmInfo.price} · у вас {number(state.caps)}</p>
             <div className={styles.actions}>
               <button type="button" className={styles.redButton} onClick={confirmBuy}>КУПИТЬ</button>
               <button type="button" className={styles.plainButton} onClick={() => setConfirm(null)}>ОТМЕНА</button>
@@ -338,7 +367,7 @@ export const RoomModal = ({ onClose }: Props) => {
         </div>
       )}
 
-      {stamp && <div className={styles.stamp} role="status">{stamp}</div>}
+      {stamp && <div className={styles.stamp} role="status"><ResourceText text={stamp} /></div>}
     </div>
   );
 };

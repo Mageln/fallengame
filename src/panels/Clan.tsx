@@ -1,3 +1,4 @@
+import { ResourceIcon, ResourceText } from '../components/ResourceIcon';
 import { useEffect, useMemo, useState } from 'react';
 import { useGame } from '../game/GameContext';
 import { CLAN_CREATE_GOLD, CLAN_MAX_MEMBERS, CLAN_WAR_CONTRIB_COST, CLAN_WAR_FULL_CONTRIB, CLAN_WAR_MIN_CONTRIB } from '../game/constants';
@@ -54,7 +55,7 @@ export const ClanModal = ({ onClose }: Props) => {
   const create = () => {
     const error = validateClanName(name, state.clanDirectory);
     if (error || state.gold < CLAN_CREATE_GOLD || clan) {
-      setFormError(error ?? (clan ? 'Вы уже в убежище.' : `Нужно 🪙 ${number(CLAN_CREATE_GOLD)} припасов.`));
+      setFormError(error ?? (clan ? 'Вы уже в убежище.' : `Нужно ${number(CLAN_CREATE_GOLD)} припасов.`));
       return;
     }
     dispatch({ type: 'CREATE_CLAN', name, emblem });
@@ -161,13 +162,13 @@ export const ClanModal = ({ onClose }: Props) => {
                   <h3>В одиночку долго не выжить</h3>
                   <p>Соберите своё убежище или найдите группировку на доске выживших.</p>
                   <button type="button" className={styles.redButton} onClick={() => setShowCreate(true)}>☠ СОЗДАТЬ УБЕЖИЩЕ</button>
-                  <span className={styles.price}>🪙 {number(CLAN_CREATE_GOLD)} припасов · у вас {number(state.gold)}</span>
+                  <span className={styles.price}><ResourceIcon name="supplies" /> {number(CLAN_CREATE_GOLD)} припасов · у вас {number(state.gold)}</span>
                   {state.pendingClanId && <p>📻 Заявка отправлена. <button type="button" className={styles.linkButton} onClick={() => dispatch({ type: 'CANCEL_CLAN_APPLICATION' })}>Отозвать</button></p>}
                 </div>
               ))}
 
               {tab === 'all' && <section className={styles.leaderboard}>
-                <div className={styles.boardHeading}><div><p className={styles.eyebrow}>ОБЪЯВЛЕНИЯ · ЛОКАЛЬНЫЙ РЕЖИМ</p><h3>Доска выживших</h3></div>{!clan && <button type="button" className={styles.redButton} onClick={() => setShowCreate(true)}>☠ СОЗДАТЬ УБЕЖИЩЕ <span>🪙 {number(CLAN_CREATE_GOLD)}</span></button>}</div>
+                <div className={styles.boardHeading}><div><p className={styles.eyebrow}>ОБЪЯВЛЕНИЯ · ЛОКАЛЬНЫЙ РЕЖИМ</p><h3>Доска выживших</h3></div>{!clan && <button type="button" className={styles.redButton} onClick={() => setShowCreate(true)}>☠ СОЗДАТЬ УБЕЖИЩЕ <span><ResourceIcon name="supplies" /> {number(CLAN_CREATE_GOLD)}</span></button>}</div>
                 <label className={styles.searchLabel} htmlFor="clan-search">Найти убежище…</label>
                 <input id="clan-search" type="search" value={query} onChange={(event) => { setQuery(event.target.value); setPage(0); }} placeholder="Название группировки" className={styles.search} />
                 {filtered.length === 0 ? <div className={styles.emptyState}><span className={styles.silhouette} aria-hidden="true">🧟</span><h3>Пока никого… город мёртв</h3><p>{query ? 'По вашему запросу нет сигналов.' : 'Станьте первым, кто соберёт убежище.'}</p></div> : <>
@@ -197,7 +198,7 @@ export const ClanModal = ({ onClose }: Props) => {
               </section> : <div className={styles.emptyState}><span className={styles.silhouette} aria-hidden="true">📜</span><h3>Контракты ждут группировку</h3><p>Сначала создайте убежище или вступите в существующее.</p><button className={styles.plainButton} type="button" onClick={() => setTab('all')}>К доске выживших →</button></div>)}
             </>
           )}
-          {state.lastMessage && <p className={styles.status} role="status">{state.lastMessage}</p>}
+          {state.lastMessage && <p className={styles.status} role="status"><ResourceText text={state.lastMessage} /></p>}
         </div>
       </section>
 
@@ -208,7 +209,7 @@ export const ClanModal = ({ onClose }: Props) => {
           <label htmlFor="clan-name">Название убежища / группировки</label>
           <input id="clan-name" autoFocus value={name} onChange={(event) => { setName(event.target.value); setFormError(''); }} minLength={3} maxLength={20} placeholder="Например, Последний рубеж" required />
           <fieldset><legend>Эмблема убежища</legend><div className={styles.emblemOptions}>{CLAN_EMBLEMS.map((option) => <label key={option.id} className={emblem === option.id ? styles.emblemSelected : styles.emblemOption}><input type="radio" name="emblem" value={option.id} checked={emblem === option.id} onChange={() => setEmblem(option.id)} /><span aria-hidden="true">{option.icon}</span><small>{option.label}</small></label>)}</div></fieldset>
-          <p className={styles.paperPrice}>Стоимость: 🪙 {number(CLAN_CREATE_GOLD)} припасов · осталось после: {number(Math.max(0, state.gold - CLAN_CREATE_GOLD))}</p>
+          <p className={styles.paperPrice}>Стоимость: <ResourceIcon name="supplies" /> {number(CLAN_CREATE_GOLD)} припасов · осталось после: {number(Math.max(0, state.gold - CLAN_CREATE_GOLD))}</p>
           {formError && <p className={styles.error} role="alert">{formError}</p>}
           <div className={styles.actions}><button type="submit" className={styles.redButton}>ОСНОВАТЬ</button><button type="button" className={styles.plainButton} onClick={() => setShowCreate(false)}>ОТМЕНА</button></div>
         </form>

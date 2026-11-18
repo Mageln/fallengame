@@ -1,3 +1,15 @@
+import { normalizeMapRaids, RAID_REGIONS } from './extraMapRaids';
+import { addBossKey, BOSS_KEY_PRICES, bossRequiresKey, normalizeBossKeys } from './bossKeys';
+import { normalizeCasino, reduceCasino } from './casino';
+import { TUTORIAL_STEPS, TUTORIAL_VERSION, tutorialIsActive, tutorialViewStep } from './tutorial';
+import { reduceArena } from './arena';
+import { reduceRaid } from './raidReducer';
+import { reduceBattle } from './battleReducer';
+import { normalizeBattle, advanceBossClock } from './battleEngine';
+import { reduceInventory } from './inventoryReducer';
+import { msg, recordResources, replaceClan, syncClans, recordClanEvent, spend } from './reducerShared';
+import { LOGIN_REWARDS, loginRewardStatus, normalizeLoginRewards } from './loginRewards';
+import { normalizeProfileSkills, SKILL_DEFS, SKILL_MAX_LEVEL, skillCost } from './profileSkills';
 import { CLAN_CREATE_GOLD,
   CLAN_MAX_MEMBERS,
   CLAN_WAR_MIN_CONTRIB,
@@ -12,38 +24,15 @@ import { CLAN_CREATE_GOLD,
   DISTRICTS,
   LEVEL_GOLD,
   LOCATIONS,
-  RAIDS,
   SHOP,
   SHELTER_ITEMS,
-  getNextLockedRoom,
   getRoomSkin,
-  TUTORIAL,
-  WEAPON_BREAK_CHANCE,
   WEAPON_MAX_LEVEL,
-  INVENTORY_ITEMS,
-  CRAFTING_RECIPES,
   DAILY_QUESTS,
   normalizeWeapon,
+  STARTER_WEAPON,
+  getWeapon,
   DEFAULT_STATS,
-  // Боевая система (Блок 2)
-  TURN_LIMIT,
-  WEAK_POINT_STREAK,
-  WEAK_POINT_TURNS,
-  ENRAGE_THRESHOLD,
-  STUN_CHANCE,
-  POISON_CHANCE,
-  POISON_TURNS,
-  POISON_DAMAGE,
-  BLOCK_COUNTER_MUL,
-  EVADE_COUNTER_MUL,
-  TECHNIQUE_MUL,
-  TECHNIQUE_COOLDOWN,
-  POWER_MUL,
-  POWER_PIERCE,
-  POWER_COOLDOWN,
-  COMBO_HITS,
-  COMBO_HIT_MUL,
-  COMBO_COOLDOWN,
 } from './constants';
 import {
   canEnterDistrict,
@@ -52,139 +41,16 @@ import {
   getDistrict,
   levelUpCost,
   luckUpgradeCost,
-  lootDrop,
   staminaUpgradeCost,
-  totalStamina,
   weaponRepairCost,
   weaponUpgradeCost,
   weaponUpgradeUpgradeCost,
   weekKey,
-  // Боевая система (Блок 2)
-  ammoCostOf,
-  bossBaseDamage,
-  comboMultiplier,
-  computeDamage,
-  counterDamage,
-  durabilityLossOf,
-  guaranteedCrit,
-  maxDurabilityOf,
-  medkitHeal,
-  blockCounterChance,
-  playerEvasion,
-  resolveIncoming,
 } from './formulas';
-import { BOSSES } from './bosses';
-import { BOSS_COUNTER_MS, BOSS_DURATION_MS, BOSS_SKILLS, DAILY_BOSS_ATTACKS, EXTRA_ATTACK_PRICE, RAID_DANGER_TASKS, RAID_TASK_GOLD_PRICE, bossAttackPrice, roomDropChance, todayUtc } from './survival';
-import type { ResourceEvent, ResourceSource } from './survival';
-import { advanceClanContracts, clanRating, normalizeClanName, validateClanName, CLAN_EMBLEMS, CLAN_MEMBER_BONUS } from './clans';
-import { BattleState, ClanState, ClanTaskEvent, ClanWarHistoryEntry, ClanWarState, GameAction, GameNotification, GameState } from './types';
-
-const msg = (state: GameState, lastMessage: string): GameState => ({ ...state, lastMessage });
-
-const recordResources = (state: GameState, source: ResourceSource, changes: Partial<Record<ResourceEvent['resource'], number>>): GameState => ({
-  ...state,
-  resourceEvents: [
-    ...Object.entries(changes).filter(([, amount]) => amount && amount !== 0).map(([resource, amount]) => ({
-      id: crypto.randomUUID(), at: Date.now(), source, resource: resource as ResourceEvent['resource'], amount: amount!,
-    })),
-    ...state.resourceEvents,
-  ].slice(0, 80),
-});
-
-const resetBossAttacks = (state: GameState, now = Date.now()): GameState => {
-  const today = todayUtc(now);
-  if (state.bossAttacks.date === today) return state;
-  return { ...state, bossAttacks: { date: today, entries: {} } };
-};
-
-// Лимиты нападений — свои у каждого босса (см. BossDef.dailyLimit).
-// Старые сохранения с общим счётчиком (used/purchased без entries) мигрируют в 'shared',
-// чтобы не сбросить купленные атаки молча.
-const normalizeBossAttacks = (attacks: GameState['bossAttacks']): GameState['bossAttacks'] => {
-  const raw = attacks as unknown as { date: string; entries?: Record<string, { used?: number; purchased?: number }>; used?: number; purchased?: number };
-  const today = todayUtc();
-  const date = typeof raw?.date === 'string' ? raw.date : today;
-  if (raw && typeof raw.entries === 'object' && raw.entries !== null) {
-    const entries: Record<string, { used: number; purchased: number }> = {};
-    for (const [bossId, entry] of Object.entries(raw.entries)) {
-      entries[bossId] = {
-        used: Math.max(0, Math.floor(entry?.used ?? 0)),
-        purchased: Math.max(0, Math.floor(entry?.purchased ?? 0)),
-      };
-    }
-    return date === today ? { date, entries } : { date: today, entries: {} };
-  }
-  const used = Math.max(0, Math.floor(raw?.used ?? 0));
-  const purchased = Math.max(0, Math.floor(raw?.purchased ?? 0));
-  if (used === 0 && purchased === 0) return { date: today, entries: {} };
-  // Общий лимит раньше равнялся DAILY_BOSS_ATTACKS на всех боссов —
-  // при миграции отдаём остаток каждому известному боссу, но не больше его лимита.
-  const entries: Record<string, { used: number; purchased: number }> = {};
-  if (date === today) {
-    for (const boss of BOSSES) {
-      const free = Math.max(0, Math.min(boss.dailyLimit, DAILY_BOSS_ATTACKS) - used);
-      if (free < boss.dailyLimit || purchased > 0) {
-        entries[boss.id] = { used: boss.dailyLimit - free, purchased };
-      }
-    }
-    if (purchased > 0 || used > 0) entries.shared = { used, purchased };
-  }
-  return { date: today, entries };
-};
-
-const getBossAttackEntry = (state: GameState, bossId: string): { used: number; purchased: number } =>
-  state.bossAttacks.entries[bossId] ?? { used: 0, purchased: 0 };
-
-const setBossAttackEntry = (
-  state: GameState,
-  bossId: string,
-  entry: { used: number; purchased: number }
-): GameState => ({
-  ...state,
-  bossAttacks: {
-    ...state.bossAttacks,
-    entries: { ...state.bossAttacks.entries, [bossId]: entry },
-  },
-});
-
-const replaceClan = (state: GameState, clan: ClanState): GameState => ({
-  ...state,
-  clan: state.clan?.id === clan.id ? clan : state.clan,
-  clanDirectory: state.clanDirectory.some((entry) => entry.id === clan.id)
-    ? state.clanDirectory.map((entry) => entry.id === clan.id ? clan : entry)
-    : [...state.clanDirectory, clan],
-});
-
-const syncClans = (state: GameState, directory: ClanState[]): GameState => {
-  const clans = [...directory];
-  if (state.clan && !clans.some((entry) => entry.id === state.clan?.id)) clans.push(state.clan);
-  const membership = clans.find((entry) => entry.members.some((member) => member.id === state.playerId));
-  return {
-    ...state,
-    clanDirectory: clans,
-    clan: membership ?? null,
-    pendingClanId: membership || !clans.some((entry) => entry.id === state.pendingClanId && entry.applications.some((request) => request.userId === state.playerId))
-      ? null : state.pendingClanId,
-  };
-};
-
-const recordClanEvent = (state: GameState, event: ClanTaskEvent, amount = 1): GameState => {
-  if (!state.clan) return state;
-  const { clan, awarded } = advanceClanContracts(state.clan, event, amount);
-  if (clan === state.clan) return state;
-  const next = replaceClan(state, clan);
-  if (awarded === 0) return next;
-  return {
-    ...next,
-    notifications: [{ id: `clan-${Date.now()}-${event}`, text: `+${awarded} к рейтингу выживаемости`, createdAt: Date.now(), read: false }, ...state.notifications],
-    lastMessage: `Контракт выполнен! +${awarded} к рейтингу выживаемости.`,
-  };
-};
-
-const spend = (state: GameState, energy: number): GameState | null => {
-  if (state.energy < energy) return null;
-  return { ...state, energy: state.energy - energy };
-};
+import { normalizeBossAttacks, resetBossAttacks } from './bossAttacks';
+import { todayLocal } from './survival';
+import { clanRating, normalizeClanName, validateClanName, CLAN_EMBLEMS, CLAN_MEMBER_BONUS } from './clans';
+import { ClanState, ClanWarHistoryEntry, ClanWarState, GameAction, GameState } from './types';
 
 const rollGast = (state: GameState): GameState => {
   const week = weekKey();
@@ -198,7 +64,7 @@ const rollGast = (state: GameState): GameState => {
   };
 };
 
-const applyDailyReset = (state: GameState): GameState => {
+export const applyDailyReset = (state: GameState): GameState => {
   const today = dateKey();
   let next: GameState = state;
   if (state.daily.dateKey !== today) {
@@ -208,12 +74,9 @@ const applyDailyReset = (state: GameState): GameState => {
         dateKey: today,
         lotteryUsed: false,
         goldClaimed: false,
-        quests: DAILY_QUESTS.map((q) => ({
-          questId: q.id,
-          progress: 0,
-          completed: false,
-          claimed: false,
-        })),
+        questDate: state.daily.questDate,
+        questBonusClaimed: state.daily.questBonusClaimed,
+        quests: state.daily.quests,
       },
       // Вчерашняя война клана закрыта — сегодня жеребьёвка новой
       clanWar: null,
@@ -222,6 +85,14 @@ const applyDailyReset = (state: GameState): GameState => {
   }
   next = withTodayWar(next);
   return rollGast(next);
+};
+
+// Контракты обновляются по локальной полуночи, независимо от других суточных таймеров.
+const refreshDailyQuests = (state: GameState): GameState => {
+  const today = todayLocal();
+  if (state.daily.questDate === today) return state;
+  return { ...state, daily: { ...state.daily, questDate: today, questBonusClaimed: false,
+    quests: DAILY_QUESTS.map((q) => ({ questId: q.id, progress: 0, completed: false, claimed: false })) } };
 };
 
 // ── Клановые войны (ежедневные) ───────────────────────────────────────────────
@@ -281,377 +152,22 @@ const computeClanWarGold = (win: boolean, streak: number): number => {
   return CLAN_WAR_GOLD_LOSS;
 };
 
-// ── ПОШАГОВЫЙ БОЕВОЙ ДВИЖОК (Блок 2) ────────────────────────────────────────
-// Раунд = действие игрока → ответ босса → статусы → таймеры.
-// Все броски случайности сосредоточены здесь, формулы — в formulas.ts.
-
-type CooldownKey = 'technique' | 'power' | 'combo' | 'evade';
-
-const freshCooldowns = (): BattleState['cooldowns'] => ({ technique: 0, power: 0, combo: 0, evade: 0 });
-const freshStatuses = (): BattleState['statuses'] => ({
-  poisonTurns: 0,
-  poisonDamage: 0,
-  stunTurns: 0,
-  aimDebuffTurns: 0,
-});
-
-// Бои из старых сохранений не содержат полей пошаговой механики — дозаполняем.
-const normalizeBattle = (battle: BattleState): BattleState => ({
-  ...battle,
-  turn: battle.turn ?? 1,
-  turnLimit: battle.turnLimit ?? TURN_LIMIT[battle.source] ?? 20,
-  comboStreak: battle.comboStreak ?? 0,
-  blocking: battle.blocking ?? false,
-  evading: battle.evading ?? false,
-  cooldowns: { ...freshCooldowns(), ...(battle.cooldowns ?? {}) },
-  statuses: { ...freshStatuses(), ...(battle.statuses ?? {}) },
-  weakPointTurns: battle.weakPointTurns ?? 0,
-  lastHit: battle.lastHit ?? null,
-  damageDealt: battle.damageDealt ?? 0,
-  endsAt: battle.endsAt ?? (battle.startedAt + BOSS_DURATION_MS),
-  lastCounterAt: battle.lastCounterAt ?? battle.startedAt,
-  skillReadyAt: battle.skillReadyAt ?? {},
-  lastSkillId: battle.lastSkillId ?? null,
-});
-
-const startBattle = (
-  state: GameState,
-  bossId: string,
-  bossName: string,
-  bossHp: number,
-  source: BattleState['source'],
-  bossMaxHp = bossHp
-): GameState => {
-  if (state.battle) return { ...state, battleVisible: true, lastMessage: 'Продолжается текущий бой.' };
-  let current = resetBossAttacks(state);
-  if (source === 'boss') {
-    const def = BOSSES.find((b) => b.id === bossId);
-    const dailyLimit = def?.dailyLimit ?? DAILY_BOSS_ATTACKS;
-    const entry = getBossAttackEntry(current, bossId);
-    if (entry.used >= dailyLimit + entry.purchased) {
-      return msg(current, `ЛИМИТ ИСЧЕРПАН: ${bossName}. Докупите атаку за донат или ждите завтра (UTC).`);
-    }
-    current = setBossAttackEntry(current, bossId, { ...entry, used: entry.used + 1 });
-  }
-  if (state.weapon.broken) return msg(current, 'Оружие сломано. Почините его в Мастерской.');
-  if (current.health <= 0) return msg(current, 'Сначала восстановите HP в рейдовых заданиях.');
-  const hp = totalStamina(current);
-  const limit = TURN_LIMIT[source];
-  const now = Date.now();
-  return {
-    ...current,
-    battleVisible: true,
-    showBossModal: false,
-    battle: {
-      bossId,
-      bossName,
-      bossHp,
-      bossMaxHp,
-      playerHp: Math.min(hp, current.health),
-      playerMaxHp: hp,
-      log: [`Бой: ${bossName}. Лимит — ${limit} ходов.`],
-      friends: [],
-      source,
-      shakeTimer: 0,
-      flashTimer: 0,
-      damageNumber: null,
-      turn: 1,
-      turnLimit: limit,
-      comboStreak: 0,
-      blocking: false,
-      evading: false,
-      cooldowns: freshCooldowns(),
-      statuses: freshStatuses(),
-      weakPointTurns: 0,
-      lastHit: null,
-      outcome: 'fighting',
-      startedAt: now,
-      endedAt: null,
-      reward: null,
-      damageDealt: 0,
-      endsAt: now + BOSS_DURATION_MS,
-      lastCounterAt: now,
-      skillReadyAt: {},
-      lastSkillId: null,
-    },
-  };
+// One-time migration: remove the former starter and replace it with knuckles.
+export const migrateStarterWeapon = (state: GameState): GameState => {
+  if (state.rustyPistolRewardVersion === 1) return state;
+  const stored = Array.isArray(state.storedWeapons) ? state.storedWeapons.filter(Boolean) : [];
+  const equippedOld = state.weapon?.id === 'rusty_pistol' || (!state.weapon?.id && state.weapon?.name === 'Ржавый пистолет');
+  const storedOld = stored.some((weapon) => weapon.id === 'rusty_pistol');
+  const knuckles = stored.find((weapon) => weapon.id === 'shop_knuckles');
+  const remaining = stored.filter((weapon) => weapon.id !== 'rusty_pistol' && (!equippedOld || weapon.id !== 'shop_knuckles'));
+  if (!equippedOld && storedOld && state.weapon?.id !== 'shop_knuckles' && !knuckles) remaining.push({ ...STARTER_WEAPON, mods: [] });
+  return { ...state, weapon: equippedOld ? (knuckles ?? { ...STARTER_WEAPON, mods: [] }) : state.weapon,
+    storedWeapons: remaining, rustyPistolRewardVersion: 1 };
 };
-
-// Расход боеприпасов. Если патронов не хватает — стреляем прикладом (DRY_FIRE_MUL).
-const spendAmmo = (state: GameState, hits: number): { state: GameState; dryFire: boolean } => {
-  const cost = ammoCostOf(state.weapon) * hits;
-  if (cost <= 0) return { state, dryFire: false };
-  if (state.bullets >= cost) {
-    return { state: { ...state, bullets: state.bullets - cost }, dryFire: false };
-  }
-  return { state, dryFire: true };
-};
-
-// Износ прочности: при нуле оружие разваливается, при износе <25% есть шанс поломки.
-const wearWeapon = (state: GameState, hits: number): { state: GameState; broke: boolean } => {
-  const w = state.weapon;
-  if (w.broken) return { state, broke: false };
-  const durability = Math.max(0, w.durability - durabilityLossOf(w) * hits);
-  const max = maxDurabilityOf(w);
-  const collapses =
-    durability > 0 && max > 0 && durability / max < 0.25 && Math.random() < WEAPON_BREAK_CHANCE / 3;
-
-  if (durability <= 0 || collapses) {
-    return { state: { ...state, weapon: { ...w, durability: 0, broken: true } }, broke: true };
-  }
-  return { state: { ...state, weapon: { ...w, durability } }, broke: false };
-};
-
-// Засчитывает убийство босса в ежедневные квесты.
-const bumpKillQuests = (state: GameState): GameState => ({
-  ...state,
-  daily: {
-    ...state.daily,
-    quests: state.daily.quests.map((qp) => {
-      if (qp.questId !== 'q1' && qp.questId !== 'q6') return qp;
-      const quest = DAILY_QUESTS.find((q) => q.id === qp.questId);
-      const target = quest?.target ?? 0;
-      const progress = Math.min(target, qp.progress + 1);
-      return { ...qp, progress, completed: progress >= target };
-    }),
-  },
-});
-
-const bossKilled = (state: GameState, battle: BattleState): GameState => {
-  const bullets = 12 + Math.floor(Math.random() * 10);
-  const zhetons = battle.source === 'gast' ? 8 : 2;
-  const gold = battle.source === 'gast' ? 5 : 0;
-  // Для канвасных боссов ('boss') берём награду из реестра BOSSES
-  const bossReward = battle.source === 'boss'
-    ? BOSSES.find((b) => b.id === battle.bossId)?.reward
-    : undefined;
-
-  const candidate = bossReward?.room && !state.unlockedRooms.includes(bossReward.room)
-    ? bossReward.room : getNextLockedRoom(state.unlockedRooms)?.id ?? null;
-  const chance = roomDropChance(battle.damageDealt);
-  const dropped = candidate !== null && Math.random() < chance;
-  const roll = { roomId: candidate, chance, damage: battle.damageDealt, dropped, at: Date.now() };
-
-  return {
-    ...state,
-    lastRoomRoll: roll,
-    pendingRoomDrop: dropped ? roll : state.pendingRoomDrop,
-    health: Math.max(0, Math.min(state.maxHealth, battle.playerHp)),
-    battle: {
-      ...battle,
-      bossHp: 0,
-      outcome: 'won',
-      endedAt: Date.now(),
-      reward: {
-        bullets: bossReward?.bullets ?? bullets,
-        keys: bossReward ? 1 : (battle.source === 'gast' ? 0 : 1),
-        zhetons: battle.source === 'boss' ? 0 : zhetons,
-        gold: bossReward?.gold ?? gold,
-        room: dropped ? candidate : null,
-        roomChance: chance,
-        dropped,
-      },
-      log: [...battle.log, `${battle.bossName} повержен! Забирайте награду.`],
-    },
-    lastMessage: `${battle.bossName} повержен! ${dropped ? 'ВЫПАЛО: найдена комната!' : 'НЕ ВЫПАЛО'} (${Math.round(chance * 100)}%).`,
-  };
-};
-
-const playerDefeated = (state: GameState, battle: BattleState): GameState => ({
-  ...state,
-  health: 0,
-  battle: {
-    ...battle,
-    outcome: 'lost',
-    endedAt: Date.now(),
-    log: [...battle.log, 'Вы выбыли из боя.'],
-  },
-  lastMessage: 'Вы выбыли из боя. Нужны аптечки и выносливость.',
-});
-
-const advanceBossClock = (state: GameState, now: number): GameState => {
-  if (!state.battle || state.battle.source !== 'boss' || state.battle.outcome !== 'fighting') return state;
-  const battle = normalizeBattle(state.battle);
-  const until = Math.min(now, battle.endsAt);
-  const strikes = Math.max(0, Math.floor((until - battle.lastCounterAt) / BOSS_COUNTER_MS));
-  let playerHp = battle.playerHp;
-  if (strikes > 0) {
-    const perStrike = Math.max(2, Math.floor(bossBaseDamage(battle.bossMaxHp) / 2));
-    playerHp = Math.max(0, playerHp - strikes * perStrike + (battle.blocking ? Math.floor(perStrike * 0.6) : 0));
-  }
-  const next = {
-    ...battle,
-    playerHp,
-    blocking: strikes > 0 ? false : battle.blocking,
-    lastCounterAt: battle.lastCounterAt + strikes * BOSS_COUNTER_MS,
-    log: strikes > 0 ? [...battle.log, `${battle.bossName}: ${strikes} ответных ударов в фоне.`].slice(-15) : battle.log,
-  };
-  if (playerHp <= 0) return playerDefeated(state, next);
-  if (now >= battle.endsAt) return {
-    ...state,
-    health: Math.min(state.maxHealth, playerHp),
-    battle: { ...next, outcome: 'lost', endedAt: battle.endsAt, log: [...next.log, 'Время вышло. Босс ушёл в темноту.'] },
-    lastMessage: 'Время боя вышло. Урон боссу сохранён.',
-  };
-  return strikes > 0 ? { ...state, health: Math.min(state.maxHealth, playerHp), battle: next } : state;
-};
-
-interface RoundOptions {
-  log: string[]; // строки лога от действия игрока
-  bossDamage: number;
-  streak: number; // новая серия попаданий
-  blocking?: boolean;
-  evading?: boolean;
-  heal?: number; // лечение за этот ход (аптечка)
-  curePoison?: boolean; // аптечка выводит яд
-  lastHit?: BattleState['lastHit'];
-  setCooldown?: { key: CooldownKey; turns: number };
-  consumeStun?: boolean; // действие тратится на приход в себя после оглушения
-}
-
-// Главный раунд боя: урон по боссу → ответ босса → ответные удары → статусы → таймеры.
-const runRound = (state: GameState, battle: BattleState, opts: RoundOptions): GameState => {
-  const bossHp = Math.max(0, battle.bossHp - opts.bossDamage);
-  const log = [...battle.log, ...opts.log];
-  const statuses = { ...battle.statuses };
-  const cooldowns = { ...battle.cooldowns };
-  if (opts.setCooldown) cooldowns[opts.setCooldown.key] = opts.setCooldown.turns;
-  if (opts.consumeStun) statuses.stunTurns = 0;
-
-  // Слабая точка открывается серией попаданий и живёт несколько ходов
-  const weakPointTurns =
-    opts.streak >= WEAK_POINT_STREAK ? WEAK_POINT_TURNS : Math.max(0, battle.weakPointTurns - 1);
-
-  // 1) Босс добит ударом игрока
-  if (bossHp <= 0) {
-    return bossKilled(state, { ...battle, bossHp: 0, log, damageDealt: battle.damageDealt + battle.bossHp, lastHit: opts.lastHit ?? battle.lastHit });
-  }
-
-  // 2) Ответ босса: уклонение → блок → броня → ярость
-  const enraged = bossHp / battle.bossMaxHp <= ENRAGE_THRESHOLD;
-  const evaded = opts.evading === true || Math.random() < playerEvasion(state);
-  const incoming = resolveIncoming(state, bossBaseDamage(battle.bossMaxHp), {
-    blocking: opts.blocking,
-    evaded,
-    enraged,
-  });
-
-  let playerHp = Math.max(0, battle.playerHp - incoming.damage);
-  if (incoming.evaded) {
-    log.push(`${battle.bossName} мажет — вы ушли от удара`);
-  } else {
-    log.push(
-      `${battle.bossName} бьёт на ${incoming.damage}${opts.blocking ? ' (блок)' : ''}${enraged ? ' [ярость]' : ''}`
-    );
-  }
-
-  // Лечение и снятие яда (аптечка) — применяются до ответных ударов
-  if (opts.heal && opts.heal > 0) {
-    const before = playerHp;
-    playerHp = Math.min(battle.playerMaxHp, playerHp + opts.heal);
-    log.push(`Аптечка: +${playerHp - before} HP`);
-  }
-  if (opts.curePoison && statuses.poisonTurns > 0) {
-    statuses.poisonTurns = 0;
-    statuses.poisonDamage = 0;
-    log.push('Яд выведен');
-  }
-
-  // 3) Ответные удары: из блока и после уклонения
-  let bossHpAfter = bossHp;
-  if (opts.blocking && !incoming.evaded && Math.random() < blockCounterChance(state)) {
-    const counter = counterDamage(state, BLOCK_COUNTER_MUL);
-    bossHpAfter = Math.max(0, bossHpAfter - counter);
-    log.push(`Контратака из блока: ${counter}`);
-  }
-  if (opts.evading && incoming.evaded) {
-    const counter = counterDamage(state, EVADE_COUNTER_MUL);
-    bossHpAfter = Math.max(0, bossHpAfter - counter);
-    log.push(`Ответ после уклонения: ${counter}`);
-  }
-  if (bossHpAfter <= 0) {
-    return bossKilled(state, { ...battle, bossHp: 0, playerHp, log, damageDealt: battle.damageDealt + battle.bossHp, lastHit: opts.lastHit ?? battle.lastHit });
-  }
-
-  // 4) Яд доедает в конце раунда
-  if (statuses.poisonTurns > 0) {
-    playerHp = Math.max(0, playerHp - statuses.poisonDamage);
-    statuses.poisonTurns -= 1;
-    log.push(`Яд: −${statuses.poisonDamage} HP`);
-  }
-
-  // 5) В ярости босс оглушает или травит
-  if (enraged && playerHp > 0) {
-    if (statuses.stunTurns <= 0 && Math.random() < STUN_CHANCE) {
-      statuses.stunTurns = 1;
-      log.push(`${battle.bossName} валит вас с ног — вы оглушены`);
-    } else if (statuses.poisonTurns <= 0 && Math.random() < POISON_CHANCE) {
-      statuses.poisonTurns = POISON_TURNS;
-      statuses.poisonDamage = POISON_DAMAGE;
-      log.push(`${battle.bossName} обдаёт ядовитой волной`);
-    }
-  }
-
-  // 6) Поражение игрока
-  if (playerHp <= 0) return playerDefeated(state, { ...battle, bossHp: bossHpAfter, damageDealt: battle.damageDealt + battle.bossHp - bossHpAfter, playerHp: 0, log });
-
-  // 7) Конец раунда: таймеры вниз, ход вперёд
-  (Object.keys(cooldowns) as CooldownKey[]).forEach((key) => {
-    cooldowns[key] = Math.max(0, cooldowns[key] - 1);
-  });
-  if (statuses.aimDebuffTurns > 0) statuses.aimDebuffTurns -= 1;
-
-  const turn = battle.turn + 1;
-  if (turn > battle.turnLimit) {
-    return {
-      ...state,
-      battle: null,
-      battleVisible: false,
-      health: Math.min(state.maxHealth, playerHp),
-      woundedBosses: battle.source === 'boss'
-        ? { ...state.woundedBosses, [battle.bossId]: bossHpAfter }
-        : state.woundedBosses,
-      lastMessage: `${battle.bossName} уходит в темноту. Лимит ${battle.turnLimit} ходов исчерпан — бой не завершён.`,
-    };
-  }
-
-  return {
-    ...state,
-    health: Math.min(state.maxHealth, playerHp),
-    battle: {
-      ...battle,
-      bossHp: bossHpAfter,
-      damageDealt: battle.damageDealt + battle.bossHp - bossHpAfter,
-      playerHp,
-      log,
-      turn,
-      comboStreak: opts.streak,
-      blocking: false,
-      evading: false,
-      cooldowns,
-      statuses,
-      weakPointTurns,
-      lastHit: opts.lastHit ?? battle.lastHit ?? null,
-      damageNumber: opts.lastHit
-        ? { value: opts.lastHit.damage, x: 0, y: 0, crit: opts.lastHit.crit }
-        : battle.damageNumber,
-    },
-  };
-};
-
-// Оглушение: действие тратится, ход отдаётся боссу.
-const stunnedRound = (state: GameState, battle: BattleState): GameState =>
-  runRound(state, battle, {
-    log: ['Вы оглушены и пропускаете ход'],
-    bossDamage: 0,
-    streak: 0,
-    consumeStun: true,
-    lastHit: null,
-  });
 
 export const hydrateState = (state: GameState): GameState => {
   // Normalize old saves that may lack new fields
-  let normalized: GameState = { ...state };
+  let normalized: GameState = { ...normalizeMapRaids(migrateStarterWeapon(state)), casino: normalizeCasino(state.casino), bossKeys: normalizeBossKeys(state.bossKeys) };
   
   if (!normalized.inventory) {
     normalized = { ...normalized, inventory: [] };
@@ -673,6 +189,17 @@ export const hydrateState = (state: GameState): GameState => {
       },
     };
   }
+  // Сохраняем совпадающие контракты старых сохранений, включая уже забранные награды.
+  const oldQuests = normalized.daily.quests;
+  normalized = { ...normalized, daily: { ...normalized.daily,
+    questDate: normalized.daily.questDate ?? (normalized.daily.dateKey === dateKey() ? todayLocal() : normalized.daily.dateKey),
+    questBonusClaimed: normalized.daily.questBonusClaimed ?? false,
+    quests: DAILY_QUESTS.map((quest) => {
+      const old = oldQuests.find((entry) => entry.questId === quest.id);
+      const progress = Math.min(quest.target, Math.max(0, Number.isFinite(old?.progress) ? old!.progress : 0));
+      return { questId: quest.id, progress, completed: !!old?.claimed || progress >= quest.target, claimed: !!old?.claimed };
+    }),
+  } };
   // Оружие в старых сохранениях содержало только name/level/broken/baseDamage/upgraded.
   // Приводим к полному Weapon: недостающие поля (тип, точность, прочность, моды)
   // заполняются значениями по умолчанию, уже прокачанные — сохраняются.
@@ -789,13 +316,17 @@ export const hydrateState = (state: GameState): GameState => {
   }
   normalized = {
     ...normalized,
+    storedWeapons: Array.isArray(normalized.storedWeapons) ? normalized.storedWeapons.filter((w) => w && typeof w.id === 'string' && w.id !== normalized.weapon.id).map(normalizeWeapon) : [],
+    loginRewards: normalizeLoginRewards(normalized.loginRewards),
+    profileSkills: normalizeProfileSkills(normalized.profileSkills),
+    experience: Number.isFinite(normalized.experience) ? Math.max(0, Math.floor(normalized.experience)) : 0,
     premiumGold: Number.isFinite(normalized.premiumGold) ? Math.max(0, normalized.premiumGold) : 0,
     maxHealth: Number.isFinite(normalized.maxHealth) && normalized.maxHealth > 0 ? normalized.maxHealth : 100,
     health: Number.isFinite(normalized.health) ? Math.max(0, normalized.health) : 100,
     battleVisible: normalized.battle ? (normalized.battleVisible ?? true) : false,
     battle: normalized.battle ? normalizeBattle(normalized.battle) : null,
     bossAttacks: normalizeBossAttacks(
-      normalized.bossAttacks ?? { date: todayUtc(), entries: {} },
+      normalized.bossAttacks ?? { date: todayLocal(), entries: {} },
     ),
     lastRoomRoll: normalized.lastRoomRoll ?? null,
     pendingRoomDrop: normalized.pendingRoomDrop ?? null,
@@ -804,13 +335,26 @@ export const hydrateState = (state: GameState): GameState => {
     resourceEvents: Array.isArray(normalized.resourceEvents) ? normalized.resourceEvents : [],
   };
 
-  return advanceBossClock(resetBossAttacks(applyDailyReset(syncClans(normalized, normalized.clanDirectory))), Date.now());
+  return advanceBossClock(resetBossAttacks(refreshDailyQuests(applyDailyReset(syncClans(normalized, normalized.clanDirectory)))), Date.now());
 };
 
 export const gameReducer = (state: GameState, action: GameAction): GameState => {
+  if (action.type !== 'HYDRATE_STATE') {
+    state = normalizeMapRaids(migrateStarterWeapon(state));
+    // Server snapshots from before the new skills also pass through this path.
+    if (!state.profileSkills || state.profileSkills.weapon === undefined || state.profileSkills.heal === undefined) {
+      state = { ...state, profileSkills: normalizeProfileSkills(state.profileSkills) };
+    }
+    state = refreshDailyQuests(state);
+  }
   // Босс на отдельной арене: старые кнопки пошагового боя не обходят его кулдауны.
   if (state.battle?.source === 'boss' && (action.type.startsWith('BATTLE_') || action.type === 'INVITE_FRIEND')) return state;
   switch (action.type) {
+    case 'CASINO_SAFE':
+    case 'CASINO_SLOTS':
+    case 'CASINO_CARD':
+    case 'CASINO_PRIZE':
+      return reduceCasino(state, action);
     case 'HYDRATE_STATE':
       // Загрузка сохранения конкретного пользователя (после определения его VK ID)
       return hydrateState({
@@ -844,17 +388,30 @@ export const gameReducer = (state: GameState, action: GameAction): GameState => 
     }
     case 'CLEAR_MESSAGE':
       return { ...state, lastMessage: '' };
+    case 'BUY_BOSS_KEY': {
+      if (!bossRequiresKey(action.bossId)) return state;
+      const price = BOSS_KEY_PRICES[action.bossId];
+      if (!Number.isSafeInteger(state.premiumGold) || state.premiumGold < price) return msg(state, `Не хватает премиум-золота: нужно ${price}.`);
+      return { ...state, premiumGold: state.premiumGold - price,
+        bossKeys: addBossKey(state.bossKeys, action.bossId), lastMessage: `Ключ куплен за ${price} премиум-золота.` };
+    }
     case 'SET_APPEARANCE':
       return { ...state, appearance: action.appearance };
-    case 'NEXT_TUTORIAL': {
-      const next = state.tutorialStep + 1;
-      if (next >= TUTORIAL.length) {
-        return { ...state, tutorialStep: -1, lastMessage: 'Обучение завершено. Качайте машину и открывайте районы.' };
-      }
-      return { ...state, tutorialStep: next, lastMessage: TUTORIAL[next] };
+    // Повторно запускать пройденное или пропущенное обучение нельзя.
+    case 'START_TUTORIAL':
+    case 'NEXT_TUTORIAL':
+      return state;
+    case 'TUTORIAL_PRACTICE': {
+      if (!tutorialIsActive(state.tutorialVersion, state.tutorialStep)) return state;
+      const step = tutorialViewStep(state.tutorialVersion, state.tutorialStep);
+      if (TUTORIAL_STEPS[step]?.id !== action.stepId) return state;
+      const next = step + 1;
+      return { ...state, tutorialVersion: TUTORIAL_VERSION, tutorialStep: next < TUTORIAL_STEPS.length ? next : -1,
+        lastMessage: next < TUTORIAL_STEPS.length ? state.lastMessage : 'Тренировка завершена. Добро пожаловать в Эргейт.' };
     }
     case 'SKIP_TUTORIAL':
-      return { ...state, tutorialStep: -1 };
+      return tutorialIsActive(state.tutorialVersion, state.tutorialStep)
+        ? { ...state, tutorialVersion: TUTORIAL_VERSION, tutorialStep: -1 } : state;
     case 'RESTORE_ENERGY_TICK':
       if (state.energy >= state.maxEnergy) return state;
       return { ...state, energy: Math.min(state.maxEnergy, state.energy + 1) };
@@ -865,6 +422,22 @@ export const gameReducer = (state: GameState, action: GameAction): GameState => 
         gold: state.gold + DAILY_GOLD,
         daily: { ...state.daily, goldClaimed: true },
         lastMessage: `Ежедневный вход: +${DAILY_GOLD} золота.`,
+      };
+    }
+    case 'UPGRADE_PROFILE_SKILL': {
+      const skill = SKILL_DEFS.find((item) => item.id === action.skillId);
+      if (!skill) return state;
+      if (state.battle) return msg(state, 'Завершите бой перед улучшением навыков.');
+      const skills = normalizeProfileSkills(state.profileSkills);
+      const level = skills[skill.id];
+      if (level >= SKILL_MAX_LEVEL) return msg(state, 'Навык уже достиг максимального уровня.');
+      const cost = skillCost(level);
+      if (state.bullets < cost) return msg(state, `Нужно ${cost} патронов на навык «${skill.name}».`);
+      return {
+        ...state,
+        bullets: state.bullets - cost,
+        profileSkills: { ...skills, [skill.id]: level + 1 },
+        lastMessage: `Навык «${skill.name}» улучшен до ${level + 1} уровня.`,
       };
     }
     case 'UPGRADE_LEVEL': {
@@ -982,18 +555,10 @@ export const gameReducer = (state: GameState, action: GameAction): GameState => 
       }
       return recordResources(result, 'solo-task', { tokens: 1 });
     }
-    case 'BUY_EQUIPMENT': {
-      if (state.equipmentIds.includes(action.itemId)) return msg(state, 'Уже надето.');
-      const item = SHOP.find((s) => s.id === action.itemId);
-      if (!item) return state;
-      if (state.bullets < item.costBullets) return msg(state, `Нужно ${item.costBullets} патронов.`);
-      return {
-        ...state,
-        bullets: state.bullets - item.costBullets,
-        equipmentIds: [...state.equipmentIds, item.id],
-        lastMessage: `${item.name} надето. Сравнивайте цену/бонус с прокачкой в профиле.`,
-      };
-    }
+    case 'BUY_SHOP_ITEM':
+    case 'EQUIP_SHOP_WEAPON':
+    case 'BUY_EQUIPMENT':
+      return reduceInventory(state, action);
     case 'UPGRADE_WEAPON': {
       if (state.weapon.level >= WEAPON_MAX_LEVEL) return msg(state, 'Заточка уже 10.');
       if (state.weapon.broken) return msg(state, 'Сначала почините оружие.');
@@ -1029,432 +594,43 @@ export const gameReducer = (state: GameState, action: GameAction): GameState => 
         lastMessage: 'Оружие починено, урон снова считается.',
       };
     }
-    case 'START_BOSS': {
-      const district = getDistrict(action.districtId);
-      if (!district) return state;
-      if (!canEnterDistrict(state, district.id)) {
-        return msg(state, 'Район закрыт. Качайте машину.');
-      }
-      return startBattle(state, district.bossId, district.bossName, district.bossHp, 'district');
-    }
-    case 'START_BOSS_FIGHT': {
-      const boss = BOSSES.find((b) => b.id === action.bossId);
-      if (!boss) return state;
-      if (state.battle && state.battle.bossId === action.bossId)
-        return { ...advanceBossClock(state, Date.now()), battleVisible: true };
-      // Босс может остаться раненым после прошлой попытки
-      const wounded = state.woundedBosses[action.bossId];
-      const hp = wounded && wounded > 0 && wounded <= boss.hp ? wounded : boss.hp;
-      return startBattle(state, action.bossId, boss.name, hp, 'boss', boss.hp);
-    }
-    case 'START_GAST': {
-      if (!state.gast.active || !state.gast.districtId) {
-        return msg(state, 'Гаст сейчас не появился. Он ходит 1–2 раза в неделю.');
-      }
-      return startBattle(state, 'gast', 'Гаст', 900, 'gast');
-    }
-    case 'OPEN_BATTLE': {
-      const next = advanceBossClock(state, Date.now());
-      return next.battle ? { ...next, battleVisible: true, showBossModal: false } : msg(next, 'Активного боя нет.');
-    }
+    case 'START_ARENA':
+    case 'ARENA_SKILL':
+    case 'CLOSE_ARENA_BATTLE':
+      return reduceArena(state, action);
+    case 'START_BOSS':
+    case 'START_BOSS_FIGHT':
+    case 'START_GAST':
+    case 'OPEN_BATTLE':
     case 'BOSS_TICK':
-      return advanceBossClock(resetBossAttacks(state, action.now), action.now);
-    case 'BUY_BOSS_ATTACK': {
-      const boss = BOSSES.find((b) => b.id === action.bossId);
-      if (!boss) return state;
-      const current = resetBossAttacks(state);
-      // Тестовый режим: покупаем за крышки. Позже здесь будет платёж через донат.
-      // Цена растёт с силой босса: чем меньше у него бесплатных попыток, тем дороже докупка.
-      const price = bossAttackPrice(boss.dailyLimit);
-      const entry = getBossAttackEntry(current, boss.id);
-      if (entry.used < boss.dailyLimit + entry.purchased) {
-        return msg(current, `Сначала используйте доступные атаки на «${boss.name}».`);
-      }
-      if (current.caps < price) return msg(current, `Не хватает крышек 🥤: нужно ${price}.`);
-      return setBossAttackEntry(
-        {
-          ...current,
-          caps: current.caps - price,
-          lastMessage: `Куплена атака на «${boss.name}» за ${price} 🥤.`,
-        },
-        boss.id,
-        { ...entry, purchased: entry.purchased + 1 },
-      );
+    case 'BUY_BOSS_ATTACK':
+    case 'CLAIM_ROOM':
+    case 'BOSS_SKILL':
+    case 'BATTLE_ATTACK':
+    case 'BATTLE_GRENADES':
+    case 'BATTLE_HEAL':
+    case 'BATTLE_POWER':
+    case 'BATTLE_COMBO':
+    case 'BATTLE_BLOCK':
+    case 'BATTLE_EVADE':
+    case 'INVITE_FRIEND':
+    case 'LEAVE_BATTLE':
+    case 'ABANDON_BOSS':
+      return reduceBattle(state, action);
+    case 'UNLOCK_RAID_REGION': {
+      const region = RAID_REGIONS.find((entry) => entry.id === action.regionId);
+      if (!region) return state;
+      if (state.carLevel < region.carLevel) return msg(state, `Для локации «${region.name}» нужна машина ${region.carLevel} уровня. Сейчас: ${state.carLevel}.`);
+      if (state.unlockedRaidRegions?.includes(region.id)) return state;
+      return { ...state, unlockedRaidRegions: [...(state.unlockedRaidRegions ?? []), region.id], lastMessage: `Локация «${region.name}» открыта!` };
     }
-    case 'CLAIM_ROOM': {
-      const drop = state.pendingRoomDrop;
-      if (!drop?.dropped || !drop.roomId) return state;
-      const room = LOCATIONS.find((entry) => entry.id === drop.roomId);
-      if (!room) return msg(state, 'Комната не найдена.');
-      return { ...state, pendingRoomDrop: null,
-        unlockedRooms: state.unlockedRooms.includes(room.id) ? state.unlockedRooms : [...state.unlockedRooms, room.id],
-        lastMessage: `ВЫПАЛО! Комната «${room.name}» получена.`,
-      };
-    }
-    case 'BOSS_SKILL': {
-      if (!Number.isFinite(action.now)) return state;
-      const current = advanceBossClock(state, action.now);
-      if (!current.battle || current.battle.source !== 'boss' || current.battle.outcome !== 'fighting') return current;
-      const skill = BOSS_SKILLS.find((entry) => entry.id === action.skillId);
-      if (!skill) return current;
-      const battle = current.battle;
-      if ((battle.skillReadyAt[skill.id] ?? 0) > action.now) return msg(current, `${skill.name}: приём ещё не готов.`);
-      if (current.bullets < skill.ammo) return msg(current, `Для «${skill.name}» нужно ${skill.ammo} пули.`);
-      const damage = Math.min(battle.bossHp, Math.max(1, Math.round((8 + current.level / 4) * skill.multiplier)));
-      const updated: BattleState = {
-        ...battle,
-        bossHp: battle.bossHp - damage,
-        damageDealt: battle.damageDealt + damage,
-        comboStreak: battle.comboStreak + 1,
-        turn: battle.turn + 1,
-        blocking: skill.id === 'guard',
-        lastHit: { damage, crit: skill.id === 'critical', missed: false },
-        lastSkillId: skill.id,
-        skillReadyAt: { ...battle.skillReadyAt, [skill.id]: action.now + skill.cooldown * 2_000 },
-        log: [...battle.log, `${skill.icon} ${skill.name}: −${damage} HP`].slice(-15),
-      };
-      const spent = { ...current, bullets: current.bullets - skill.ammo };
-      return updated.bossHp <= 0
-        ? bossKilled(spent, updated)
-        : { ...spent, battle: updated, lastMessage: `${skill.name}: −${damage} HP. Шанс комнаты: ${Math.round(roomDropChance(updated.damageDealt) * 100)}%.` };
-    }
-    case 'BATTLE_ATTACK': {
-      if (!state.battle || state.battle.outcome !== 'fighting') return state;
-      const battle = normalizeBattle(state.battle);
-      if (battle.statuses.stunTurns > 0) return stunnedRound(state, battle);
-
-      // Техника — точный приём с кулдауном. Без неё это обычный удар за 1 патрон.
-      const isTech = action.technique;
-      if (isTech && battle.cooldowns.technique > 0) {
-        return msg({ ...state, battle }, `Приём ещё не готов: ${battle.cooldowns.technique} ход.`);
-      }
-
-      const { state: s1, dryFire } = spendAmmo(state, 1);
-      const { state: s2, broke } = wearWeapon(s1, 1);
-      const hit = computeDamage(s2, {
-        techniqueMul: isTech ? TECHNIQUE_MUL : 1,
-        streakMul: comboMultiplier(battle.comboStreak),
-        weakPoint: battle.weakPointTurns > 0,
-        dryFire,
-        forceCrit: guaranteedCrit(battle.comboStreak),
-      });
-
-      const log = [
-        hit.missed
-          ? `${isTech ? 'Приём' : 'Удар'} — мимо`
-          : `${isTech ? 'Приём' : 'Удар'}: ${hit.damage}${hit.crit ? ' (крит)' : ''}`,
-      ];
-      if (dryFire) log.push('Патроны кончились — бьёте прикладом');
-      if (broke) log.push('Оружие сломалось');
-      if (battle.weakPointTurns > 0 && !hit.missed) log.push('Слабое место!');
-
-      return runRound(s2, battle, {
-        log,
-        bossDamage: hit.damage,
-        streak: hit.missed ? 0 : battle.comboStreak + 1,
-        lastHit: { damage: hit.damage, crit: hit.crit, missed: hit.missed },
-        setCooldown: isTech ? { key: 'technique', turns: TECHNIQUE_COOLDOWN } : undefined,
-      });
-    }
-    case 'BATTLE_GRENADES': {
-      if (!state.battle || state.battle.outcome !== 'fighting') return state;
-      if (!Number.isInteger(action.count) || action.count < 1 || state.grenades < action.count) {
-        return msg(state, 'Не хватает гранат.');
-      }
-      const battle = normalizeBattle(state.battle);
-      if (battle.statuses.stunTurns > 0) return stunnedRound(state, battle);
-      const { state: s1, broke } = wearWeapon({ ...state, grenades: state.grenades - action.count }, action.count);
-      const s2 = spendAmmo(s1, 0).state;
-      const hit = computeDamage(s2, {
-        techniqueMul: 1,
-        streakMul: comboMultiplier(battle.comboStreak),
-        weakPoint: battle.weakPointTurns > 0,
-        forceCrit: guaranteedCrit(battle.comboStreak),
-      });
-      const total = hit.missed ? 0 : action.count * 12;
-      const log = hit.missed
-        ? ['Гранаты — мимо!']
-        : [`Гранаты x${action.count}: ${total} урона`];
-      if (broke) log.push('Оружие не выдержало');
-      return runRound(s2, battle, {
-        log,
-        bossDamage: total,
-        streak: hit.missed ? 0 : battle.comboStreak + 1,
-        lastHit: { damage: total, crit: hit.crit, missed: hit.missed },
-      });
-    }
-    case 'BATTLE_HEAL': {
-      if (!state.battle || state.battle.outcome !== 'fighting') return state;
-      if (state.medkits <= 0) return msg(state, 'Нет аптечек.');
-      const battle = normalizeBattle(state.battle);
-      if (battle.statuses.stunTurns > 0) return stunnedRound(state, battle);
-      return runRound({ ...state, medkits: state.medkits - 1 }, battle, {
-        log: [], // текст лечения добавляет runRound
-        bossDamage: 0,
-        streak: battle.comboStreak,
-        heal: medkitHeal(state),
-        curePoison: battle.statuses.poisonTurns > 0,
-      });
-    }
-    // Мощный удар: x1.6 урона, игнорирует половину брони, долгий кулдаун
-    case 'BATTLE_POWER': {
-      if (!state.battle || state.battle.outcome !== 'fighting') return state;
-      const battle = normalizeBattle(state.battle);
-      if (battle.statuses.stunTurns > 0) return stunnedRound(state, battle);
-      if (battle.cooldowns.power > 0)
-        return msg({ ...state, battle }, `Мощный удар ещё не готов: ${battle.cooldowns.power} ход.`);
-      const { state: s1, dryFire } = spendAmmo(state, 1);
-      const { state: s2, broke } = wearWeapon(s1, 1);
-      const hit = computeDamage(s2, {
-        techniqueMul: POWER_MUL,
-        pierce: POWER_PIERCE,
-        streakMul: comboMultiplier(battle.comboStreak),
-        weakPoint: battle.weakPointTurns > 0,
-        dryFire,
-        forceCrit: guaranteedCrit(battle.comboStreak),
-      });
-      const log = [hit.missed ? 'Мимо — броня сыграла роль' : `Мощный удар: ${hit.damage}${hit.crit ? ' (крит)' : ''}`];
-      if (broke) log.push('Оружие не выдержало — сломалось');
-      return runRound(s2, battle, {
-        log,
-        bossDamage: hit.damage,
-        streak: hit.missed ? 0 : battle.comboStreak + 1,
-        lastHit: { damage: hit.damage, crit: hit.crit, missed: hit.missed },
-        setCooldown: { key: 'power', turns: POWER_COOLDOWN },
-      });
-    }
-    // Серия: три удара по 70%, суммарно больше, но каждый может промахнуться
-    case 'BATTLE_COMBO': {
-      if (!state.battle || state.battle.outcome !== 'fighting') return state;
-      const battle = normalizeBattle(state.battle);
-      if (battle.statuses.stunTurns > 0) return stunnedRound(state, battle);
-      if (battle.cooldowns.combo > 0)
-        return msg({ ...state, battle }, `Серия ещё не готова: ${battle.cooldowns.combo} ход.`);
-      const { state: s1, dryFire } = spendAmmo(state, COMBO_HITS);
-      const { state: s2, broke } = wearWeapon(s1, COMBO_HITS);
-      const hits = Array.from({ length: COMBO_HITS }, () =>
-        computeDamage(s2, {
-          comboMul: COMBO_HIT_MUL,
-          streakMul: comboMultiplier(battle.comboStreak),
-          weakPoint: battle.weakPointTurns > 0,
-          dryFire,
-          forceCrit: guaranteedCrit(battle.comboStreak),
-        })
-      );
-      const landed = hits.filter((h) => !h.missed);
-      const total = landed.reduce((sum, h) => sum + h.damage, 0);
-      const log = [`Серия: ${landed.length}/${COMBO_HITS} попали, ${total} урона`];
-      if (broke) log.push('Оружие развалилось на последней атаке');
-      return runRound(s2, battle, {
-        log,
-        bossDamage: total,
-        streak: landed.length === COMBO_HITS ? battle.comboStreak + COMBO_HITS : landed.length,
-        lastHit: { damage: total, crit: landed.some((h) => h.crit), missed: landed.length === 0 },
-        setCooldown: { key: 'combo', turns: COMBO_COOLDOWN },
-      });
-    }
-    // Блок: входящий урон x0.4, шанс контратаки, серия сохраняется
-    case 'BATTLE_BLOCK': {
-      if (!state.battle || state.battle.outcome !== 'fighting') return state;
-      const battle = normalizeBattle(state.battle);
-      if (battle.statuses.stunTurns > 0) return stunnedRound(state, battle);
-      return runRound(state, battle, {
-        log: ['Вы поднимаете защиту'],
-        bossDamage: 0,
-        streak: battle.comboStreak,
-        blocking: true,
-      });
-    }
-    // Уклонение: следующий удар босса игнорируется + ответный удар
-    case 'BATTLE_EVADE': {
-      if (!state.battle || state.battle.outcome !== 'fighting') return state;
-      const battle = normalizeBattle(state.battle);
-      if (battle.statuses.stunTurns > 0) return stunnedRound(state, battle);
-      if (battle.cooldowns.evade > 0)
-        return msg({ ...state, battle }, `Уклонение ещё не готово: ${battle.cooldowns.evade} ход.`);
-      return runRound(state, battle, {
-        log: ['Вы готовитесь уйти от удара'],
-        bossDamage: 0,
-        streak: battle.comboStreak,
-        evading: true,
-        setCooldown: { key: 'evade', turns: 2 },
-      });
-    }
-    case 'INVITE_FRIEND': {
-      if (!state.battle) return state;
-      if (state.battle.friends.length >= 4) return msg(state, 'Лимит помощи в этом бою.');
-      const name = `Друг ${state.battle.friends.length + 1}`;
-      return {
-        ...state,
-        battle: {
-          ...state.battle,
-          friends: [...state.battle.friends, name],
-          bossHp: Math.max(0, state.battle.bossHp - 40),
-          log: [...state.battle.log, `${name} вошёл в бой (−40 HP)`],
-        },
-        lastMessage: 'Позвать друзей: союзник нанёс урон боссу.',
-      };
-    }
-    case 'LEAVE_BATTLE': {
-      if (!state.battle) return state;
-      const battle = state.battle;
-      if (battle.source === 'boss' && battle.outcome === 'fighting') {
-        return { ...state, battleVisible: false, showBossModal: false, lastMessage: 'Вышли из боя. Таймер и атаки босса продолжаются.' };
-      }
-      if (battle.outcome === 'won') {
-        const r = battle.reward;
-        // Победа: очистка раненого HP (если оно было)
-        const wb = { ...state.woundedBosses };
-        delete wb[battle.bossId];
-        if (r) {
-          const collected = recordResources({
-            ...bumpKillQuests(state),
-            bullets: state.bullets + r.bullets,
-            keys: state.keys + (r.keys ?? 0),
-            zhetons: state.zhetons + r.zhetons,
-            gold: state.gold + r.gold,
-            gast: battle.source === 'gast' ? { ...state.gast, active: false, districtId: null } : state.gast,
-            woundedBosses: wb,
-            battle: null,
-            battleVisible: false,
-            lastMessage: `Награда за босса: +${r.bullets} пуль${r.gold ? `, +${r.gold} припасов` : ''}.${r.dropped ? ' ВЫПАЛО: найдена комната!' : ' НЕ ВЫПАЛО.'}`,
-          }, 'boss', { bullets: r.bullets, supplies: r.gold });
-          return recordClanEvent(collected, 'zombie');
-        }
-      }
-      // Поражение или отступление: сохраняем урон канвасного босса
-      if (battle.source === 'boss' && battle.bossHp > 0) {
-        const wb = { ...state.woundedBosses, [battle.bossId]: battle.bossHp };
-        return {
-          ...state,
-          battle: null,
-          battleVisible: false,
-          woundedBosses: wb,
-          lastMessage: battle.outcome === 'lost'
-            ? 'Вы выбыли из боя.'
-            : `Отступили от ${battle.bossName} (осталось ${battle.bossHp}/${battle.bossMaxHp} HP)`,
-        };
-      }
-      return { ...state, battle: null, battleVisible: false };
-    }
-    case 'START_RAID': {
-      // Рейды с карты районов: запускают таймер и открывают окно рейда
-      const mapRaid = state.mapRaids.find((r) => r.id === action.raidId);
-      if (mapRaid) {
-        // Рейд уже идёт (или ждёт получения награды) — просто открываем его окно,
-        // энергию повторно не списываем и другие рейды не трогаем
-        if (mapRaid.isRunning) {
-          return {
-            ...state,
-            raidTasks: { raidId: mapRaid.id, completedIds: state.raidTaskProgress[mapRaid.id] ?? [], open: false },
-            showRaidModal: true,
-            activeRaidId: mapRaid.id,
-            lastMessage: `${mapRaid.name}: рейд уже идёт.`,
-          };
-        }
-        if (state.energy < mapRaid.energyCost) {
-          return msg(state, `Не хватает энергии: нужно ${mapRaid.energyCost}, у вас ${state.energy}.`);
-        }
-        const raidDuration = mapRaid.type === 'yellow' ? 15 * 60 * 1000 : 30 * 60 * 1000; // 15 или 30 минут
-        const now = Date.now();
-        return {
-          ...state,
-          energy: state.energy - mapRaid.energyCost,
-          raidTasks: { raidId: mapRaid.id, completedIds: [], open: false },
-          raidTaskProgress: { ...state.raidTaskProgress, [mapRaid.id]: [] },
-          showRaidModal: true,
-          activeRaidId: mapRaid.id,
-          mapRaids: state.mapRaids.map((r) =>
-            r.id === action.raidId
-              ? { ...r, isRunning: true, completed: false, notified: false, startTime: now, endTime: now + raidDuration }
-              : r
-          ),
-          lastMessage: `${mapRaid.name}: рейд начат. Можно свернуть окно — время продолжится.`,
-        };
-      }
-
-      // Рейды из панели «Рейды»: пошаговый проход со сбором ящиков
-      const raid = RAIDS.find((r) => r.id === action.raidId);
-      if (!raid) return state;
-      const next = spend(state, raid.energy);
-      if (!next) return msg(state, `Рейд стоит ${raid.energy} энергии.`);
-      return {
-        ...next,
-        raid: { raidId: raid.id, scouted: false, cratesLooted: false, pathClear: false },
-        lastMessage: `${raid.name}: сначала дойдите до выхода, потом собирайте ящики.`,
-      };
-    }
-    case 'RAID_SCOUT': {
-      if (!state.raid || state.raid.scouted) return state;
-      const strong = state.raid.raidId !== 'marauder_base' && Math.random() < 0.2;
-      return {
-        ...state,
-        raid: { ...state.raid, scouted: true, pathClear: !strong },
-        lastMessage: strong
-          ? 'На пути сильный босс. Не зависайте: ветераны не зовут сильнее Злого Горожанина.'
-          : 'Путь чист. Можно собирать ящики — с них экипировка и жетоны.',
-      };
-    }
-    case 'RAID_BYPASS': {
-      if (!state.raid || !state.raid.scouted || state.raid.pathClear) return state;
-      const next = spend(state, 10);
-      if (!next) return msg(state, 'Обход стоит 10 энергии.');
-      return {
-        ...next,
-        raid: { ...state.raid, pathClear: true },
-        lastMessage: 'Обошли сильного босса. Не создавайте сильнее Злого Горожанина — бой может зависнуть.',
-      };
-    }
-    case 'RAID_LOOT': {
-      if (!state.raid || !state.raid.scouted) return msg(state, 'Сначала разведка до выхода.');
-      if (!state.raid.pathClear) return msg(state, 'Сначала уберите сильного босса с пути.');
-      if (state.raid.cratesLooted) return msg(state, 'Ящики уже собраны.');
-      const raid = RAIDS.find((r) => r.id === state.raid?.raidId);
-      if (!raid) return state;
-      const bonus = raid.id === 'marauder_base' ? 2 : 1;
-      let next = {
-        ...state,
-        matches: state.matches + raid.matches * bonus,
-        grenades: state.grenades + raid.grenades * bonus,
-        medkits: state.medkits + raid.medkits * bonus,
-        raid: { ...state.raid, cratesLooted: true },
-      };
-      // Loot drop from crates
-      const drops = lootDrop();
-      let dropMsg = '';
-      for (const drop of drops) {
-        const item = INVENTORY_ITEMS.find((i) => i.id === drop.itemId);
-        if (item) {
-          next = {
-            ...next,
-            inventory: [...next.inventory, { itemId: drop.itemId, equipped: false }],
-          };
-          dropMsg += ` ${item.icon}${item.name}×${drop.count}`;
-        }
-      }
-      next = {
-        ...next,
-        lastMessage: `${raid.name}: ящики собраны. +${raid.matches * bonus} спичек, гранаты и аптечки.${dropMsg}`,
-      };
-      // Update quest progress for raid_loot
-      const lootQuest = next.daily.quests.find((qp) => qp.questId === 'q3');
-      if (lootQuest && !lootQuest.completed && !lootQuest.claimed) {
-        const quest = DAILY_QUESTS.find((q) => q.id === 'q3');
-        const newProgress = Math.min(quest?.target ?? Infinity, lootQuest.progress + 1);
-        next = {
-          ...next,
-          daily: {
-            ...next.daily,
-            quests: next.daily.quests.map((qp) =>
-              qp.questId === 'q3' ? { ...qp, progress: newProgress, completed: newProgress >= (quest?.target ?? 0) } : qp
-            ),
-          },
-        };
-      }
-      return recordClanEvent(recordResources(next, 'raid', { matches: raid.matches * bonus }), 'medkit', raid.medkits * bonus);
-    }
+    case 'OPEN_MAP_RAID':
+    case 'START_RAID':
+    case 'RAID_SCOUT':
+    case 'RAID_BYPASS':
+    case 'RAID_LOOT':
     case 'LEAVE_RAID':
-      return { ...state, raid: null };
+      return reduceRaid(state, action);
     case 'LOTTERY': {
       if (state.daily.lotteryUsed) return msg(state, 'Бесплатный розыгрыш уже был сегодня.');
       const roll = Math.random();
@@ -1536,7 +712,7 @@ export const gameReducer = (state: GameState, action: GameAction): GameState => 
       if (state.clan || state.clanDirectory.some((entry) => entry.members.some((member) => member.id === state.playerId))) {
         return msg(state, 'Вы уже состоите в убежище.');
       }
-      if (state.gold < CLAN_CREATE_GOLD) return msg(state, `Нужно 🪙 ${CLAN_CREATE_GOLD} припасов.`);
+      if (state.gold < CLAN_CREATE_GOLD) return msg(state, `Нужно 💰 ${CLAN_CREATE_GOLD} припасов.`);
       const error = validateClanName(action.name, state.clanDirectory);
       if (error) return msg(state, error);
       if (!CLAN_EMBLEMS.some((entry) => entry.id === action.emblem)) return msg(state, 'Выберите эмблему.');
@@ -1656,116 +832,46 @@ export const gameReducer = (state: GameState, action: GameAction): GameState => 
         matches: state.matches + quest.rewardMatches,
         grenades: state.grenades + quest.rewardGrenades,
         gold: state.gold + quest.rewardGold,
+        experience: state.experience + quest.rewardExperience,
         daily: {
           ...state.daily,
           quests: state.daily.quests.map((qp) =>
             qp.questId === action.questId ? { ...qp, claimed: true } : qp
           ),
         },
-        lastMessage: `Квест «${quest.name}» выполнен! +${quest.rewardBullets} патронов, +${quest.rewardMatches} спичек, +${quest.rewardGrenades} гранат, +${quest.rewardGold} золота.`,
+        lastMessage: `Квест «${quest.name}» выполнен! +${quest.rewardBullets} патронов, +${quest.rewardMatches} спичек, +${quest.rewardGrenades} гранат, +${quest.rewardGold} припасов, +${quest.rewardExperience} опыта.`,
       };
     }
-    case 'EQUIP_ITEM': {
-      const slot = state.inventory[action.slotIndex];
-      if (!slot) return state;
-      const isEquipped = slot.equipped;
-      if (isEquipped) {
-        return {
-          ...state,
-          inventory: state.inventory.map((s, i) => (i === action.slotIndex ? { ...s, equipped: false } : s)),
-          equipmentIds: state.equipmentIds.filter((id) => id !== slot.itemId),
-          lastMessage: `Снято: ${INVENTORY_ITEMS.find((i) => i.id === slot.itemId)?.name ?? 'предмет'}.`,
-        };
-      }
-      // Check if already equipped
-      if (state.equipmentIds.includes(slot.itemId)) return msg(state, 'Уже надето.');
-      // Unequip same type item if needed
+    case 'CLAIM_LOGIN_REWARD': {
+      const loginRewards = normalizeLoginRewards(state.loginRewards);
+      const status = loginRewardStatus(loginRewards);
+      if (!status.available) return msg(state, 'Награда за сегодняшний вход уже получена.');
+      const reward = LOGIN_REWARDS[status.day - 1];
+      const givePistol = status.day === 7 && state.weapon.id !== 'rusty_pistol' && !state.storedWeapons.some((weapon) => weapon.id === 'rusty_pistol');
+      const pistol = getWeapon('rusty_pistol')!;
       return {
         ...state,
-        inventory: state.inventory.map((s, i) => (i === action.slotIndex ? { ...s, equipped: true } : s)),
-        equipmentIds: [...state.equipmentIds, slot.itemId],
-        lastMessage: `Надето: ${INVENTORY_ITEMS.find((i) => i.id === slot.itemId)?.name ?? 'предмет'}.`,
+        bullets: state.bullets + reward.bullets,
+        gold: state.gold + reward.gold,
+        matches: state.matches + reward.matches,
+        medkits: state.medkits + reward.medkits,
+        loginRewards: { lastClaimDate: status.today, streak: status.day },
+        storedWeapons: givePistol ? [...state.storedWeapons, { ...pistol, mods: [] }] : state.storedWeapons,
+        lastMessage: `Награда за вход · день ${status.day}: +${reward.bullets} патронов${reward.gold ? `, +${reward.gold} припасов` : ''}${reward.matches ? `, +${reward.matches} спичек` : ''}${reward.medkits ? `, +${reward.medkits} аптечек` : ''}${givePistol ? ', ржавый пистолет' : ''}.`,
       };
     }
-    case 'UNEQUIP_ITEM': {
-      const slot = state.inventory[action.slotIndex];
-      if (!slot) return state;
-      return {
-        ...state,
-        inventory: state.inventory.map((s, i) => (i === action.slotIndex ? { ...s, equipped: false } : s)),
-        equipmentIds: state.equipmentIds.filter((id) => id !== slot.itemId),
-        lastMessage: `Снято: ${INVENTORY_ITEMS.find((i) => i.id === slot.itemId)?.name ?? 'предмет'}.`,
-      };
+    case 'CLAIM_DAILY_QUEST_BONUS': {
+      if (state.daily.questBonusClaimed || !DAILY_QUESTS.every((quest) => state.daily.quests.some((progress) => progress.questId === quest.id && progress.completed))) {
+        return msg(state, 'Ящик доступен после выполнения всех заданий и выдаётся один раз в день.');
+      }
+      return { ...state, bullets: state.bullets + 100, gold: state.gold + 50, medkits: state.medkits + 1,
+        daily: { ...state.daily, questBonusClaimed: true },
+        lastMessage: 'Ящик контрактов: +100 патронов, +50 припасов, +1 аптечка.' };
     }
-    case 'CRAFT_ITEM': {
-      const recipe = CRAFTING_RECIPES.find((r) => r.id === action.recipeId);
-      if (!recipe) return state;
-      // Check all costs
-      for (const cost of recipe.cost) {
-        if (cost.itemId === 'matches') {
-          if (state.matches < cost.count) return msg(state, `Не хватает спичек для крафта.`);
-        } else if (cost.itemId === 'zhetons') {
-          if (state.zhetons < cost.count) return msg(state, `Не хватает жетонов для крафта.`);
-        } else {
-          const countInInventory = state.inventory.filter((s) => s.itemId === cost.itemId && !s.equipped).length;
-          if (countInInventory < cost.count) return msg(state, `Не хватает ресурсов: ${cost.itemId}.`);
-        }
-      }
-      // Deduct costs
-      let next = {
-        ...state,
-        matches: state.matches - recipe.cost.filter((c) => c.itemId === 'matches').reduce((s, c) => s + c.count, 0),
-        zhetons: state.zhetons - recipe.cost.filter((c) => c.itemId === 'zhetons').reduce((s, c) => s + c.count, 0),
-      };
-      // Remove raw materials
-      for (const cost of recipe.cost) {
-        if (cost.itemId === 'matches' || cost.itemId === 'zhetons') continue;
-        let toRemove = cost.count;
-        next = {
-          ...next,
-          inventory: next.inventory.reduce((acc, s) => {
-            if (toRemove <= 0) return [...acc, s];
-            if (s.itemId === cost.itemId && !s.equipped) {
-              toRemove--;
-              return acc;
-            }
-            return [...acc, s];
-          }, [] as typeof next.inventory),
-        };
-      }
-      // Аптечки попадают в боевые расходники, остальные изделия — в инвентарь.
-      const isMedkitBundle = recipe.id === 'medkit_bundle';
-      const craftedItem = INVENTORY_ITEMS.find((i) => i.id === recipe.resultItemId);
-      if (!isMedkitBundle && !craftedItem) return msg(state, 'Ошибка крафта: результат не найден.');
-      next = {
-        ...next,
-        medkits: next.medkits + (isMedkitBundle ? recipe.resultCount : 0),
-        inventory: isMedkitBundle ? next.inventory : [
-          ...next.inventory,
-          ...Array.from({ length: recipe.resultCount }, () => ({ itemId: recipe.resultItemId, equipped: false })),
-        ],
-        craftingRecipes: [...next.craftingRecipes, recipe.id],
-        lastMessage: `Скрафчено: ${recipe.name}!`,
-      };
-      // Update quest progress
-      const craftQuest = next.daily.quests.find((qp) => qp.questId === 'q5');
-      if (craftQuest && !craftQuest.completed && !craftQuest.claimed) {
-        const quest = DAILY_QUESTS.find((q) => q.id === 'q5');
-        const newProgress = Math.min(quest?.target ?? Infinity, craftQuest.progress + 1);
-        next = {
-          ...next,
-          daily: {
-            ...next.daily,
-            quests: next.daily.quests.map((qp) =>
-              qp.questId === 'q5' ? { ...qp, progress: newProgress, completed: newProgress >= (quest?.target ?? 0) } : qp
-            ),
-          },
-        };
-      }
-      if (recipe.id === 'barricade') return recordClanEvent(next, 'barricade');
-      if (isMedkitBundle) return recordClanEvent(next, 'medkit', recipe.resultCount);
-      return next;
-    }
+    case 'EQUIP_ITEM':
+    case 'UNEQUIP_ITEM':
+    case 'CRAFT_ITEM':
+      return reduceInventory(state, action);
     case 'TOGGLE_SOUND':
       return { ...state, soundEnabled: !state.soundEnabled };
     case 'TOGGLE_MAP':
@@ -1775,36 +881,8 @@ export const gameReducer = (state: GameState, action: GameAction): GameState => 
     case 'TOGGLE_CLAN_MODAL':
       return { ...state, showClanModal: !state.showClanModal };
     case 'MINIMIZE_RAID':
-      // Сворачиваем окно: рейд продолжает идти в фоне, энергия уже потрачена
-      return { ...state, showRaidModal: false, activeRaidId: null,
-        raidTasks: state.raidTasks ? { ...state.raidTasks, open: false } : null };
-    case 'CHECK_RAIDS': {
-      // Вызывается по таймеру: создаёт уведомление для каждого рейда, время которого вышло
-      const now = Date.now();
-      const finished = state.mapRaids.filter(
-        (r) => r.isRunning && !r.notified && !!r.endTime && now >= r.endTime
-      );
-      if (finished.length === 0) return state;
-
-      const newNotifications: GameNotification[] = finished.map((r) => ({
-        id: `raid_done_${r.id}_${r.endTime}`,
-        text: `Рейд «${r.name}» завершён — награда ждёт получения`,
-        createdAt: now,
-        read: false,
-        raidId: r.id,
-      }));
-
-      return {
-        ...state,
-        notifications: [...newNotifications, ...state.notifications].slice(0, 30),
-        mapRaids: state.mapRaids.map((r) =>
-          finished.some((f) => f.id === r.id) ? { ...r, notified: true } : r
-        ),
-        lastMessage: finished.length === 1
-          ? `${finished[0].name}: рейд завершён.`
-          : `Завершено рейдов: ${finished.length}.`,
-      };
-    }
+    case 'CHECK_RAIDS':
+      return reduceRaid(state, action);
     case 'TOGGLE_NOTIFICATIONS': {
       const show = !state.showNotifications;
       return {
@@ -1823,82 +901,12 @@ export const gameReducer = (state: GameState, action: GameAction): GameState => 
     case 'CLEAR_NOTIFICATIONS':
       // Очищаем весь список уведомлений
       return { ...state, notifications: [] };
-    case 'CANCEL_RAID': {
-      const raid = state.mapRaids.find((r) => r.id === action.raidId);
-      if (!raid || !raid.isRunning) return state;
-
-      // Возвращаем часть энергии (50%)
-      const refund = Math.floor(raid.energyCost * 0.5);
-
-      return {
-        ...state,
-        energy: state.energy + refund,
-        showRaidModal: false,
-        activeRaidId: null,
-        raidTasks: state.raidTasks?.raidId === action.raidId ? null : state.raidTasks,
-        mapRaids: state.mapRaids.map((r) =>
-          r.id === action.raidId ? { ...r, isRunning: false, startTime: undefined, endTime: undefined } : r
-        ),
-        lastMessage: `${raid.name}: рейд отменён, возвращено ${refund} энергии.`,
-      };
-    }
-    case 'CLAIM_RAID_REWARD': {
-      const raid = state.mapRaids.find((r) => r.id === action.raidId);
-      if (!raid || !raid.isRunning || !raid.endTime) return state;
-      if (Date.now() < raid.endTime) return msg(state, 'Рейд ещё не завершён.');
-
-      const collected = recordResources({
-        ...state,
-        matches: state.matches + raid.rewards.matches,
-        keys: state.keys + raid.rewards.materials,
-        showRaidModal: false,
-        activeRaidId: null,
-        raidTasks: state.raidTasks?.raidId === raid.id ? { ...state.raidTasks, open: false } : state.raidTasks,
-        mapRaids: state.mapRaids.map((r) =>
-          r.id === action.raidId ? { ...r, isRunning: false, completed: true, startTime: undefined, endTime: undefined } : r
-        ),
-        lastMessage: `${raid.name}: +${raid.rewards.matches} спичек из рейда.`,
-      }, 'raid', { matches: raid.rewards.matches });
-      return recordClanEvent(collected, 'raid');
-    }
-    case 'OPEN_RAID_TASKS': {
-      const raid = state.mapRaids.find((entry) => entry.id === action.raidId);
-      if (!raid?.isRunning || raid.completed) return msg(state, 'Эта опасность уже пройдена.');
-      return { ...state, raidTasks: { raidId: raid.id,
-        completedIds: state.raidTaskProgress[raid.id] ?? [], open: true },
-      };
-    }
+    case 'CANCEL_RAID':
+    case 'CLAIM_RAID_REWARD':
+    case 'OPEN_RAID_TASKS':
     case 'CLOSE_RAID_TASKS':
-      return state.raidTasks ? { ...state, raidTasks: { ...state.raidTasks, open: false } } : state;
-    case 'COMPLETE_RAID_TASKS': {
-      const tasks = state.raidTasks;
-      const raid = state.mapRaids.find((entry) => entry.id === action.raidId);
-      if (!tasks?.open || tasks.raidId !== action.raidId || !raid?.isRunning || raid.completed) return state;
-      const remaining = RAID_DANGER_TASKS.filter((task) => !tasks.completedIds.includes(task.id));
-      if (!remaining.length) return msg(state, 'Все контракты рейда выполнены.');
-      let availableEnergy = state.energy;
-      const completed = action.mode === 'gold' ? remaining : remaining.filter((task) => {
-        if (availableEnergy < task.energy) return false;
-        availableEnergy -= task.energy;
-        return true;
-      });
-      if (action.mode === 'gold' && state.premiumGold < RAID_TASK_GOLD_PRICE) return msg(state, 'Недостаточно премиум-золота 🪙.');
-      if (!completed.length) return msg(state, 'Не хватает энергии даже на одно задание.');
-      const tokens = completed.reduce((sum, task) => sum + task.tokens, 0);
-      const hp = completed.reduce((sum, task) => sum + task.hp, 0);
-      const next = {
-        ...state,
-        premiumGold: state.premiumGold - (action.mode === 'gold' ? RAID_TASK_GOLD_PRICE : 0),
-        energy: action.mode === 'energy' ? availableEnergy : state.energy,
-        zhetons: state.zhetons + tokens,
-        health: Math.min(state.maxHealth, state.health + hp),
-        raidTasks: { ...tasks, completedIds: [...tasks.completedIds, ...completed.map((task) => task.id)] },
-        raidTaskProgress: { ...state.raidTaskProgress,
-          [raid.id]: [...tasks.completedIds, ...completed.map((task) => task.id)] },
-        lastMessage: `ВЫПОЛНЕНО: ${completed.length} заданий, +${tokens} жетонов 🎟️, +${hp} HP.`,
-      };
-      return recordResources(action.mode === 'gold' ? recordResources(next, 'shop', { premiumGold: -RAID_TASK_GOLD_PRICE }) : next, 'solo-task', { tokens });
-    }
+    case 'COMPLETE_RAID_TASKS':
+      return reduceRaid(state, action);
     case 'CHANGE_LOCATION': {
       const room = LOCATIONS.find((location) => location.id === action.locationId);
       if (!room || !state.unlockedRooms.includes(room.id)) {

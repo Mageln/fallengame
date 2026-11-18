@@ -5,9 +5,11 @@ import { createServer } from 'vite';
 const vite = await createServer({ configFile: false, server: { middlewareMode: true, hmr: false } });
 after(() => vite.close());
 
-const { createInitialState } = await vite.ssrLoadModule('/src/game/initialState.ts');
+const { createInitialState: baseInitialState } = await vite.ssrLoadModule('/src/game/initialState.ts');
+// These pre-existing combat tests start with keys to isolate their original mechanics.
+const createInitialState = () => ({ ...baseInitialState(), bossKeys: { '1': 50, '2': 50, '3': 50, '4': 50, zombie_brute: 50 } });
 const { gameReducer, hydrateState } = await vite.ssrLoadModule('/src/game/reducer.ts');
-const { roomDropChance, BOSS_COUNTER_MS, BOSS_DURATION_MS, EXTRA_ATTACK_PRICE, todayUtc } = await vite.ssrLoadModule('/src/game/survival.ts');
+const { roomDropChance, BOSS_COUNTER_MS, BOSS_DURATION_MS, bossAttackPrice, todayLocal, BOSS_ATTACK_CONFIG } = await vite.ssrLoadModule('/src/game/survival.ts');
 
 const act = (state, type, details = {}) => gameReducer(state, { type, ...details });
 
@@ -25,7 +27,7 @@ test('a boss victory rolls a room; only an available drop can be claimed', () =>
   assert.deepEqual(initial.unlockedRooms, ['location1']);
   assert.equal(act(initial, 'CHANGE_LOCATION', { locationId: 'location2' }).currentLocation, 'location1');
   let state = act(initial, 'START_BOSS_FIGHT', { bossId: '1' });
-  assert.equal(state.bossAttacks.used, 1);
+  assert.equal(state.bossAttacks.entries['1'], undefined);
   state = { ...state, battle: { ...state.battle, bossHp: 1, damageDealt: 900 } };
   const random = Math.random;
   try {
@@ -80,30 +82,40 @@ test('leaving a boss battle does not pause the boss; returning resumes it', () =
   assert.equal(state.battleVisible, true);
   assert.equal(state.battle.bossMaxHp, 250);
   state = act(state, 'BOSS_TICK', { now: start + BOSS_DURATION_MS + 1 });
-  assert.equal(state.battle.outcome, 'lost');
+  assert.equal(state.battle.outcome, 'fighting');
+  assert.equal(state.battle.playerHp, 1);
   const hp = state.battle.bossHp;
-  state = act(state, 'LEAVE_BATTLE');
+  state = act(state, 'ABANDON_BOSS');
   assert.equal(state.woundedBosses['2'], hp);
   assert.equal(state.battle, null);
 });
 
-test('boss attacks reset by UTC day, and an extra attack costs only premium gold', () => {
+test('timed boss attacks reset after two hours and extra attacks cost caps', () => {
+  BOSS_ATTACK_CONFIG.timedLimits = true;
+  try {
   const initial = createInitialState();
-  let state = { ...initial, premiumGold: EXTRA_ATTACK_PRICE + 5, bossAttacks: { date: todayUtc(), used: 3, purchased: 0 } };
+  const price = bossAttackPrice(5);
+  let state = {
+    ...initial,
+    caps: price + 5,
+    premiumGold: 10,
+    bossAttacks: { date: todayLocal(), entries: { '1': { used: 5, purchased: 0 } } },
+  };
   assert.equal(act(state, 'START_BOSS_FIGHT', { bossId: '1' }).battle, null);
-  state = act(state, 'BUY_BOSS_ATTACK');
-  assert.equal(state.premiumGold, 5);
-  assert.equal(state.bossAttacks.purchased, 1);
-  assert.equal(act(state, 'BUY_BOSS_ATTACK').premiumGold, 5);
+  state = act(state, 'BUY_BOSS_ATTACK', { bossId: '1' });
+  assert.equal(state.caps, 5);
+  assert.equal(state.premiumGold, 10);
+  assert.equal(state.bossAttacks.entries['1'].purchased, 1);
+  assert.equal(act(state, 'BUY_BOSS_ATTACK', { bossId: '1' }).caps, 5);
   state = act(state, 'START_BOSS_FIGHT', { bossId: '1' });
-  assert.equal(state.bossAttacks.used, 4);
+  assert.equal(state.bossAttacks.entries['1'].used, 6);
   assert.equal(state.battle.source, 'boss');
   assert.equal(act(state, 'BATTLE_GRENADES', { count: 1 }), state);
-  const future = Date.parse(`${todayUtc()}T00:00:00.000Z`) + 86_400_000;
-  const reset = act({ ...state, battle: null }, 'BOSS_TICK', { now: future });
-  assert.equal(reset.bossAttacks.used, 0);
-  assert.equal(reset.bossAttacks.purchased, 0);
-  assert.equal(reset.premiumGold, 5);
+  const reset = act({ ...state, battle: null }, 'BOSS_TICK', { now: state.bossAttacks.resetAt });
+  assert.deepEqual(reset.bossAttacks.entries, {});
+  assert.equal(reset.caps, 5);
+  assert.equal(reset.premiumGold, 10);
+  } finally { BOSS_ATTACK_CONFIG.timedLimits = false; }
 });
 
 test('raid awards matches, tasks award tokens and health, never donation gold', () => {
@@ -162,4 +174,507 @@ test('old saves preserve their current room and get safe new defaults', () => {
   assert.equal(loaded.premiumGold, 0);
   assert.deepEqual(loaded.raidTaskProgress, {});
   assert.equal(act(loaded, 'CHANGE_LOCATION', { locationId: 'location4' }).currentLocation, 'location4');
+});
+
+test('boss has four abilities with separate energy costs and no old skills', () => {
+  let state = act(createInitialState(), 'START_BOSS_FIGHT', { bossId: '1' });
+  state = { ...state, battle: { ...state.battle, bossHp: 10000, playerHp: state.battle.playerMaxHp - 10 } };
+  const now = state.battle.startedAt + 1;
+  const initialHp = state.battle.bossHp;
+  for (const skillId of ['weapon', 'block', 'heal', 'hook', 'critical']) {
+    const rejected = act(state, 'BOSS_SKILL', { skillId, now });
+    assert.equal(rejected.battle.bossHp, initialHp);
+    assert.equal(rejected.battle.bossEnergy, 0);
+  }
+  for (let i = 0; i < 6; i++) state = act(state, 'BOSS_SKILL', { skillId: 'jab', now: now + i });
+  assert.equal(state.battle.bossEnergy, 100);
+  const hp = state.battle.bossHp;
+  const bullets = state.bullets;
+  state = act(state, 'BOSS_SKILL', { skillId: 'weapon', now: now + 10 });
+  assert.equal(state.battle.bossEnergy, 90);
+  assert.ok(state.battle.bossHp < hp);
+  assert.equal(state.bullets, bullets);
+  state = act(state, 'BOSS_SKILL', { skillId: 'block', now: now + 11 });
+  assert.equal(state.battle.bossEnergy, 70);
+  assert.equal(state.battle.blocking, true);
+  assert.equal(act(state, 'BOSS_SKILL', { skillId: 'block', now: now + 12 }).battle.bossEnergy, 70);
+  const damagedHp = state.battle.playerHp;
+  state = act(state, 'BOSS_SKILL', { skillId: 'heal', now: now + 13 });
+  assert.equal(state.battle.bossEnergy, 20);
+  assert.equal(state.battle.playerHp, state.battle.playerMaxHp);
+  assert.ok(state.battle.playerHp > damagedHp);
+  assert.equal(state.battle.blocking, true);
+  const tick = act(state, 'BOSS_TICK', { now: state.battle.startedAt + 8000 });
+  assert.equal(tick.battle.blocking, false);
+  assert.ok(tick.battle.playerHp < state.battle.playerHp);
+  assert.equal(act(state, 'BATTLE_POWER').battle.bossHp, state.battle.bossHp);
+  assert.equal(act(state, 'BOSS_POWER_ATTACK', { now: now + 14 }).battle.bossHp, state.battle.bossHp);
+});
+
+test('boss weapon damage depends on equipped weapon, healing and block do not waste energy', () => {
+  let state = act(createInitialState(), 'START_BOSS_FIGHT', { bossId: '1' });
+  const now = state.battle.startedAt + 1;
+  state = { ...state, battle: { ...state.battle, bossHp: 10000, bossEnergy: 100, playerHp: state.battle.playerMaxHp } };
+  assert.equal(act(state, 'BOSS_SKILL', { skillId: 'heal', now }).battle.bossEnergy, 100);
+  const normal = act(state, 'BOSS_SKILL', { skillId: 'weapon', now });
+  const powerful = act({ ...state, weapon: { ...state.weapon, baseDamage: state.weapon.baseDamage + 20 } }, 'BOSS_SKILL', { skillId: 'weapon', now });
+  assert.ok(powerful.battle.bossHp < normal.battle.bossHp);
+  const broken = act({ ...state, weapon: { ...state.weapon, broken: true } }, 'BOSS_SKILL', { skillId: 'weapon', now });
+  assert.equal(broken.battle.bossEnergy, 90);
+  assert.ok(broken.battle.bossHp < state.battle.bossHp);
+  assert.ok(broken.battle.bossHp > normal.battle.bossHp);
+});
+
+test('test mode allows attacking an exhausted boss without consuming or buying attacks', () => {
+  let state = { ...createInitialState(), caps: 100, bossAttacks: { date: todayLocal(), entries: { '1': { used: 999, purchased: 1 } } } };
+  const before = state.bossAttacks;
+  const bought = act(state, 'BUY_BOSS_ATTACK', { bossId: '1' });
+  assert.equal(bought.caps, 100);
+  assert.equal(bought.bossAttacks, before);
+  state = act(bought, 'START_BOSS_FIGHT', { bossId: '1' });
+  assert.equal(state.battle.source, 'boss');
+  assert.equal(state.bossAttacks, before);
+});
+
+test('boss fights start at full battle HP without health, medkits or a working weapon', () => {
+  const initial = createInitialState();
+  const injured = { ...initial, health: 0, medkits: 0, weapon: { ...initial.weapon, broken: true } };
+  let state = act(injured, 'START_BOSS_FIGHT', { bossId: '1' });
+  assert.ok(state.battle);
+  assert.equal(state.battle.playerHp, state.battle.playerMaxHp);
+  assert.equal(state.health, 0);
+  assert.equal(state.medkits, 0);
+  state = act(state, 'BOSS_TICK', { now: state.battle.startedAt + 24 * 60 * 60 * 1000 });
+  assert.equal(state.battle.outcome, 'fighting');
+  assert.equal(state.battle.playerHp, 1);
+  const before = state.battle.bossHp;
+  state = act(state, 'BOSS_SKILL', { skillId: 'jab', now: state.battle.lastCounterAt + 1 });
+  assert.ok(state.battle.bossHp < before);
+  assert.equal(state.health, 0);
+});
+
+test('finished hidden boss victory can be reopened and claimed', () => {
+  let state = act(createInitialState(), 'START_BOSS_FIGHT', { bossId: '1' });
+  state = act(state, 'LEAVE_BATTLE');
+  state = { ...state, battle: { ...state.battle, bossHp: 1 } };
+  state = act(state, 'BOSS_SKILL', { skillId: 'jab', now: state.battle.startedAt + 1 });
+  assert.equal(state.battle.outcome, 'won');
+  assert.equal(state.battleVisible, false);
+  state = act(state, 'OPEN_BATTLE');
+  assert.equal(state.battleVisible, true);
+  state = act(state, 'LEAVE_BATTLE');
+  assert.equal(state.battle, null);
+});
+
+test('experience from boss victory is awarded exactly once on claiming', () => {
+  let state = act(createInitialState(), 'START_BOSS_FIGHT', { bossId: '1' });
+  state = { ...state, battle: { ...state.battle, bossHp: 1 } };
+  state = act(state, 'BOSS_SKILL', { skillId: 'jab', now: state.battle.startedAt + 1 });
+  assert.equal(state.experience, 0);
+  assert.equal(state.battle.reward.experience, 110);
+  state = act(state, 'LEAVE_BATTLE');
+  assert.equal(state.experience, 110);
+  assert.equal(act(state, 'LEAVE_BATTLE').experience, 110);
+});
+
+test('completed map raids grant less experience and cannot be claimed twice', () => {
+  const initial = createInitialState();
+  const raid = initial.mapRaids[0];
+  let state = { ...initial, mapRaids: [{ ...raid, isRunning: true, endTime: Date.now() - 1 }] };
+  state = act(state, 'CLAIM_RAID_REWARD', { raidId: raid.id });
+  assert.equal(state.experience, 20);
+  assert.equal(act(state, 'CLAIM_RAID_REWARD', { raidId: raid.id }).experience, 20);
+  const red = { ...raid, type: 'red', isRunning: true, endTime: Date.now() - 1 };
+  state = act({ ...initial, mapRaids: [red] }, 'CLAIM_RAID_REWARD', { raidId: red.id });
+  assert.equal(state.experience, 40);
+});
+
+test('raid loot awards experience once and older saves start with zero', () => {
+  const old = createInitialState();
+  delete old.experience;
+  assert.equal(hydrateState(old).experience, 0);
+  let state = { ...createInitialState(), raid: { raidId: 'house', scouted: true, pathClear: true, cratesLooted: false } };
+  state = act(state, 'RAID_LOOT');
+  assert.equal(state.experience, 20);
+  assert.equal(act(state, 'RAID_LOOT').experience, 20);
+});
+
+test('profile abilities preserve legacy levels, charge bullets and respect limits and active battles', async () => {
+  const { SKILL_DEFS } = await vite.ssrLoadModule('/src/game/profileSkills.ts');
+  assert.deepEqual(SKILL_DEFS.map((skill) => skill.id), ['fist', 'weapon', 'block', 'heal']);
+  const old = createInitialState();
+  delete old.profileSkills;
+  assert.deepEqual(hydrateState(old).profileSkills, { fist: 0, weapon: 0, block: 0, heal: 0, health: 0, luck: 0 });
+  const legacy = { ...createInitialState(), bullets: 500, maxHealth: 120, health: 110,
+    profileSkills: { health: 2, fist: 3, luck: 4, block: 1 } };
+  const loaded = hydrateState(legacy);
+  assert.deepEqual(loaded.profileSkills, { fist: 3, weapon: 0, block: 1, heal: 0, health: 2, luck: 4 });
+  assert.equal(loaded.health, 110);
+  assert.equal(loaded.maxHealth, 120);
+  let state = act(loaded, 'UPGRADE_PROFILE_SKILL', { skillId: 'weapon' });
+  assert.equal(state.bullets, 450);
+  assert.equal(state.profileSkills.weapon, 1);
+  assert.equal(state.maxHealth, 120);
+  state = act(state, 'UPGRADE_PROFILE_SKILL', { skillId: 'weapon' });
+  assert.equal(state.bullets, 350);
+  assert.equal(state.profileSkills.weapon, 2);
+  const started = act(state, 'START_BOSS_FIGHT', { bossId: '1' });
+  assert.equal(act(started, 'UPGRADE_PROFILE_SKILL', { skillId: 'heal' }).bullets, 350);
+  const poor = act({ ...state, bullets: 0 }, 'UPGRADE_PROFILE_SKILL', { skillId: 'heal' });
+  assert.equal(poor.profileSkills.heal, 0);
+  const maxed = act({ ...state, profileSkills: { ...state.profileSkills, heal: 10 } }, 'UPGRADE_PROFILE_SKILL', { skillId: 'heal' });
+  assert.equal(maxed.bullets, 350);
+  assert.equal(act(state, 'UPGRADE_PROFILE_SKILL', { skillId: 'health' }), state);
+  assert.equal(act(state, 'UPGRADE_PROFILE_SKILL', { skillId: 'luck' }), state);
+});
+
+test('weapon and healing upgrades affect only their matching boss abilities', () => {
+  const initial = createInitialState();
+  let started = act(initial, 'START_BOSS_FIGHT', { bossId: '2' });
+  started = { ...started, battle: { ...started.battle, bossHp: 10000, bossEnergy: 100, playerHp: 30 } };
+  const now = started.battle.startedAt + 1;
+  const weapon = (state) => act(state, 'BOSS_SKILL', { skillId: 'weapon', now });
+  const heal = (state) => act(state, 'BOSS_SKILL', { skillId: 'heal', now });
+  const trained = { ...started, profileSkills: { ...started.profileSkills, weapon: 5, heal: 5 } };
+  assert.ok(weapon(trained).battle.lastHit.damage > weapon(started).battle.lastHit.damage);
+  const jab = (state) => act(state, 'BOSS_SKILL', { skillId: 'jab', now });
+  assert.equal(jab(trained).battle.lastHit.damage, jab(started).battle.lastHit.damage);
+  assert.equal(heal({ ...started, profileSkills: { ...started.profileSkills, weapon: 5 } }).battle.playerHp, heal(started).battle.playerHp);
+  assert.equal(heal(trained).battle.playerHp - heal(started).battle.playerHp, 25);
+  assert.equal(weapon(trained).battle.bossEnergy, 90);
+  assert.equal(heal(trained).battle.bossEnergy, 50);
+  assert.equal(heal(trained).medkits, started.medkits);
+  const maxedHeal = heal({ ...trained, battle: { ...trained.battle, playerHp: trained.battle.playerMaxHp - 1 } });
+  assert.equal(maxedHeal.battle.playerHp, maxedHeal.battle.playerMaxHp);
+});
+
+test('fist skill increases unarmed boss damage and luck can cause critical hits', () => {
+  const initial = createInitialState();
+  const started = act(initial, 'START_BOSS_FIGHT', { bossId: '2' });
+  const now = started.battle.startedAt + 1;
+  const base = act(started, 'BOSS_SKILL', { skillId: 'jab', now });
+  const strong = act({ ...started, profileSkills: { ...started.profileSkills, fist: 10 } }, 'BOSS_SKILL', { skillId: 'jab', now });
+  assert.ok(strong.battle.lastHit.damage > base.battle.lastHit.damage);
+  const random = Math.random;
+  try {
+    Math.random = () => 0;
+    const lucky = act({ ...started, profileSkills: { ...started.profileSkills, luck: 1 } }, 'BOSS_SKILL', { skillId: 'jab', now });
+    assert.equal(lucky.battle.lastHit.crit, true);
+    assert.ok(lucky.battle.lastHit.damage > base.battle.lastHit.damage);
+  } finally { Math.random = random; }
+});
+
+test('block skill improves active block only in both combat systems', async () => {
+  const { resolveIncoming, totalLuck } = await vite.ssrLoadModule('/src/game/formulas.ts');
+  const initial = createInitialState();
+  const trained = { ...initial, profileSkills: { ...initial.profileSkills, block: 10, luck: 1 } };
+  assert.equal(totalLuck(trained), totalLuck(initial) + 20);
+  assert.ok(resolveIncoming(trained, 100, { blocking: true }).damage < resolveIncoming(initial, 100, { blocking: true }).damage);
+  assert.equal(resolveIncoming(trained, 100).damage, resolveIncoming(initial, 100).damage);
+  const started = act(initial, 'START_BOSS_FIGHT', { bossId: '2' });
+  const blocking = { ...started, battle: { ...started.battle, blocking: true } };
+  const now = started.battle.startedAt + BOSS_COUNTER_MS;
+  const base = act(blocking, 'BOSS_TICK', { now });
+  const better = act({ ...blocking, profileSkills: trained.profileSkills }, 'BOSS_TICK', { now });
+  assert.ok(better.battle.playerHp > base.battle.playerHp);
+});
+
+test('shop purchases charge chosen currency once, preserve weapons on swap and migrate old saves', () => {
+  const old = createInitialState(); delete old.storedWeapons;
+  assert.deepEqual(hydrateState(old).storedWeapons, []);
+  let state = { ...createInitialState(), gold: 1000, premiumGold: 100 };
+  const denied = act({ ...state, gold: 0 }, 'BUY_SHOP_ITEM', { category: 'weapon', itemId: 'shop_bat', currency: 'gold' });
+  assert.equal(denied.storedWeapons.length, 0);
+  state = act(state, 'BUY_SHOP_ITEM', { category: 'weapon', itemId: 'shop_bat', currency: 'gold' });
+  assert.equal(state.gold, 500);
+  assert.equal(state.storedWeapons[0].id, 'shop_bat');
+  const duplicate = act(state, 'BUY_SHOP_ITEM', { category: 'weapon', itemId: 'shop_bat', currency: 'premium' });
+  assert.equal(duplicate.premiumGold, 100);
+  state = act(state, 'EQUIP_SHOP_WEAPON', { weaponId: 'shop_bat' });
+  assert.equal(state.weapon.id, 'shop_bat');
+  state = { ...state, weapon: { ...state.weapon, durability: 37, level: 2 } };
+  state = act(state, 'EQUIP_SHOP_WEAPON', { weaponId: 'shop_knuckles' });
+  state = act(hydrateState(state), 'EQUIP_SHOP_WEAPON', { weaponId: 'shop_bat' });
+  assert.equal(state.weapon.durability, 37);
+  assert.equal(state.weapon.level, 2);
+  const battle = act(state, 'START_BOSS_FIGHT', { bossId: '2' });
+  assert.equal(act(battle, 'EQUIP_SHOP_WEAPON', { weaponId: 'shop_knuckles' }).weapon.id, 'shop_bat');
+  assert.equal(act(state, 'BUY_SHOP_ITEM', { category: 'weapon', itemId: 'shop_rifle', currency: 'other' }), state);
+});
+
+test('military clothes are purchasable with premium, equip bonuses and replace same slot', async () => {
+  const { totalStamina } = await vite.ssrLoadModule('/src/game/formulas.ts');
+  let state = { ...createInitialState(), gold: 5000, premiumGold: 100 };
+  state = act(state, 'BUY_SHOP_ITEM', { category: 'clothing', itemId: 'mil_scout_head', currency: 'premium' });
+  assert.equal(state.premiumGold, 30);
+  state = act(state, 'EQUIP_ITEM', { slotIndex: 0 });
+  assert.deepEqual(state.equipmentIds, ['mil_scout_head']);
+  assert.equal(state.inventory[0].equipped, true);
+  assert.equal(totalStamina(state), totalStamina(createInitialState()) + 8);
+  state = act(state, 'BUY_SHOP_ITEM', { category: 'clothing', itemId: 'mil_assault_head', currency: 'gold' });
+  state = act(state, 'EQUIP_ITEM', { slotIndex: 1 });
+  assert.deepEqual(state.equipmentIds, ['mil_assault_head']);
+  assert.equal(state.inventory[0].equipped, false);
+  assert.equal(totalStamina(state), totalStamina(createInitialState()) + 14);
+  const full = { ...state, inventory: Array.from({ length: 20 }, () => ({ itemId: 'scrap_metal', equipped: false })) };
+  assert.equal(act(full, 'BUY_SHOP_ITEM', { category: 'clothing', itemId: 'mil_scout_body', currency: 'gold' }).gold, full.gold);
+});
+
+test('shop weapons improve boss arena damage', () => {
+  let state = { ...createInitialState(), gold: 500 };
+  state = act(state, 'BUY_SHOP_ITEM', { category: 'weapon', itemId: 'shop_bat', currency: 'gold' });
+  const baseline = act(state, 'START_BOSS_FIGHT', { bossId: '2' });
+  const upgraded = act(act(state, 'EQUIP_SHOP_WEAPON', { weaponId: 'shop_bat' }), 'START_BOSS_FIGHT', { bossId: '2' });
+  const chargedBaseline = act(baseline, 'BOSS_SKILL', { skillId: 'jab', now: baseline.battle.startedAt + 1 });
+  const chargedUpgraded = act(upgraded, 'BOSS_SKILL', { skillId: 'jab', now: upgraded.battle.startedAt + 1 });
+  const normal = act(chargedBaseline, 'BOSS_SKILL', { skillId: 'weapon', now: baseline.battle.startedAt + 2 });
+  const better = act(chargedUpgraded, 'BOSS_SKILL', { skillId: 'weapon', now: upgraded.battle.startedAt + 2 });
+  assert.ok(better.battle.lastHit.damage > normal.battle.lastHit.damage);
+});
+
+test('opening map raids and old notifications never starts or restarts raids', () => {
+  let state = { ...createInitialState(), energy: 100 };
+  const raidId = state.mapRaids[0].id;
+  state = act(state, 'OPEN_MAP_RAID', { raidId });
+  assert.equal(state.showRaidModal, true);
+  assert.equal(state.energy, 100);
+  assert.equal(state.mapRaids[0].isRunning, false);
+  state = act(state, 'START_RAID', { raidId });
+  const afterCost = state.energy;
+  const finish = state.mapRaids[0].endTime;
+  state = act(state, 'OPEN_MAP_RAID', { raidId });
+  assert.equal(state.energy, afterCost);
+  assert.equal(state.mapRaids[0].endTime, finish);
+  const realNow = Date.now;
+  try {
+    Date.now = () => finish + 1;
+    state = act(state, 'CHECK_RAIDS');
+    assert.equal(state.notifications[0].raidId, raidId);
+    state = act(state, 'CLAIM_RAID_REWARD', { raidId });
+    assert.equal(state.mapRaids[0].isRunning, false);
+    assert.equal(state.mapRaids[0].completed, true);
+    assert.equal(state.mapRaids[0].endTime, undefined);
+    assert.equal(state.showRaidModal, true);
+    assert.equal(state.energy, afterCost);
+    const xp = state.experience;
+    state = act(state, 'OPEN_MAP_RAID', { raidId }); // старое уведомление или значок на карте
+    state = act(state, 'CHECK_RAIDS');
+    state = act(state, 'CLAIM_RAID_REWARD', { raidId });
+    assert.equal(state.experience, xp);
+    assert.equal(state.energy, afterCost);
+    assert.equal(state.mapRaids[0].isRunning, false);
+    state = act(state, 'START_RAID', { raidId }); // явное нажатие «Начать рейд»
+    assert.equal(state.mapRaids[0].isRunning, true);
+    assert.equal(state.energy, afterCost - state.mapRaids[0].energyCost);
+    assert.equal(state.mapRaids[0].completed, false);
+  } finally { Date.now = realNow; }
+});
+
+test('daily contracts track real activities and give the stated rewards only once', () => {
+  let state = { ...createInitialState(), energy: 100, matches: 100, inventory: Array.from({ length: 5 }, () => ({ itemId: 'scrap_metal', equipped: false })) };
+  const quest = (id) => state.daily.quests.find((item) => item.questId === id);
+  state = act(state, 'DO_TASK', { taskId: 'sg1' });
+  state = act(state, 'DO_TASK', { taskId: 'sg1' });
+  state = act(state, 'DO_TASK', { taskId: 'sg1' });
+  assert.equal(quest('q2').progress, 3);
+  state = act(state, 'UPGRADE_CAR');
+  assert.equal(quest('q4').completed, true);
+  state = act(state, 'CRAFT_ITEM', { recipeId: 'repair_kit' });
+  assert.equal(quest('q5').completed, true);
+  const raid = state.mapRaids[0];
+  state = { ...state, mapRaids: [{ ...raid, isRunning: true, endTime: Date.now() - 1 }] };
+  state = act(state, 'CLAIM_RAID_REWARD', { raidId: raid.id });
+  assert.equal(quest('q3').completed, true);
+  const before = { bullets: state.bullets, experience: state.experience, premiumGold: state.premiumGold };
+  state = act(state, 'CLAIM_QUEST_REWARD', { questId: 'q3' });
+  assert.equal(state.bullets, before.bullets + 40);
+  assert.equal(state.experience, before.experience + 20);
+  assert.equal(state.premiumGold, before.premiumGold);
+  state = act(state, 'CLAIM_QUEST_REWARD', { questId: 'q3' });
+  assert.equal(state.experience, before.experience + 20);
+  for (let i = 0; i < 3; i++) {
+    state = act(state, 'START_BOSS_FIGHT', { bossId: '1' });
+    state = { ...state, battle: { ...state.battle, bossHp: 1 } };
+    state = act(state, 'BOSS_SKILL', { skillId: 'jab', now: state.battle.startedAt + 1 });
+    state = act(state, 'LEAVE_BATTLE');
+  }
+  assert.equal(quest('q1').completed, true);
+  assert.equal(quest('q6').progress, 3);
+  const beforeBonus = { bullets: state.bullets, gold: state.gold, medkits: state.medkits };
+  state = act(state, 'CLAIM_DAILY_QUEST_BONUS');
+  assert.equal(state.bullets, beforeBonus.bullets + 100);
+  assert.equal(state.gold, beforeBonus.gold + 50);
+  assert.equal(state.medkits, beforeBonus.medkits + 1);
+  state = act(state, 'CLAIM_DAILY_QUEST_BONUS');
+  assert.equal(state.bullets, beforeBonus.bullets + 100);
+  state = act(state, 'CLAIM_QUEST_REWARD', { questId: 'q6' });
+  assert.equal(quest('q6').claimed, true);
+});
+
+test('daily quests migrate previous progress and reset once at local midnight', () => {
+  const original = createInitialState();
+  const legacy = { ...original, daily: { ...original.daily, quests: [
+    { questId: 'q1', progress: 1, completed: true, claimed: true },
+    { questId: 'q6', progress: 4, completed: false, claimed: false },
+    { questId: 'q8', progress: 0, completed: false, claimed: false },
+  ] } };
+  delete legacy.daily.questDate;
+  delete legacy.daily.questBonusClaimed;
+  let state = hydrateState(legacy);
+  assert.equal(state.daily.quests.find((q) => q.questId === 'q1').claimed, true);
+  assert.equal(state.daily.quests.find((q) => q.questId === 'q6').completed, true);
+  assert.equal(state.daily.quests.length, 6);
+  assert.equal(act(state, 'CLAIM_DAILY_QUEST_BONUS').daily.questBonusClaimed, false);
+  const now = Date.now;
+  try {
+    Date.now = () => now() + 2 * 24 * 60 * 60 * 1000;
+    state = act(state, 'RESTORE_ENERGY_TICK');
+    assert.ok(state.daily.quests.every((q) => q.progress === 0 && !q.claimed));
+    assert.equal(state.daily.questBonusClaimed, false);
+    assert.equal(state.daily.questDate, todayLocal(Date.now()));
+  } finally { Date.now = now; }
+});
+
+test('existing profile upgrades and skill levels survive loading and level upgrades', () => {
+  const initial = createInitialState();
+  const saved = { ...initial, bullets: 1000, level: 32, baseStamina: 55, luck: 65,
+    profileSkills: { health: 2, fist: 3, luck: 4, block: 1 } };
+  const loaded = hydrateState(saved);
+  assert.equal(loaded.level, 32);
+  assert.equal(loaded.baseStamina, 55);
+  assert.equal(loaded.luck, 65);
+  assert.deepEqual(loaded.profileSkills, { ...saved.profileSkills, weapon: 0, heal: 0 });
+  const upgraded = act(loaded, 'UPGRADE_LEVEL');
+  assert.equal(upgraded.level, 33);
+  assert.equal(upgraded.baseStamina, 55);
+  assert.equal(upgraded.luck, 65);
+  assert.deepEqual(upgraded.profileSkills, loaded.profileSkills);
+  assert.equal(upgraded.bullets, 1000 - (40 + 32 * 15));
+});
+
+test('seven-day login rewards can be claimed once per local day and cycle after day seven', async () => {
+  const { LOGIN_REWARDS } = await vite.ssrLoadModule('/src/game/loginRewards.ts');
+  const realNow = Date.now;
+  const day = new Date(2026, 2, 1, 12);
+  let state = createInitialState();
+  try {
+    for (let i = 0; i < 7; i++) {
+      Date.now = () => day.getTime();
+      const before = state;
+      state = act(state, 'CLAIM_LOGIN_REWARD');
+      assert.equal(state.loginRewards.streak, i + 1);
+      assert.equal(state.bullets, before.bullets + LOGIN_REWARDS[i].bullets);
+      assert.equal(state.gold, before.gold + LOGIN_REWARDS[i].gold);
+      assert.equal(state.matches, before.matches + LOGIN_REWARDS[i].matches);
+      assert.equal(state.medkits, before.medkits + LOGIN_REWARDS[i].medkits);
+      assert.equal(state.premiumGold, before.premiumGold);
+      assert.equal(state.storedWeapons.filter(w => w.id === 'rusty_pistol').length, i === 6 ? 1 : 0);
+      const again = act(state, 'CLAIM_LOGIN_REWARD');
+      assert.equal(again.bullets, state.bullets);
+      assert.equal(again.gold, state.gold);
+      state = hydrateState(state);
+      assert.equal(act(state, 'CLAIM_LOGIN_REWARD').bullets, state.bullets);
+      day.setDate(day.getDate() + 1);
+    }
+    Date.now = () => day.getTime();
+    state = act(state, 'CLAIM_LOGIN_REWARD');
+    assert.equal(state.loginRewards.streak, 1);
+    assert.equal(state.loginRewards.lastClaimDate, todayLocal(day.getTime()));
+  } finally { Date.now = realNow; }
+});
+
+test('login rewards restart after a missed day and reject backwards dates', async () => {
+  const { loginRewardStatus, normalizeLoginRewards } = await vite.ssrLoadModule('/src/game/loginRewards.ts');
+  const first = new Date(2026, 0, 31, 12);
+  const next = new Date(2026, 1, 1, 12);
+  const missed = new Date(2026, 1, 3, 12);
+  const state = { lastClaimDate: todayLocal(first.getTime()), streak: 3 };
+  assert.equal(loginRewardStatus(state, next.getTime()).day, 4);
+  assert.equal(loginRewardStatus(state, missed.getTime()).day, 1);
+  assert.equal(loginRewardStatus(state, missed.getTime()).reset, true);
+  assert.equal(loginRewardStatus(state, first.getTime() - 86400000).available, false);
+  assert.deepEqual(normalizeLoginRewards({ streak: 100, lastClaimDate: 'not-a-date' }), { streak: 0, lastClaimDate: null });
+  const old = createInitialState();
+  delete old.loginRewards;
+  assert.deepEqual(hydrateState(old).loginRewards, { streak: 0, lastClaimDate: null });
+});
+
+test('boss damage history keeps recent entries within a bounded log', () => {
+  let state = act(createInitialState(), 'START_BOSS_FIGHT', { bossId: '1' });
+  state = { ...state, battle: { ...state.battle, bossHp: 100000 } };
+  const now = state.battle.startedAt + 1;
+  for (let i = 0; i < 205; i++) state = act(state, 'BOSS_SKILL', { skillId: 'jab', now: now + i });
+  assert.equal(state.battle.log.length, 200);
+  assert.ok(state.battle.log.every((line) => line.includes('Удар кулаком')));
+  const defeated = act({ ...state, battle: { ...state.battle, bossHp: 1 } }, 'BOSS_SKILL', { skillId: 'jab', now: now + 205 });
+  assert.equal(defeated.battle.outcome, 'won');
+  assert.equal(defeated.battle.log.length, 200);
+  assert.match(defeated.battle.log.at(-1), /повержен/);
+});
+
+test('military headgear replaces same slot, survives loading and blocks duplicates', () => {
+  let state = { ...createInitialState(), gold: 5000 };
+  const denied = act({ ...state, gold: 0 }, 'BUY_SHOP_ITEM', { category: 'clothing', itemId: 'mil_scout_head', currency: 'gold' });
+  assert.ok(!denied.equipmentIds.includes('mil_scout_head'));
+  state = act(state, 'BUY_SHOP_ITEM', { category: 'clothing', itemId: 'mil_scout_head', currency: 'gold' });
+  state = act(state, 'EQUIP_ITEM', { slotIndex: 0 });
+  assert.ok(state.equipmentIds.includes('mil_scout_head'));
+  state = act(state, 'BUY_SHOP_ITEM', { category: 'clothing', itemId: 'mil_assault_head', currency: 'gold' });
+  assert.equal(state.gold, 5000 - 900 - 1800);
+  state = act(state, 'EQUIP_ITEM', { slotIndex: 1 });
+  assert.deepEqual(state.equipmentIds, ['mil_assault_head']);
+  assert.equal(state.inventory[0].equipped, false);
+  assert.equal(state.inventory[1].equipped, true);
+  state = hydrateState(JSON.parse(JSON.stringify(state)));
+  assert.ok(state.equipmentIds.includes('mil_assault_head'));
+  state = act(state, 'UNEQUIP_ITEM', { slotIndex: 1 });
+  assert.ok(!state.equipmentIds.includes('mil_assault_head'));
+  state = act(state, 'EQUIP_ITEM', { slotIndex: 1 });
+  assert.ok(state.equipmentIds.includes('mil_assault_head'));
+  const duplicate = act(state, 'BUY_SHOP_ITEM', { category: 'clothing', itemId: 'mil_assault_head', currency: 'gold' });
+  assert.equal(duplicate.gold, state.gold);
+});
+
+test('district boss battle needs no health, medkits or working weapon and has no knockout or turn limit', () => {
+  const initial = { ...createInitialState(), health: 0, medkits: 0, weapon: { ...createInitialState().weapon, broken: true } };
+  let state = act(initial, 'START_BOSS', { districtId: 'southgate' });
+  assert.equal(state.battle.source, 'district');
+  assert.equal(state.battle.playerHp, state.battle.playerMaxHp);
+  state = { ...state, battle: { ...state.battle, playerHp: 1, turn: 99, bossHp: 5000, bossMaxHp: 5000 } };
+  state = act(state, 'BATTLE_HEAL');
+  assert.ok(state.battle);
+  assert.equal(state.battle.outcome, 'fighting');
+  assert.ok(state.battle.playerHp >= 1);
+  assert.equal(state.battle.turn, 100);
+  assert.equal(state.health, 0);
+  assert.equal(state.medkits, 0);
+  state = { ...state, battle: { ...state.battle, playerHp: 1, statuses: { ...state.battle.statuses, poisonTurns: 1, poisonDamage: 1000 } } };
+  state = act(state, 'BATTLE_ATTACK', { technique: false });
+  assert.ok(state.battle);
+  assert.equal(state.battle.outcome, 'fighting');
+  assert.ok(state.battle.playerHp >= 1);
+});
+
+
+test('old starter is replaced once and day-seven pistol survives reload and future cycles', async () => {
+  const { getWeapon } = await vite.ssrLoadModule('/src/game/constants.ts');
+  const fresh = createInitialState();
+  assert.equal(fresh.weapon.id, 'shop_knuckles');
+  const old = { ...fresh, weapon: { ...getWeapon('rusty_pistol'), level: 3 }, storedWeapons: [] };
+  delete old.rustyPistolRewardVersion;
+  const migrated = hydrateState(old);
+  assert.equal(migrated.weapon.id, 'shop_knuckles');
+  assert.equal(migrated.rustyPistolRewardVersion, 1);
+  const storedOld = { ...old, weapon: { ...fresh.weapon, id: 'shop_bat' }, storedWeapons: [old.weapon] };
+  const migratedStored = hydrateState(storedOld);
+  assert.equal(migratedStored.weapon.id, 'shop_bat');
+  assert.deepEqual(migratedStored.storedWeapons.map(w => w.id), ['shop_knuckles']);
+  let earned = { ...migrated, loginRewards: { lastClaimDate: todayLocal(Date.now() - 86400000), streak: 6 } };
+  earned = act(earned, 'CLAIM_LOGIN_REWARD');
+  assert.equal(earned.storedWeapons.filter(w => w.id === 'rusty_pistol').length, 1);
+  earned = hydrateState(earned);
+  assert.equal(earned.storedWeapons.filter(w => w.id === 'rusty_pistol').length, 1);
+  earned = { ...earned, loginRewards: { lastClaimDate: todayLocal(Date.now() - 86400000), streak: 6 } };
+  earned = act(earned, 'CLAIM_LOGIN_REWARD');
+  assert.equal(earned.storedWeapons.filter(w => w.id === 'rusty_pistol').length, 1);
 });

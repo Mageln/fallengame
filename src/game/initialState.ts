@@ -1,11 +1,16 @@
+import { EXTRA_MAP_RAIDS } from './extraMapRaids';
+import { emptyCasino } from './casino';
+import { TUTORIAL_VERSION } from './tutorial';
 import { TUTORIAL, DAILY_QUESTS, STARTER_WEAPON, DEFAULT_STATS } from './constants';
 import { dateKey, weekKey } from './formulas';
-import { todayUtc } from './survival';
+import { todayLocal } from './survival';
 import { GameState } from './types';
+import { emptyProfileSkills } from './profileSkills';
 
 export const createInitialState = (): GameState => ({
   appearance: 0,
   tutorialStep: 0,
+  tutorialVersion: TUTORIAL_VERSION,
   energy: 0,
   maxEnergy: 100,
   // Начальные ресурсы у всех пользователей равны 0
@@ -19,7 +24,12 @@ export const createInitialState = (): GameState => ({
   grenades: 0,
   medkits: 0,
   keys: 0,
+  bossKeys: {},
   level: 30,
+  experience: 0,
+  loginRewards: { lastClaimDate: null, streak: 0 },
+  casino: emptyCasino(),
+  profileSkills: emptyProfileSkills(),
   baseStamina: 40,
   luck: 20,
   // Базовые атрибуты героя (Блок 5). Стартовые значения из DEFAULT_STATS.
@@ -27,9 +37,10 @@ export const createInitialState = (): GameState => ({
   carLevel: 1,
   currentDistrict: 'southgate',
   unlockedDistricts: ['southgate'],
-  // Полноценный стартовый ствол: раньше тут был объект без id/icon/type/ammo,
-  // из-за чего боевая математика не знала дальность, точность и боезапас.
+  // Стартовое оружие — кастет.
   weapon: { ...STARTER_WEAPON },
+  storedWeapons: [],
+  rustyPistolRewardVersion: 1,
   equipmentIds: [],
   inventory: [],
   craftingRecipes: ['repair_kit', 'medkit_bundle'],
@@ -43,6 +54,8 @@ export const createInitialState = (): GameState => ({
   clanWarHistory: [],
   daily: {
     dateKey: dateKey(),
+    questDate: todayLocal(),
+    questBonusClaimed: false,
     lotteryUsed: false,
     goldClaimed: false,
     quests: DAILY_QUESTS.map((q) => ({
@@ -57,9 +70,10 @@ export const createInitialState = (): GameState => ({
     active: false,
     districtId: null,
   },
+  arena: { date: '', used: 0, battle: null },
   battle: null,
   battleVisible: false,
-  bossAttacks: { date: todayUtc(), entries: {} },
+  bossAttacks: { date: todayLocal(), entries: {} },
   lastRoomRoll: null,
   pendingRoomDrop: null,
   raidTasks: null,
@@ -77,6 +91,7 @@ export const createInitialState = (): GameState => ({
   activeRaidId: null,
   notifications: [],
   showNotifications: false,
+  unlockedRaidRegions: [],
   mapRaids: [
     {
       id: 'raid_1',
@@ -190,6 +205,7 @@ export const createInitialState = (): GameState => ({
       isRunning: false,
       completed: false,
     },
+    ...EXTRA_MAP_RAIDS.map((raid) => ({ ...raid, rewards: { ...raid.rewards } })),
   ],
   currentLocation: 'location1',
   unlockedRooms: ['location1'],

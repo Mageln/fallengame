@@ -286,3 +286,80 @@ model Battle {
   startedAt   DateTime  @default(now())
   finishedAt  DateTime?
 }
+
+// Отдельное серверное сохранение. Никогда не принимает состояние от клиента.
+model PlayerProgress {
+  vkId      Int      @id
+  state     Json
+  revision  Int      @default(0)
+  energyUpdatedAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  coopAttacks CoopBossAttacker[]
+  coopHits CoopBossHit[]
+  coopRewards CoopBossReward[]
+  leaderboardScores LeaderboardScore[]
+}
+
+// Global boss encounters. The partial "one alive" index is in the SQL migration.
+model CoopBoss {
+  id            String   @id
+  bossId        String
+  maxHp         Int
+  hp            Int
+  status        String
+  rewardXp      Int
+  rewardGold    Int
+  rewardBullets Int
+  nextBossId    String?
+  createdAt     DateTime @default(now())
+  diedAt        DateTime?
+  attackers     CoopBossAttacker[]
+  hits          CoopBossHit[]
+  rewards       CoopBossReward[]
+}
+
+// Relations and CHECK constraints are installed by the SQL migration.
+model CoopBossAttacker {
+  encounterId String
+  vkId        Int
+  damage      Int
+  encounter   CoopBoss @relation(fields: [encounterId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  player      PlayerProgress @relation(fields: [vkId], references: [vkId], onDelete: NoAction, onUpdate: NoAction)
+  @@id([encounterId, vkId])
+}
+
+model CoopBossHit {
+  encounterId String
+  vkId        Int
+  attackId    String
+  damage      Int
+  hpAfter     Int
+  encounter   CoopBoss @relation(fields: [encounterId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  player      PlayerProgress @relation(fields: [vkId], references: [vkId], onDelete: NoAction, onUpdate: NoAction)
+  @@id([encounterId, vkId, attackId])
+}
+
+model CoopBossReward {
+  encounterId String
+  vkId        Int
+  xp          Int
+  gold        Int
+  bullets     Int
+  keyBossId   String?
+  claimedAt   DateTime?
+  encounter   CoopBoss @relation(fields: [encounterId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  player      PlayerProgress @relation(fields: [vkId], references: [vkId], onDelete: NoAction, onUpdate: NoAction)
+  @@id([encounterId, vkId])
+}
+
+// Server-owned aggregate scores, updated atomically with progress.
+model LeaderboardScore {
+  vkId       Int
+  period     String
+  bossDamage BigInt @default(0)
+  arenaWins  BigInt @default(0)
+  player     PlayerProgress @relation(fields: [vkId], references: [vkId], onDelete: Cascade)
+  @@id([period, vkId])
+  @@index([period, bossDamage(sort: Desc), vkId])
+  @@index([period, arenaWins(sort: Desc), vkId])
+}

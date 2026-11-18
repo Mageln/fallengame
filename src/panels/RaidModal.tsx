@@ -1,3 +1,5 @@
+import { ResourceIcon, ResourceText } from '../components/ResourceIcon';
+import { mapRaidExperience } from '../game/experience';
 import { useEffect, useState } from 'react';
 import { useGame } from '../game/GameContext';
 import { RAID_DANGER_TASKS, RAID_TASK_GOLD_PRICE } from '../game/survival';
@@ -27,9 +29,11 @@ export const RaidModal = ({ raidId, onClaim, onCancel, onMinimize }: RaidModalPr
   }, []);
 
   if (!raid) return null;
-  const completed = !!raid.endTime && now >= raid.endTime;
+  const running = raid.isRunning;
+  const locked = state.carLevel < (raid.requiredCarLevel ?? 1);
+  const completed = running && !!raid.endTime && now >= raid.endTime;
   const duration = raid.endTime && raid.startTime ? raid.endTime - raid.startTime : 1;
-  const progress = Math.min(100, Math.max(0, ((now - (raid.startTime ?? now)) / duration) * 100));
+  const progress = running ? Math.min(100, Math.max(0, ((now - (raid.startTime ?? now)) / duration) * 100)) : 0;
   const done = tasks?.completedIds.length ?? 0;
   const remaining = RAID_DANGER_TASKS.filter((task) => !tasks?.completedIds.includes(task.id));
   const affordableEnergy = remaining.some((task) => state.energy >= task.energy);
@@ -41,18 +45,22 @@ export const RaidModal = ({ raidId, onClaim, onCancel, onMinimize }: RaidModalPr
   return <div className={styles.backdrop} onClick={close}>
     <section className={styles.panel} role="dialog" aria-modal="true" aria-label={`Рейд: ${raid.name}`} onClick={(event) => event.stopPropagation()}>
       <header><span className={styles.lamp} aria-hidden="true"/><div><small>{raid.type === 'red' ? 'КРАСНАЯ ЗОНА · УГРОЗА' : 'ЖЁЛТАЯ ЗОНА · ВЫЛАЗКА'}</small><h2>{raid.name}</h2></div><button type="button" onClick={close} aria-label="Свернуть рейд">─</button></header>
-      <p>{raid.description} · Рейд продолжается после сворачивания.</p>
-      <strong className={styles.timer}>{completed ? '✅ ГОТОВО' : `⏱ ${formatTime((raid.endTime ?? now) - now)}`}</strong>
+      {raid.requiredCarLevel && <p>Машина: {state.carLevel} / {raid.requiredCarLevel} ур.</p>}
+      <p>{raid.description} · {running ? 'Рейд продолжается после сворачивания.' : 'Рейд начнётся только после нажатия кнопки.'}</p>
+      <strong className={styles.timer}>{!running ? (raid.completed ? '✅ НАГРАДА ПОЛУЧЕНА' : 'ГОТОВ К ВЫХОДУ') : completed ? '✅ ГОТОВО' : `⏱ ${formatTime((raid.endTime ?? now) - now)}`}</strong>
       <div className={styles.progressLabel}><span>Время рейда</span><strong>{Math.round(progress)}%</strong></div>
       <progress value={progress} max={100} aria-label="Ход рейда" />
-      <div className={styles.rewards}><span>🪵 +{raid.rewards.matches} спичек</span><span>⚙ +{raid.rewards.materials} материалов</span><span>🎟️ Опасные задания: {done}/{RAID_DANGER_TASKS.length}</span></div>
-      <button type="button" className={styles.taskButton} onClick={() => dispatch({ type: 'OPEN_RAID_TASKS', raidId })}>☢ ЗАДАНИЯ В РЕЙДЕ · {done}/{RAID_DANGER_TASKS.length}</button>
+      <div className={styles.rewards}><span>⭐ +{mapRaidExperience(raid.type)} опыта</span><span><ResourceIcon name="matches" /> +{raid.rewards.matches} спичек</span><span>⚙ +{raid.rewards.materials} материалов</span><span><ResourceIcon name="tokens" /> Опасные задания: {done}/{RAID_DANGER_TASKS.length}</span></div>
+      <button type="button" className={styles.taskButton} disabled={!running} onClick={() => dispatch({ type: 'OPEN_RAID_TASKS', raidId })}>☢ ЗАДАНИЯ В РЕЙДЕ · {done}/{RAID_DANGER_TASKS.length}</button>
       <div className={styles.actions}>
-        {completed ? <button type="button" className={styles.primary} onClick={onClaim}>ЗАБРАТЬ НАГРАДУ</button>
+        {!running ? <button type="button" className={styles.primary} disabled={locked || state.energy < raid.energyCost} onClick={() => dispatch({ type: 'START_RAID', raidId })}>НАЧАТЬ РЕЙД · <ResourceIcon name="energy" /> {raid.energyCost}</button>
+          : completed ? <button type="button" className={styles.primary} onClick={onClaim}>ЗАБРАТЬ НАГРАДУ</button>
           : <button type="button" onClick={onCancel}>ОТМЕНИТЬ РЕЙД (ВОЗВРАТ 50% ЭНЕРГИИ)</button>}
+        {!running && locked && <p className={styles.notice}>Улучшите машину до {raid.requiredCarLevel} уровня.</p>}
+        {!running && !locked && state.energy < raid.energyCost && <p className={styles.notice}>Недостаточно энергии для начала рейда.</p>}
         <button type="button" onClick={onMinimize}>СВЕРНУТЬ</button>
       </div>
-      {state.lastMessage && <p role="status" className={styles.notice}>{state.lastMessage}</p>}
+      {state.lastMessage && <p role="status" className={styles.notice}><ResourceText text={state.lastMessage} /></p>}
     </section>
     {tasks?.open && <div className={styles.taskBackdrop} onClick={(event) => { event.stopPropagation(); dispatch({ type: 'CLOSE_RAID_TASKS' }); }}>
       <section className={styles.taskPanel} role="dialog" aria-modal="true" aria-label="Опасные задания рейда" onClick={(event) => event.stopPropagation()}>
@@ -61,16 +69,16 @@ export const RaidModal = ({ raidId, onClaim, onCancel, onMinimize }: RaidModalPr
         <div className={styles.progressLabel}><span>Выполнено</span><strong>{done}/{RAID_DANGER_TASKS.length}</strong></div>
         <progress value={done} max={RAID_DANGER_TASKS.length} aria-label="Выполненные задания" />
         <ul>{RAID_DANGER_TASKS.map((task) => <li key={task.id}>
-          <span>{tasks.completedIds.includes(task.id) ? '✓' : '☠'}</span><div><strong>{task.title}</strong><small>⚡ {task.energy} · 🎟️ +{task.tokens} · ❤️ +{task.hp} HP</small></div>
+          <span>{tasks.completedIds.includes(task.id) ? '✓' : '☠'}</span><div><strong>{task.title}</strong><small><ResourceIcon name="energy" /> {task.energy} · <ResourceIcon name="tokens" /> +{task.tokens} · ❤️ +{task.hp} HP</small></div>
           <span>{tasks.completedIds.includes(task.id) ? 'ВЫПОЛНЕНО' : 'НЕ ПРОЙДЕНО'}</span>
         </li>)}</ul>
-        <div className={styles.rewards}><span>⚡ Энергия: {state.energy}</span><span>🪙 Золото: {state.premiumGold}</span><span>❤️ HP: {state.health}/{state.maxHealth}</span></div>
+        <div className={styles.rewards}><span><ResourceIcon name="energy" /> Энергия: {state.energy}</span><span><ResourceIcon name="premium" /> Золото: {state.premiumGold}</span><span>❤️ HP: {state.health}/{state.maxHealth}</span></div>
         <div className={styles.actions}>
-          <button type="button" disabled={!remaining.length || !affordableEnergy} onClick={() => dispatch({ type: 'COMPLETE_RAID_TASKS', raidId, mode: 'energy' })}>⚡ ВЫПОЛНИТЬ ЗА ЭНЕРГИЮ</button>
-          <button type="button" className={styles.primary} disabled={!remaining.length || state.premiumGold < RAID_TASK_GOLD_PRICE} onClick={() => dispatch({ type: 'COMPLETE_RAID_TASKS', raidId, mode: 'gold' })}>🪙 ВСЁ ЗА {RAID_TASK_GOLD_PRICE} ЗОЛОТА</button>
+          <button type="button" disabled={!remaining.length || !affordableEnergy} onClick={() => dispatch({ type: 'COMPLETE_RAID_TASKS', raidId, mode: 'energy' })}><ResourceIcon name="energy" /> ВЫПОЛНИТЬ ЗА ЭНЕРГИЮ</button>
+          <button type="button" className={styles.primary} disabled={!remaining.length || state.premiumGold < RAID_TASK_GOLD_PRICE} onClick={() => dispatch({ type: 'COMPLETE_RAID_TASKS', raidId, mode: 'gold' })}><ResourceIcon name="premium" /> ВСЁ ЗА {RAID_TASK_GOLD_PRICE} ЗОЛОТА</button>
           <button type="button" onClick={() => dispatch({ type: 'CLOSE_RAID_TASKS' })}>ЗАКРЫТЬ</button>
         </div>
-        {state.lastMessage && <p role="status" className={styles.notice}>{state.lastMessage}</p>}
+        {state.lastMessage && <p role="status" className={styles.notice}><ResourceText text={state.lastMessage} /></p>}
       </section>
     </div>}
   </div>;

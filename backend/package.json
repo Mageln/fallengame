@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "node --env-file=.env --import tsx --watch src/index.ts",
-    "build": "tsc",
+    "build": "tsc && esbuild scripts/progress-engine.ts --bundle --platform=node --format=esm --target=node18 --outfile=dist/generated/game.js",
     "test": "npm run build && node --test tests/*.test.mjs",
     "start": "node --env-file=.env dist/index.js",
     "db:migrate": "prisma migrate dev",
@@ -21,6 +21,7 @@
     "@types/cors": "^2.8.17",
     "@types/express": "^5.0.0",
     "@types/node": "^22.10.5",
+    "esbuild": "^0.28.2",
     "prisma": "^5.22.0",
     "tsx": "^4.19.2",
     "typescript": "^5.7.2"

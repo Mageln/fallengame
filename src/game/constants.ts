@@ -1,3 +1,6 @@
+import { SHOP_WEAPONS } from './shopCatalog';
+import { TUTORIAL_STEPS } from './tutorial';
+import { SHOP_CLOTHING, SHOP_SUITS } from './shopCatalog';
 import { InventoryItem, DailyQuest, Rarity, Weapon, WeaponMod, WeaponType, Zombie, ShelterItem, ShelterItemId, RoomSkin } from './types';
 
 export const WEAPON_MAX_LEVEL = 10;
@@ -54,45 +57,45 @@ export const DISTRICTS = [
 ] as const;
 
 export const LOCATIONS = [
-  { id: 'location1', name: 'Казармы', bg: 'room1.jpg', character: 'pers1.png' },
-  { id: 'location2', name: 'Больница', bg: 'room2.jpg', character: 'pers1.png' },
-  { id: 'location3', name: 'Склад', bg: 'room3.jpg', character: 'pers1.png' },
-  { id: 'location4', name: 'Лаборатория', bg: 'room4.jpg', character: 'pers1.png' },
-  { id: 'location5', name: 'Бункер', bg: 'room5.jpg', character: 'pers1.png' },
-  { id: 'location6', name: 'Смотровая', bg: 'room6.jpg', character: 'pers1.png' },
+  { id: 'location1', name: 'Казармы', bg: 'backgrounds/shelter.jpg', character: 'pers1.png' },
+  { id: 'location2', name: 'Больница', bg: 'backgrounds/hospital.jpg', character: 'pers1.png' },
+  { id: 'location3', name: 'Склад', bg: 'backgrounds/warehouse.jpg', character: 'pers1.png' },
+  { id: 'location4', name: 'Лаборатория', bg: 'backgrounds/laboratory.jpg', character: 'pers1.png' },
+  { id: 'location5', name: 'Бункер', bg: 'backgrounds/bunker.jpg', character: 'pers1.png' },
+  { id: 'location6', name: 'Смотровая', bg: 'backgrounds/lookout.jpg', character: 'pers1.png' },
 ] as const;
 
 // ===== УБЕЖИЩЕ (КОМНАТА) ======================================================
 // Полка торговца: товары за игровые припасы. Комнаты выпадают только за бой.
 export const SHELTER_ITEMS: ShelterItem[] = [
-  { id: 'bed', icon: '🛏️', name: 'Кровать выжившего', description: '+50% энергии', price: 200, repeatable: false },
-  { id: 'weapon_crate', icon: '🔫', name: 'Ящик с оружием', description: 'Случайный предмет', price: 300, repeatable: true },
-  { id: 'survivor_kit', icon: '🧰', name: 'Набор выжившего', description: 'Ресурсы + бонус', price: 400, repeatable: true },
-  { id: 'generator', icon: '⚡', name: 'Генератор', description: 'Ускоряет производство', price: 700, repeatable: false },
+  { id: 'bed', icon: '🛏️', name: 'Кровать выжившего', description: 'Навсегда увеличивает максимум энергии на 50% и сразу добавляет столько же энергии.', price: 200, repeatable: false },
+  { id: 'weapon_crate', icon: '🔫', name: 'Ящик с оружием', description: 'Сразу выдаёт один случайный предмет из магазина в инвентарь. Можно покупать повторно.', price: 300, repeatable: true },
+  { id: 'survivor_kit', icon: '🧰', name: 'Набор выжившего', description: 'Сразу выдаёт 100 пуль, 50 спичек, 5 аптечек, 2 гранаты и 200 припасов. Можно покупать повторно.', price: 400, repeatable: true },
+  { id: 'generator', icon: '⚡', name: 'Генератор', description: 'Постоянно ускоряет восстановление энергии в 2 раза, пока игра открыта.', price: 700, repeatable: false },
 ];
 
 // Оформления комнат. price: 0 — базовый скин (выдаётся вместе с комнатой).
 export const ROOM_SKINS: RoomSkin[] = [
-  { id: 'l1_bunker', roomId: 'location1', name: 'Ржавый бункер', description: 'Стены в ржавчине и оружейных шкафах', bg: 'room1.jpg', price: 0 },
-  { id: 'l1_rust', roomId: 'location1', name: 'Ржавчина', description: 'Металл, кровь, тусклый свет', bg: 'room5.jpg', price: 150 },
-  { id: 'l1_lab', roomId: 'location1', name: 'Заброшенная лаборатория', description: 'Колбы и тени прошлого', bg: 'room4.jpg', price: 300 },
+  { id: 'l1_bunker', roomId: 'location1', name: 'Ржавый бункер', description: 'Стены в ржавчине и оружейных шкафах', bg: 'backgrounds/shelter.jpg', price: 0 },
+  { id: 'l1_rust', roomId: 'location1', name: 'Ржавчина', description: 'Металл, кровь, тусклый свет', bg: 'backgrounds/bunker.jpg', price: 150 },
+  { id: 'l1_lab', roomId: 'location1', name: 'Заброшенная лаборатория', description: 'Колбы и тени прошлого', bg: 'backgrounds/laboratory.jpg', price: 300 },
 
-  { id: 'l2_hospital', roomId: 'location2', name: 'Госпиталь', description: 'Палаты, где уже никто не лечит', bg: 'room2.jpg', price: 0 },
-  { id: 'l2_fog', roomId: 'location2', name: 'Улицы города в тумане', description: 'Туман и остовы домов', bg: 'room3.jpg', price: 200 },
-  { id: 'l2_rust', roomId: 'location2', name: 'Ржавый бункер', description: 'Глухой металл подземелья', bg: 'room5.jpg', price: 400 },
+  { id: 'l2_hospital', roomId: 'location2', name: 'Госпиталь', description: 'Палаты, где уже никто не лечит', bg: 'backgrounds/hospital.jpg', price: 0 },
+  { id: 'l2_fog', roomId: 'location2', name: 'Улицы города в тумане', description: 'Туман и остовы домов', bg: 'backgrounds/battle.jpg', price: 200 },
+  { id: 'l2_rust', roomId: 'location2', name: 'Ржавый бункер', description: 'Глухой металл подземелья', bg: 'backgrounds/bunker.jpg', price: 400 },
 
-  { id: 'l3_warehouse', roomId: 'location3', name: 'Склад', description: 'Ящики, полки, эхо шагов', bg: 'room3.jpg', price: 0 },
-  { id: 'l3_bunker', roomId: 'location3', name: 'Ржавый бункер', description: 'Бетон и ржавчина', bg: 'room1.jpg', price: 250 },
-  { id: 'l3_fog', roomId: 'location3', name: 'Улицы города в тумане', description: 'Серый туман за стеной', bg: 'room2.jpg', price: 450 },
+  { id: 'l3_warehouse', roomId: 'location3', name: 'Склад', description: 'Ящики, полки, эхо шагов', bg: 'backgrounds/warehouse.jpg', price: 0 },
+  { id: 'l3_bunker', roomId: 'location3', name: 'Ржавый бункер', description: 'Бетон и ржавчина', bg: 'backgrounds/shelter.jpg', price: 250 },
+  { id: 'l3_fog', roomId: 'location3', name: 'Улицы города в тумане', description: 'Серый туман за стеной', bg: 'backgrounds/battle.jpg', price: 450 },
 
-  { id: 'l4_lab', roomId: 'location4', name: 'Заброшенная лаборатория', description: 'Колбы, реактивы, опасность', bg: 'room4.jpg', price: 0 },
-  { id: 'l4_hospital', roomId: 'location4', name: 'Госпиталь', description: 'Белый халат уже не нужен', bg: 'room2.jpg', price: 350 },
-  { id: 'l4_rust', roomId: 'location4', name: 'Ржавый бункер', description: 'Металлическая тишина', bg: 'room5.jpg', price: 500 },
+  { id: 'l4_lab', roomId: 'location4', name: 'Заброшенная лаборатория', description: 'Колбы, реактивы, опасность', bg: 'backgrounds/laboratory.jpg', price: 0 },
+  { id: 'l4_hospital', roomId: 'location4', name: 'Госпиталь', description: 'Белый халат уже не нужен', bg: 'backgrounds/hospital.jpg', price: 350 },
+  { id: 'l4_rust', roomId: 'location4', name: 'Ржавый бункер', description: 'Металлическая тишина', bg: 'backgrounds/bunker.jpg', price: 500 },
 
-  { id: 'l5_bunker', roomId: 'location5', name: 'Бункер', description: 'Последний рубеж', bg: 'room5.jpg', price: 0 },
-  { id: 'l5_lab', roomId: 'location5', name: 'Заброшенная лаборатория', description: 'Эксперименты не закончились', bg: 'room4.jpg', price: 450 },
-  { id: 'l5_city', roomId: 'location5', name: 'Улицы города в тумане', description: 'Вид на мёртвый город', bg: 'room3.jpg', price: 600 },
-  { id: 'l6_lookout', roomId: 'location6', name: 'Смотровая', description: 'Взгляд на мёртвый город', bg: 'room6.jpg', price: 0 },
+  { id: 'l5_bunker', roomId: 'location5', name: 'Бункер', description: 'Последний рубеж', bg: 'backgrounds/bunker.jpg', price: 0 },
+  { id: 'l5_lab', roomId: 'location5', name: 'Заброшенная лаборатория', description: 'Эксперименты не закончились', bg: 'backgrounds/laboratory.jpg', price: 450 },
+  { id: 'l5_city', roomId: 'location5', name: 'Улицы города в тумане', description: 'Вид на мёртвый город', bg: 'backgrounds/battle.jpg', price: 600 },
+  { id: 'l6_lookout', roomId: 'location6', name: 'Смотровая', description: 'Взгляд на мёртвый город', bg: 'backgrounds/lookout.jpg', price: 0 },
 ];
 
 export const getShelterItem = (id: ShelterItemId): ShelterItem | undefined =>
@@ -167,7 +170,7 @@ const RAW_MATERIALS: InventoryItem[] = [
   { id: 'barricade', name: 'Баррикада', rarity: 'common', staminaBonus: 0, damageBonus: 0, luckBonus: 0, costBullets: 0, icon: '🧱' },
 ];
 
-export const INVENTORY_ITEMS: InventoryItem[] = [...SHOP, ...RAW_MATERIALS];
+export const INVENTORY_ITEMS: InventoryItem[] = [...SHOP, ...SHOP_CLOTHING.map((entry) => entry.item), ...SHOP_SUITS.map((entry) => entry.item), ...RAW_MATERIALS];
 
 export const CRAFTING_RECIPES = [
   {
@@ -248,25 +251,15 @@ export const CRAFTING_RECIPES = [
 ];
 
 export const DAILY_QUESTS: DailyQuest[] = [
-  { id: 'q1', name: 'Первая кровь', description: 'Убейте босса', type: 'kill_boss', target: 1, rewardBullets: 15, rewardMatches: 5, rewardGrenades: 2, rewardGold: 1 },
-  { id: 'q2', name: 'Разведчик', description: 'Выполните 3 задания в районе', type: 'do_task', target: 3, rewardBullets: 25, rewardMatches: 10, rewardGrenades: 3, rewardGold: 2 },
-  { id: 'q3', name: 'Сборщик', description: 'Соберите ящики в рейде', type: 'raid_loot', target: 1, rewardBullets: 20, rewardMatches: 15, rewardGrenades: 5, rewardGold: 2 },
-  { id: 'q4', name: 'Гонщик', description: 'Прокачайте машину', type: 'upgrade_car', target: 1, rewardBullets: 30, rewardMatches: 12, rewardGrenades: 3, rewardGold: 3 },
-  { id: 'q5', name: 'Мастер', description: 'Скрафтите предмет', type: 'craft_item', target: 1, rewardBullets: 20, rewardMatches: 10, rewardGrenades: 4, rewardGold: 2 },
-  { id: 'q6', name: 'Серийный убийца', description: 'Убейте 5 боссов', type: 'kill_boss', target: 5, rewardBullets: 60, rewardMatches: 25, rewardGrenades: 8, rewardGold: 5 },
-  { id: 'q7', name: 'Трудолюбивый', description: 'Выполните 10 заданий', type: 'do_task', target: 10, rewardBullets: 80, rewardMatches: 40, rewardGrenades: 10, rewardGold: 7 },
-  { id: 'q8', name: 'Аптекарь', description: 'Используйте 10 аптечек в бою', type: 'kill_boss', target: 10, rewardBullets: 40, rewardMatches: 15, rewardGrenades: 6, rewardGold: 3 },
+  { id: 'q2', name: 'Обход территории', description: 'Выполните 3 задания района', type: 'do_task', target: 3, rewardBullets: 30, rewardMatches: 10, rewardGrenades: 0, rewardGold: 0, rewardExperience: 0 },
+  { id: 'q3', name: 'Вылазка за припасами', description: 'Завершите рейд и заберите награду', type: 'raid_loot', target: 1, rewardBullets: 40, rewardMatches: 0, rewardGrenades: 0, rewardGold: 0, rewardExperience: 20 },
+  { id: 'q1', name: 'Опасная цель', description: 'Победите босса и заберите награду', type: 'kill_boss', target: 1, rewardBullets: 60, rewardMatches: 0, rewardGrenades: 0, rewardGold: 0, rewardExperience: 50 },
+  { id: 'q5', name: 'Умелые руки', description: 'Создайте 1 предмет', type: 'craft_item', target: 1, rewardBullets: 25, rewardMatches: 15, rewardGrenades: 0, rewardGold: 0, rewardExperience: 0 },
+  { id: 'q4', name: 'На ходу', description: 'Улучшите машину 1 раз', type: 'upgrade_car', target: 1, rewardBullets: 30, rewardMatches: 0, rewardGrenades: 0, rewardGold: 20, rewardExperience: 0 },
+  { id: 'q6', name: 'Охотник', description: 'Победите 3 боссов и заберите награды', type: 'kill_boss', target: 3, rewardBullets: 100, rewardMatches: 0, rewardGrenades: 0, rewardGold: 0, rewardExperience: 100 },
 ];
 
-export const TUTORIAL = [
-  'Эргейт оцеплен стеной. Выживите и развивайтесь.',
-  'Откройте профиль слева вверху — там внешность, уровень, выносливость и удача.',
-  'Стартовое оружие и патроны выданы. Не тратьте энергию впустую.',
-  'Качайте автомобиль первым: без него районы не откроются. Нортед — с 50 уровня машины.',
-  'Мастерская справа внизу: заточка, модернизация и ремонт оружия. Максимум заточки — 10.',
-  'Инвентарь (кнопка внизу) — новые предметы с редкостью. Крафт — создавайте лучшее снаряжение.',
-  'Ежедневные квесты — выполняйте задания за бонусы. Не забывайте про рацию!',
-];
+export const TUTORIAL = TUTORIAL_STEPS.map((step) => step.instruction);
 
 export const DISTRICT_TASKS: Record<string, { id: string; name: string; icon: string; cost: number; bullets: number; matches: number }[]> = {
   southgate: [
@@ -434,7 +427,7 @@ export const getWeapon = (id: string): Weapon | undefined => WEAPONS.find((w) =>
 
 // Стартовое оружие нового игрока.
 export const STARTER_WEAPON: Weapon = {
-  ...getWeapon('rusty_pistol')!,
+  ...SHOP_WEAPONS.find(({ weapon }) => weapon.id === 'shop_knuckles')!.weapon,
 };
 
 // Стартовые характеристики героя.

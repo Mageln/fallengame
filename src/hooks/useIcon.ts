@@ -8,6 +8,7 @@ export interface GameIcons {
   bullets: HTMLImageElement | null;
   zhetons: HTMLImageElement | null;
   gold: HTMLImageElement | null;
+  premium: HTMLImageElement | null;
   plus: HTMLImageElement | null;
   zombie: HTMLImageElement | null;
   // Кнопки нижней панели
@@ -47,7 +48,7 @@ const ICON_SRCS = {
   arena: '/icon/arena.jpg',
   personaz: '/icon/personaz.jpg',
   kazino: '/icon/kazino.jpg',
-  cloth: '/icon/cloth.jpg',
+  cloth: '/icon/shop/store.png',
   gold: '/icon/resource/gold.png',
 } as const;
 
@@ -68,6 +69,7 @@ export const useIcon = () => {
     bullets: null,
     zhetons: null,
     gold: null,
+    premium: null,
     plus: null,
     zombie: null,
     // Кнопки нижней панели
@@ -104,11 +106,11 @@ export const useIcon = () => {
   useEffect(() => {
     const loadAllIcons = async () => {
       const results = await Promise.allSettled([
-        loadIconWithTimeout('/icon/resource/energy.png', 2000),
-        loadIconWithTimeout('/icon/resource/spicki.png', 2000),
-        loadIconWithTimeout('/icon/resource/bullets.png', 2000),
-        loadIconWithTimeout('/icon/resource/zheton.png', 2000),
-        loadIconWithTimeout('/icon/resource/gold.png', 2000),
+        loadIconWithTimeout('/icon/resources/energy.png', 2000),
+        loadIconWithTimeout('/icon/resources/matches.png', 2000),
+        loadIconWithTimeout('/icon/resources/bullets.png', 2000),
+        loadIconWithTimeout('/icon/resources/tokens.png', 2000),
+        loadIconWithTimeout('/icon/resources/supplies.png', 2000),
         loadIconWithTimeout('/icon/plus.png', 2000),
         loadIconWithTimeout('/icon/zombie.png', 2000),
         // Кнопки нижней панели
@@ -117,8 +119,8 @@ export const useIcon = () => {
         loadIconWithTimeout('/icon/arena.jpg', 2000),
         loadIconWithTimeout('/icon/personaz.jpg', 2000),
         loadIconWithTimeout('/icon/kazino.jpg', 2000),
-        loadIconWithTimeout('/icon/cloth.jpg', 2000),
-        loadIconWithTimeout('/icon/komnata.jpg', 2000),
+        loadIconWithTimeout('/icon/shop/store.png', 2000),
+        loadIconWithTimeout('/icon/shelter.png', 2000),
         loadIconWithTimeout('/icon/raion.jpg', 2000),
         // Нижние кнопки: друзья, задания, кланы
         loadIconWithTimeout('/icon/friends.png', 2000),
@@ -128,6 +130,7 @@ export const useIcon = () => {
         loadIconWithTimeout('/bossRoom/fonIconBoss.jpg', 3000),
         loadIconWithTimeout('/bossRoom/FonLoot.jpg', 3000),
         loadIconWithTimeout('/bossRoom/fonWinnera.jpg', 3000),
+        loadIconWithTimeout('/icon/resources/premium.png', 2000),
       ]);
 
       setIcons({
@@ -135,6 +138,7 @@ export const useIcon = () => {
         spicki: results[1]?.status === 'fulfilled' ? (results[1] as PromiseFulfilledResult<HTMLImageElement>).value : null,
         bullets: results[2]?.status === 'fulfilled' ? (results[2] as PromiseFulfilledResult<HTMLImageElement>).value : null,
         zhetons: results[3]?.status === 'fulfilled' ? (results[3] as PromiseFulfilledResult<HTMLImageElement>).value : null,
+        premium: results[21]?.status === 'fulfilled' ? (results[21] as PromiseFulfilledResult<HTMLImageElement>).value : null,
         gold: results[4]?.status === 'fulfilled' ? (results[4] as PromiseFulfilledResult<HTMLImageElement>).value : null,
         plus: results[5]?.status === 'fulfilled' ? (results[5] as PromiseFulfilledResult<HTMLImageElement>).value : null,
         zombie: results[6]?.status === 'fulfilled' ? (results[6] as PromiseFulfilledResult<HTMLImageElement>).value : null,
@@ -164,7 +168,7 @@ export const useIcon = () => {
         kazino: results[11]?.status === 'fulfilled' ? ICON_SRCS.kazino : null,
         cloth: results[12]?.status === 'fulfilled' ? ICON_SRCS.cloth : null,
         gold: results[4]?.status === 'fulfilled' ? ICON_SRCS.gold : null,
-        komnata: results[13]?.status === 'fulfilled' ? '/icon/komnata.jpg' : null,
+        komnata: results[13]?.status === 'fulfilled' ? '/icon/shelter.png' : null,
         raion: results[14]?.status === 'fulfilled' ? '/icon/raion.jpg' : null,
       });
 

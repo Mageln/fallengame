@@ -1,3 +1,5 @@
+import { ResourceIcon } from '../components/ResourceIcon';
+import { QuestIcon, QuestChestIcon } from '../components/QuestIcon';
 import { Panel, PanelHeader, Group, Button, Text, Header, Box, Card } from '@vkontakte/vkui';
 import { Icon28ArrowLeftOutline } from '@vkontakte/icons';
 import { useRouteNavigator } from '@vkontakte/vk-mini-apps-router';
@@ -51,9 +53,10 @@ export const Quests = ({ id }: Props) => {
               }}
             >
               <Box style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <Box>
-                  <Text style={{ fontWeight: 'bold' }}>{quest.name}</Text>
-                  <Text style={{ fontSize: 12, opacity: 0.7 }}>{quest.description}</Text>
+                <Box style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                  <QuestIcon questId={quest.id} style={{ width: 48, height: 48, objectFit: 'contain', flexShrink: 0 }} />
+                  <Box><Text style={{ fontWeight: 'bold' }}>{quest.name}</Text>
+                  <Text style={{ fontSize: 12, opacity: 0.7 }}>{quest.description}</Text></Box>
                 </Box>
                 <Text style={{ fontWeight: 'bold', fontSize: 14 }}>
                   {progress.progress}/{quest.target}
@@ -75,20 +78,21 @@ export const Quests = ({ id }: Props) => {
 
               {/* Rewards */}
               <Box style={{ display: 'flex', gap: 12, marginTop: 8, fontSize: 12 }}>
-                {quest.rewardBullets > 0 && <Text>🔫+{quest.rewardBullets}</Text>}
-                {quest.rewardMatches > 0 && <Text>🔥+{quest.rewardMatches}</Text>}
-                {quest.rewardGrenades > 0 && <Text>💣+{quest.rewardGrenades}</Text>}
-                {quest.rewardGold > 0 && <Text>🪙+{quest.rewardGold}</Text>}
+                {quest.rewardBullets > 0 && <Text><ResourceIcon name="bullets" />+{quest.rewardBullets}</Text>}
+                {quest.rewardMatches > 0 && <Text><ResourceIcon name="matches" />+{quest.rewardMatches}</Text>}
+                {quest.rewardGrenades > 0 && <Text><ResourceIcon name="grenades" />+{quest.rewardGrenades}</Text>}
+                {quest.rewardGold > 0 && <Text><ResourceIcon name="supplies" />+{quest.rewardGold}</Text>}
+                {quest.rewardExperience > 0 && <Text><ResourceIcon name="experience" />+{quest.rewardExperience} опыта</Text>}
               </Box>
 
               {/* Claim button */}
               {isCompleted && !isClaimed && (
                 <Button size="m" style={{ marginTop: 8, width: '100%' }} onClick={() => handleClaim(quest.id)}>
-                  🎁 Забрать награду
+                  <QuestChestIcon style={{ width: 24, height: 24, objectFit: 'contain', verticalAlign: 'middle' }} /> Забрать награду
                 </Button>
               )}
               {isClaimed && (
-                <Text style={{ marginTop: 8, textAlign: 'center', color: '#10b981' }}>✅ Получено</Text>
+                <Text style={{ marginTop: 8, textAlign: 'center', color: '#10b981' }}>Получено</Text>
               )}
             </Card>
           );

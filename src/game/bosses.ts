@@ -60,6 +60,26 @@ export const BOSSES: BossDef[] = [
     minLevel: 1,
     dailyLimit: 2,
   },
+  {
+    id: 'zombie',
+    name: 'Обычный зомби',
+    description: 'Медленный заражённый. Каждые 8 секунд наносит обычную атаку.',
+    hp: 160,
+    damage: 8,
+    reward: { gold: 250, bullets: 20, zhetons: 0, spirt: 0 },
+    minLevel: 1,
+    dailyLimit: 5,
+  },
+  {
+    id: 'zombie_brute',
+    name: 'Зомби-громила',
+    description: 'Тяжёлый заражённый. Каждые 8 секунд атакует; каждый третий удар — сильная атака с двойным уроном.',
+    hp: 600,
+    damage: 14,
+    reward: { gold: 1100, bullets: 75, zhetons: 2, spirt: 1 },
+    minLevel: 1,
+    dailyLimit: 3,
+  },
   // Игровые боссы
   {
     id: 'boss_sever',

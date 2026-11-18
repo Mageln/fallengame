@@ -1,10 +1,13 @@
 import express from 'express';
+import { leaderboardRouter } from './routes/leaderboards.js';
+import { moderationRouter } from './routes/moderation.js';
 import cors from 'cors';
 import { userRouter } from './routes/user.js';
 import { gameRouter } from './routes/game.js';
 import { clanRouter } from './routes/clan.js';
 import { shopRouter } from './routes/shop.js';
 import { casinoRouter } from './routes/casino.js';
+import { progressRouter } from './routes/progress.js';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -17,6 +20,9 @@ app.use(cors({
 app.use(express.json());
 
 // Routes
+app.use('/api/moderation', moderationRouter);
+app.use('/api/leaderboards', leaderboardRouter);
+app.use('/api/progress', progressRouter);
 app.use('/api/user', userRouter);
 app.use('/api/game', gameRouter);
 app.use('/clans', clanRouter);

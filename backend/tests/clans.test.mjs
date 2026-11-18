@@ -56,3 +56,11 @@ test('task progress rejects invalid events before connecting to database', async
   });
   assert.equal(response.status, 400);
 });
+
+test('a valid-looking forged contract event cannot add rating', async () => {
+  const response = await fetch(`${origin}/clans/any/tasks/clear_streets/progress`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json', 'X-VK-Launch-Params': launchHeader() },
+    body: JSON.stringify({ amount: 1, eventId: 'fabricated-event-id' }),
+  });
+  assert.equal(response.status, 501);
+});

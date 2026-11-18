@@ -1,5 +1,6 @@
 interface ProfileData {
   level: number;
+  experience: number;
   stamina: number;
   damage: number;
   luck: number;
@@ -110,7 +111,8 @@ const drawStatCard = (
   label: string,
   value: string | number,
   valueColor: string,
-  progress?: { current: number; max: number }
+  progress?: { current: number; max: number },
+  iconImage: HTMLImageElement | null = null
 ) => {
   // Карточка с фоном
   ctx.fillStyle = 'rgba(20, 25, 40, 0.8)';
@@ -128,7 +130,8 @@ const drawStatCard = (
   ctx.font = '20px Arial';
   ctx.textAlign = 'left';
   ctx.textBaseline = 'top';
-  ctx.fillText(icon, x + 10, y + 8);
+  if (iconImage?.complete && iconImage.naturalWidth > 0) ctx.drawImage(iconImage, x + 7, y + 6, 25, 25);
+  else ctx.fillText(icon, x + 10, y + 8);
   
   // Метка
   ctx.fillStyle = '#8899aa';
@@ -169,7 +172,8 @@ export const drawProfile = (
   profileData: ProfileData,
   isHovered: boolean,
   hoveredX: number,
-  hoveredY: number
+  hoveredY: number,
+  icons: Record<string, HTMLImageElement | null> = {}
 ): ButtonPosition[] => {
   const buttonPositions: ButtonPosition[] = [];
   const padding = 15;
@@ -329,6 +333,8 @@ export const drawProfile = (
 
   drawGlowText(ctx, `Ур. ${profileData.level}`, charCenterX, levelBadgeY + 14, 12, '#ffd700', '#ffd700');
 
+  drawGlowText(ctx, `Опыт: ${profileData.experience}`, charCenterX, levelBadgeY + 42, 11, '#ffd700', '#9b7921');
+
   // ===== ПРАВАЯ КОЛОНКА — СТАТЫ =====
   const rightColX = panelX + panelWidth * 0.46;
   const rightColWidth = panelWidth * 0.5 - 35;
@@ -450,14 +456,14 @@ export const drawProfile = (
   currentY += weaponHeight + 15;
 
   // ===== РЕСУРСЫ =====
-  drawGlowText(ctx, '💰 Ресурсы', rightColX, currentY, 14, '#ffd700', '#ffd700', 'left');
+  drawGlowText(ctx, 'Ресурсы', rightColX, currentY, 14, '#ffd700', '#ffd700', 'left');
   currentY += 22;
 
-  const resources: Array<{ label: string; value: number; color: string; icon: string }> = [
-    { label: 'Золото', value: profileData.gold, color: '#ffd700', icon: '🪙' },
-    { label: 'Пули', value: profileData.bullets, color: '#cccccc', icon: '🔫' },
-    { label: 'Спички', value: profileData.spicki, color: '#ff8800', icon: '🔥' },
-    { label: 'Жетоны', value: profileData.zhetons, color: '#00aaff', icon: '🎫' },
+  const resources: Array<{ label: string; value: number; color: string; icon: string; image: HTMLImageElement | null | undefined }> = [
+    { label: 'Припасы', value: profileData.gold, color: '#ffd700', icon: 'Р', image: icons.gold },
+    { label: 'Пули', value: profileData.bullets, color: '#cccccc', icon: 'П', image: icons.bullets },
+    { label: 'Спички', value: profileData.spicki, color: '#ff8800', icon: 'С', image: icons.spicki },
+    { label: 'Жетоны', value: profileData.zhetons, color: '#00aaff', icon: 'Ж', image: icons.zhetons },
   ];
 
   const resCardWidth = (cardWidth - cardGap) / 2;
@@ -478,7 +484,9 @@ export const drawProfile = (
       res.icon,
       res.label,
       res.value.toLocaleString(),
-      res.color
+      res.color,
+      undefined,
+      res.image ?? null
     );
   });
 

@@ -1,4 +1,6 @@
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import { characterSpritePath, heldWeaponPath } from '../../game/heldWeapon';
+import { clothingVisualPath, equippedClothingVisuals, hasEquippedSuit } from '../../game/clothingVisuals';
+import React, { useState, useEffect, useCallback } from "react";
 import styles from "../../style/PrisonCanvas/PrisonCanvas.module.scss";
 import { PrisonCanvasProps } from "./types";
 import { useCanvas } from "./useCanvas";
@@ -10,7 +12,13 @@ import { FAKE_BOSSES } from "./bosses";
 import { RaidModal } from "../../panels/RaidModal";
 import { ClanModal } from "../../panels/Clan";
 import { RoomModal } from "../../panels/Room";
-import { BossFightPanel, BossHub, PremiumShop } from "../../panels/Boss";
+import { getBossArt, isEnraged } from '../../game/enemyArt';
+import { Arena } from "../../panels/Arena";
+import { CasinoModal } from "../../panels/Casino";
+import { StoreModal } from "../../panels/Store";
+import { BossFightPanel, BossHub } from "../../panels/Boss";
+import { ResourceTopUp } from "../../panels/ResourceTopUp";
+import type { TopUpResource } from "../../game/resourceTopUp";
 import { FriendsPanel } from "../../panels/Friends";
 import { NotificationsPanel } from "../NotificationsPanel";
 import { useGame } from "../../game/GameContext";
@@ -37,6 +45,7 @@ export const FallenCanvas: React.FC<PrisonCanvasProps & {
   showProfile?: boolean;
   profileData?: {
     level: number;
+    experience: number;
     stamina: number;
     damage: number;
     luck: number;
@@ -59,6 +68,7 @@ export const FallenCanvas: React.FC<PrisonCanvasProps & {
   onGoDistrict?: () => void;
   showMap?: boolean;
   mapRaids?: MapRaid[];
+  raidMapImage?: string;
   playerName?: string;
   avatarUrl?: string;
   lastMessage?: string;
@@ -95,11 +105,11 @@ export const FallenCanvas: React.FC<PrisonCanvasProps & {
   showMap = false,
   profileData,
   onProfileClose,
-  onBattleClick,
   onRaidClick,
   onGoDistrict,
   onCloseMap,
   mapRaids = [],
+  raidMapImage = '/map/map.jpg',
   playerName = 'Игрок',
   avatarUrl,
   lastMessage = '',
@@ -110,19 +120,58 @@ export const FallenCanvas: React.FC<PrisonCanvasProps & {
   onNotificationRaidClick,
   onNotificationRemove,
   onNotificationsClear,
-  onFriendsClick,
   onRoomsClick,
 }) => {
   const { dispatch, state } = useGame();
   const [backgroundImage, setBackgroundImage] = useState<HTMLImageElement | null>(null);
+  const [heldWeapon, setHeldWeapon] = useState<{ id: string; image: HTMLImageElement } | null>(null);
+  const [clothingImages, setClothingImages] = useState<HTMLImageElement[]>([]);
+  const [capImage, setCapImage] = useState<HTMLImageElement | null>(null);
   const [characterImage, setCharacterImage] = useState<HTMLImageElement | null>(null);
   const [mapImage, setMapImage] = useState<HTMLImageElement | null>(null);
   const [topBarImage, setTopBarImage] = useState<HTMLImageElement | null>(null);
   // Спрайт босса для окна боя
   const [bossImage, setBossImage] = useState<HTMLImageElement | null>(null);
   const [showRoomModal, setShowRoomModal] = useState(false);
-  const [showPremiumShop, setShowPremiumShop] = useState(false);
+  const [topUpResource, setTopUpResource] = useState<TopUpResource | null>(null);
+  const [showArena, setShowArena] = useState(false);
+  const [showStore, setShowStore] = useState(false);
+  const [showCasino, setShowCasino] = useState(false);
   const [showFriends, setShowFriends] = useState(false);
+
+  useEffect(() => {
+    const image = new Image();
+    image.onload = () => setCapImage(image);
+    image.onerror = () => setCapImage(null);
+    image.src = '/characters/survivor-cap-v2.png';
+    return () => { image.onload = null; image.onerror = null; };
+  }, []);
+
+  useEffect(() => {
+    const path = heldWeaponPath(state.weapon.id);
+    if (!path) { setHeldWeapon(null); return; }
+    const image = new Image();
+    const id = state.weapon.id;
+    image.onload = () => setHeldWeapon({ id, image });
+    image.onerror = () => setHeldWeapon(null);
+    image.src = path;
+    return () => { image.onload = null; image.onerror = null; };
+  }, [state.weapon.id]);
+
+  const clothingKey = equippedClothingVisuals(state.equipmentIds).join(',');
+  useEffect(() => {
+    let cancelled = false;
+    const ids = clothingKey ? clothingKey.split(',') : [];
+    setClothingImages([]);
+    Promise.all(ids.map(id => new Promise<HTMLImageElement | null>(resolve => {
+      const image = new Image();
+      image.dataset.clothingId = id;
+      image.onload = () => resolve(image);
+      image.onerror = () => resolve(null);
+      image.src = clothingVisualPath(id);
+    }))).then(images => { if (!cancelled) setClothingImages(images.filter((image): image is HTMLImageElement => image !== null)); });
+    return () => { cancelled = true; };
+  }, [clothingKey]);
 
   // "Атаковать"/"В бой" — запускает бой через reducer (state.battle)
   const handleBossAttack = useCallback(
@@ -178,25 +227,30 @@ export const FallenCanvas: React.FC<PrisonCanvasProps & {
   useEffect(() => {
     const bgFile = resolveBackground(state.currentLocation, state.selectedSkins, state.unlockedRooms);
     const bgImg = new Image();
-    const charImg = new Image();
-
     bgImg.onload = () => setBackgroundImage(bgImg);
     bgImg.onerror = () => setBackgroundImage(null);
     bgImg.src = `/${bgFile}`;
+    return () => { bgImg.onload = null; bgImg.onerror = null; };
+  }, [state.currentLocation, state.selectedSkins, state.unlockedRooms]);
 
+  useEffect(() => {
+    const charImg = new Image();
     charImg.onload = () => setCharacterImage(charImg);
     charImg.onerror = () => setCharacterImage(null);
-    charImg.src = '/pers1.png';
-  }, [state.currentLocation, state.selectedSkins, state.unlockedRooms]);
+    charImg.src = characterSpritePath(state.weapon.id);
+    return () => { charImg.onload = null; charImg.onerror = null; };
+  }, [state.weapon.id]);
 
   // Загружаем карту
   useEffect(() => {
+    setMapImage(null);
     const mapImg = new Image();
     mapImg.crossOrigin = 'anonymous';
     mapImg.onload = () => setMapImage(mapImg);
     mapImg.onerror = () => setMapImage(null);
-    mapImg.src = '/map/map.jpg';
-  }, []);
+    mapImg.src = raidMapImage;
+    return () => { mapImg.onload = null; mapImg.onerror = null; };
+  }, [raidMapImage]);
 
   // Загружаем фон верхней панели
   useEffect(() => {
@@ -206,13 +260,21 @@ export const FallenCanvas: React.FC<PrisonCanvasProps & {
     panelImg.src = '/upperbackground.png';
   }, []);
 
-  // Загружаем спрайт босса для окна боя
+  // Для боя района выбираем фазу по HP. Сброс и очистка обработчиков не
+  // позволяют опоздавшей загрузке первой фазы заменить уже новую картинку.
+  const canvasBattle = state.battle?.source !== 'boss' ? state.battle : null;
+  const canvasBossArt = canvasBattle ? getBossArt(canvasBattle.bossId) : null;
+  const canvasBossSrc = canvasBattle && canvasBossArt
+    ? (isEnraged(canvasBattle.bossHp, canvasBattle.bossMaxHp) ? canvasBossArt.enraged : canvasBossArt.normal) : null;
   useEffect(() => {
-    const bossImg = new Image();
-    bossImg.onload = () => setBossImage(bossImg);
-    bossImg.onerror = () => setBossImage(null);
-    bossImg.src = '/enemy/zombi1.jpg';
-  }, []);
+    setBossImage(null);
+    if (!canvasBossSrc) return;
+    const image = new Image();
+    image.onload = () => setBossImage(image);
+    image.onerror = () => setBossImage(null);
+    image.src = canvasBossSrc;
+    return () => { image.onload = null; image.onerror = null; };
+  }, [canvasBossSrc]);
 
   // Загружаем аватар пользователя
   const [avatarImage, setAvatarImage] = useState<HTMLImageElement | null>(null);
@@ -235,22 +297,12 @@ export const FallenCanvas: React.FC<PrisonCanvasProps & {
     if (state.showMap) dispatch({ type: 'TOGGLE_MAP' });
   }, [onProfileClose, state.showBossModal, state.showMap, dispatch]);
 
-  // Кнопки "+" — пополнение ресурсов (тестовый вариант: +10 за клик)
-  const handleRestoreEnergy = useCallback(() => dispatch({ type: 'ADD_RESOURCE', resource: 'energy', amount: 10 }), [dispatch]);
-  const handleRestoreSpicki = useCallback(() => dispatch({ type: 'ADD_RESOURCE', resource: 'matches', amount: 10 }), [dispatch]);
-  const handleRestoreBullets = useCallback(() => dispatch({ type: 'ADD_RESOURCE', resource: 'bullets', amount: 10 }), [dispatch]);
-  const handleRestoreGold = useCallback(() => dispatch({ type: 'ADD_RESOURCE', resource: 'gold', amount: 10 }), [dispatch]);
-  const handleRestoreZhetons = useCallback(() => dispatch({ type: 'ADD_RESOURCE', resource: 'zhetons', amount: 10 }), [dispatch]);
-
-  // Кнопка fullscreen (теперь рисуется на канвасе, правее ресурсов)
-  const toggleFullscreenRef = useRef<(() => void) | null>(null);
-  const handleToggleFullscreen = useCallback(() => {
-    toggleFullscreenRef.current?.();
-  }, []);
+  // Плюс открывает выбор пакета, а не изменяет баланс сразу.
+  const closeTopUp = useCallback(() => setTopUpResource(null), []);
 
   const lockedRoomsRemain = getNextLockedRoom(state.unlockedRooms) !== null;
 
-  const { canvasRef, handleCanvasClick, handleMouseMove, handleMouseLeave, handleWheel, toggleFullscreen } = useCanvas(
+  const { canvasRef, handleCanvasClick, handleMouseMove, handleMouseLeave, handleWheel, suitLinesRect } = useCanvas(
     backgroundImage,
     characterImage,
     icons,
@@ -271,21 +323,20 @@ export const FallenCanvas: React.FC<PrisonCanvasProps & {
     avatarImage,
     // Callbacks
     onGoProfile,       // onProfileClick
-    onBattleClick,     // onBattleClick
+    () => setShowArena(true), // Кнопка «Арена»
     onProfileClose,    // onBossModalClose
     onCloseMap,        // onCloseMap
     onOpenBossModal,   // onOpenBossModal
     onProfileClose,    // onCloseProfile
     handleBackToMain,  // onBackToMain — все кнопки "Назад" ведут на главную
     onGoDistrict,      // onGoDistrict — кнопка "Районы" открывает карту
-    handleRestoreEnergy,
-    handleRestoreSpicki,
-    handleRestoreBullets,
-    handleRestoreGold,
-    handleRestoreZhetons,
-    handleToggleFullscreen,
+    () => setTopUpResource('energy'),
+    () => setTopUpResource('matches'),
+    () => setTopUpResource('bullets'),
+    () => setTopUpResource('gold'),
+    () => setTopUpResource('zhetons'),
     onRaidClick,       // клик по рейду на карте районов
-    handleBossAttack,  // "Атаковать"/"В бой" в окне боссов
+    handleBossAttack, // "Атаковать"/"В бой" в окне боссов
     handleFightAttack, // "Удар" в окне боя
     handleFightLeave,  // "Отступить"/"Закрыть" в окне боя
     handleFightTechnique,
@@ -319,7 +370,6 @@ export const FallenCanvas: React.FC<PrisonCanvasProps & {
     mapImage,
     topBarImage,
     bossImage,
-    false, // fullscreen
     lastMessage, // сообщение о последнем действии (показывается на карте районов)
     unreadNotifications, // бейдж непрочитанных уведомлений в верхней панели
     onNotificationsClick, // клик по колокольчику
@@ -329,22 +379,26 @@ export const FallenCanvas: React.FC<PrisonCanvasProps & {
     undefined, // onSelectRoom — выбор комнаты теперь в React-модалке
     lockedRoomsRemain,
     state.premiumGold,
-    () => setShowPremiumShop(true)
+    () => setTopUpResource('premium'),
+    () => setShowStore(true),
+    state.equipmentIds.includes('shop_cap') && !hasEquippedSuit(state.equipmentIds) ? capImage : null,
+    () => setShowCasino(true),
+    clothingImages,
+    heldWeapon?.id === state.weapon.id ? heldWeapon.image : null
   );
-
-  // Связываем ref с реальной функцией fullscreen из useCanvas
-  toggleFullscreenRef.current = toggleFullscreen;
 
   return (
     <div className={styles.canvasWrapper}>
       <canvas
         ref={canvasRef}
+        data-tutorial-canvas="true"
         className={styles.canvas}
         onClick={handleCanvasClick}
         onMouseMove={handleMouseMove}
         onMouseLeave={handleMouseLeave}
         onWheel={handleWheel}
       />
+      {suitLinesRect && <img className={styles.suitLines} src="/characters/clothing/suit_fire_lines.webp" style={{ left: suitLinesRect.x, top: suitLinesRect.y, width: suitLinesRect.width, height: suitLinesRect.height }} alt="" aria-hidden="true" />}
       
       {/* Панель уведомлений (открывается кликом по колокольчику в верхней панели) */}
       {showNotifications && (
@@ -382,7 +436,10 @@ export const FallenCanvas: React.FC<PrisonCanvasProps & {
         <BossHub onClose={() => dispatch({ type: 'TOGGLE_BOSS_MODAL' })} />
       )}
       <BossFightPanel />
-      {showPremiumShop && <PremiumShop onClose={() => setShowPremiumShop(false)} />}
+      {showArena && <Arena onClose={() => setShowArena(false)} />}
+      {showCasino && <CasinoModal onClose={() => setShowCasino(false)} />}
+      {showStore && <StoreModal onClose={() => setShowStore(false)} />}
+      {topUpResource && <ResourceTopUp resource={topUpResource} onClose={closeTopUp} />}
       {showFriends && <FriendsPanel onClose={() => setShowFriends(false)} />}
 
       {/* Модальное окно комнаты-убежища (в стиле клана) */}

@@ -3,6 +3,13 @@ backend/node_modules/
 backend/dist/
 backend/.env
 
+# Local environment configuration (never commit credentials)
+.env
+.env.*
+!.env.example
+backend/.env.*
+!backend/.env.example
+
 # Frontend
 frontend/node_modules/
 dist/

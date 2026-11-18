@@ -2,6 +2,13 @@
 export const DAILY_BOSS_ATTACKS = 3;
 export const EXTRA_ATTACK_PRICE = 20;
 
+// false — тестовый режим: не ограничивать нападения.
+// true — лимиты восстанавливаются через два часа после первого нападения.
+export const BOSS_ATTACK_CONFIG: { timedLimits: boolean; resetIntervalMs: number } = {
+  timedLimits: false,
+  resetIntervalMs: 2 * 60 * 60 * 1000,
+};
+
 // Цена докупки атаки на конкретного босса (тестовый режим — за крышки).
 // Чем сильнее босс (меньше бесплатных попыток), тем дороже докупка.
 export const bossAttackPrice = (dailyLimit: number): number =>
@@ -9,6 +16,13 @@ export const bossAttackPrice = (dailyLimit: number): number =>
 export const RAID_TASK_GOLD_PRICE = 30;
 export const BOSS_DURATION_MS = 3 * 60_000;
 export const BOSS_COUNTER_MS = 8_000;
+// Боевой заряд не связан с обычной энергией для заданий.
+export const BOSS_LOG_LIMIT = 200;
+export const BOSS_ENERGY_MAX = 100;
+export const BOSS_ENERGY_PER_HIT = 20;
+export const BOSS_WEAPON_COST = 10;
+export const BOSS_BLOCK_COST = 20;
+export const BOSS_HEAL_COST = 50;
 export const ROOM_BASE_CHANCE = 0.05;
 export const ROOM_DAMAGE_FACTOR = 0.0005;
 export const ROOM_MAX_CHANCE = 0.5;
@@ -19,15 +33,24 @@ export const roomDropChance = (damage: number): number =>
 export const todayUtc = (now = Date.now()): string => new Date(now).toISOString().slice(0, 10);
 export const nextResetUtc = (now = Date.now()): number => Date.parse(`${todayUtc(now)}T00:00:00.000Z`) + 86_400_000;
 
+// Дата и следующая полночь в часовом поясе устройства игрока.
+export const todayLocal = (now = Date.now()): string => {
+  const date = new Date(now);
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${date.getFullYear()}-${month}-${day}`;
+};
+export const nextResetLocal = (now = Date.now()): number => {
+  const date = new Date(now);
+  date.setHours(24, 0, 0, 0);
+  return date.getTime();
+};
+
 export const BOSS_SKILLS = [
-  { id: 'jab', name: 'Прямой', icon: '👊', multiplier: 1, cooldown: 0, ammo: 0 },
-  { id: 'hook', name: 'Хук', icon: '🥊', multiplier: 1.25, cooldown: 1, ammo: 0 },
-  { id: 'uppercut', name: 'Апперкот', icon: '✊', multiplier: 1.5, cooldown: 2, ammo: 0 },
-  { id: 'spin', name: 'Разворот', icon: '🌀', multiplier: 1.7, cooldown: 3, ammo: 0 },
-  { id: 'finisher', name: 'Добивающий', icon: '☠', multiplier: 2.2, cooldown: 4, ammo: 1 },
-  { id: 'flurry', name: 'Серия', icon: '⚡', multiplier: 1.8, cooldown: 3, ammo: 1 },
-  { id: 'guard', name: 'Блок-удар', icon: '🛡', multiplier: 0.8, cooldown: 1, ammo: 0 },
-  { id: 'critical', name: 'Критический', icon: '💥', multiplier: 2.5, cooldown: 5, ammo: 2 },
+  { id: 'jab', name: 'Удар кулаком', icon: '👊', energyCost: 0 },
+  { id: 'weapon', name: 'Удар оружием', icon: '⚔️', energyCost: BOSS_WEAPON_COST },
+  { id: 'block', name: 'Блок', icon: '🛡️', energyCost: BOSS_BLOCK_COST },
+  { id: 'heal', name: 'Исцеление', icon: '💚', energyCost: BOSS_HEAL_COST },
 ] as const;
 export type BossSkillId = typeof BOSS_SKILLS[number]['id'];
 

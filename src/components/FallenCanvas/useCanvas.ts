@@ -1,8 +1,13 @@
-import { useRef, useEffect, useCallback } from 'react';
+import { clothingEffect } from '../../game/clothingVisuals';
+import { tutorialCarouselOffset } from './tutorialTargets';
+import type { TutorialCanvas } from './tutorialTargets';
+import { useRef, useEffect, useCallback, useState } from 'react';
 import type { BattleState } from '../../game/types';
 import { GameIcons, Task } from './types';
 import { drawBackground } from './drawBackground';
-import { drawCharacter, CHARACTER_POSITION } from './drawCharacter';
+import type { Position } from './types';
+import { drawCharacter, getCharacterPosition, getHeldWeaponPosition } from './drawCharacter';
+import { getVisibleBounds } from './iconBounds';
 import { updateParticles, drawParticles } from './particles';
 import { drawUI, ButtonPosition, ProfileData, UIFlags, BossData, MapRaid, RIGHT_PANEL_MAX_OFFSET, HoverAnim, BOSS_VISIBLE } from './drawUI';
 
@@ -40,7 +45,6 @@ export const useCanvas = (
   onRestoreBullets?: () => void,
   onRestoreGold?: () => void,
   onRestoreZhetons?: () => void,
-  onToggleFullscreen?: () => void,
   // Клик по рейду на карте (id рейда передаётся аргументом)
   onMapRaidClick?: (raidId: string) => void,
   // Атака босса из окна боссов (id босса)
@@ -79,7 +83,6 @@ export const useCanvas = (
   mapImage: HTMLImageElement | null = null,
   topBarImage: HTMLImageElement | null = null,
   bossImage: HTMLImageElement | null = null,
-  fullscreen: boolean = false,
   mapMessage: string = '',
   unreadNotifications: number = 0,
   onNotificationsClick?: () => void,
@@ -89,7 +92,12 @@ export const useCanvas = (
   onSelectRoom?: (roomId: string) => void,
   lockedRoomsRemain: boolean = false,
   premiumGold: number = 0,
-  onDonationClick?: () => void
+  onDonationClick?: () => void,
+  onGoCloth?: () => void,
+  capImage: HTMLImageElement | null = null,
+  onGoKazino?: () => void,
+  clothingImages: HTMLImageElement[] = [],
+  heldWeaponImage: HTMLImageElement | null = null
 ) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const hoveredRef = useRef({ x: 0, y: 0 });
@@ -127,7 +135,6 @@ export const useCanvas = (
     onRestoreBullets,
     onRestoreGold,
     onRestoreZhetons,
-    onToggleFullscreen,
     onMapRaidClick,
     onBossAttack,
     onFightAttack,
@@ -153,6 +160,8 @@ export const useCanvas = (
     onRoomsClick,
     onNotificationsClick,
     onDonationClick,
+    onGoCloth,
+    onGoKazino,
   });
 
   // Обновляем ref callback'ов при каждом изменении
@@ -171,8 +180,7 @@ export const useCanvas = (
       onRestoreBullets,
       onRestoreGold,
       onRestoreZhetons,
-      onToggleFullscreen,
-      onMapRaidClick,
+        onMapRaidClick,
       onBossAttack,
       onFightAttack,
       onFightLeave,
@@ -197,17 +205,19 @@ export const useCanvas = (
       onRoomsClick,
       onNotificationsClick,
       onDonationClick,
+      onGoCloth,
+      onGoKazino,
     };
   }, [
     onProfileClick, onBattleClick, onBossModalClose, onCloseMap,
     onOpenBossModal, onCloseProfile, onBackToMain, onGoDistrict,
     onRestoreEnergy, onRestoreSpicki, onRestoreBullets, onRestoreGold, onRestoreZhetons,
-    onToggleFullscreen, onMapRaidClick, onBossAttack, onFightAttack, onFightLeave,
+    onMapRaidClick, onBossAttack, onFightAttack, onFightLeave,
     onFightTechnique, onFightPower, onFightCombo, onFightBlock, onFightEvade,
     onFightHeal, onFightGrenade, onOpenRoomModal, onSelectRoom,
     onClanClick, onInventoryClick, onQuestsClick, onCraftingClick,
     onGoClan, onGoInventory, onGoQuests, onGoCrafting, onFriendsClick, onRoomsClick,
-    onNotificationsClick, onDonationClick
+    onNotificationsClick, onDonationClick, onGoCloth, onGoKazino
   ]);
 
   const render = useCallback(() => {
@@ -224,11 +234,13 @@ export const useCanvas = (
     const displayWidth = canvas.clientWidth;
     const displayHeight = canvas.clientHeight;
     
-    if (canvas.width !== displayWidth * dpr || canvas.height !== displayHeight * dpr) {
-      canvas.width = displayWidth * dpr;
-      canvas.height = displayHeight * dpr;
-      ctx.scale(dpr, dpr);
+    const pixelWidth = Math.round(displayWidth * dpr);
+    const pixelHeight = Math.round(displayHeight * dpr);
+    if (canvas.width !== pixelWidth || canvas.height !== pixelHeight) {
+      canvas.width = pixelWidth;
+      canvas.height = pixelHeight;
     }
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
     const w = displayWidth;
     const h = displayHeight;
@@ -238,7 +250,16 @@ export const useCanvas = (
     const bgState = bgRef.current;
     const bgTransition = bgState.start > 0 ? Math.min(1, (performance.now() - bgState.start) / 400) : 1;
     drawBackground(ctx, w, h, backgroundImage, bgState.prev, bgTransition);
-    drawCharacter(ctx, CHARACTER_POSITION, characterImage, appearanceColor);
+    const bounds = characterImage && characterImage.complete && characterImage.naturalWidth > 0 && characterImage.naturalHeight > 0
+      ? getVisibleBounds(characterImage) : null;
+    const characterPosition = getCharacterPosition(w, h, bounds ? bounds.w / bounds.h : undefined);
+    drawCharacter(ctx, characterPosition, characterImage, appearanceColor, capImage, clothingImages, heldWeaponImage);
+    // Прямоугольник полного спрайта для DOM-слоя мигающих линий костюма.
+    const hasSuit = clothingImages.some(image => image.dataset?.clothingId === 'suit_fire');
+    const rect = hasSuit && bounds && characterImage ? getHeldWeaponPosition(characterPosition, bounds, characterImage.naturalWidth, characterImage.naturalHeight) : null;
+    const rounded = rect ? { x: Math.round(rect.x), y: Math.round(rect.y), width: Math.round(rect.width), height: Math.round(rect.height) } : null;
+    const prev = suitRectRef.current;
+    if (JSON.stringify(prev) !== JSON.stringify(rounded)) { suitRectRef.current = rounded; setSuitLinesRect(rounded); }
     
     updateParticles();
     drawParticles(ctx);
@@ -254,6 +275,8 @@ export const useCanvas = (
       profileData,
       flags,
       {
+        energy: icons.energy || null,
+        premium: icons.premium || null,
         personaz: icons.personaz || null,
         boss: icons.boss || null,
         clans: icons.clans || null,
@@ -291,8 +314,20 @@ export const useCanvas = (
     );
 
     buttonPositionsRef.current = buttons;
+    const guideCanvas = canvas as TutorialCanvas;
+    guideCanvas.tutorialButtons = buttons;
+    guideCanvas.revealTutorialButton = (id) => {
+      const offset = tutorialCarouselOffset(id);
+      if (offset !== undefined && carouselOffsetRef.current !== offset) {
+        carouselOffsetRef.current = offset;
+        renderRef.current();
+      }
+    };
     needsRenderRef.current = false;
-  }, [backgroundImage, characterImage, icons, energy, maxEnergy, authority, spicki, bullets, gold, premiumGold, zhetons, tasks, appearanceColor, currentLocation, carLevel, level, districtName, playerName, avatarImage, showProfile, showBossModal, showMap, showRoomModal, unlockedRooms, battle, profileData, bosses, medkits, grenades, mapRaids, mapImage, topBarImage, bossImage, fullscreen, mapMessage, unreadNotifications, lockedRoomsRemain]);
+  }, [backgroundImage, characterImage, capImage, clothingImages, heldWeaponImage, icons, energy, maxEnergy, authority, spicki, bullets, gold, premiumGold, zhetons, tasks, appearanceColor, currentLocation, carLevel, level, districtName, playerName, avatarImage, showProfile, showBossModal, showMap, showRoomModal, unlockedRooms, battle, profileData, bosses, medkits, grenades, mapRaids, mapImage, topBarImage, bossImage, mapMessage, unreadNotifications, lockedRoomsRemain]);
+
+  const [suitLinesRect, setSuitLinesRect] = useState<Position | null>(null);
+  const suitRectRef = useRef<Position | null>(null);
 
   // Всегда актуальная версия render для обработчика кликов
   renderRef.current = render;
@@ -390,6 +425,20 @@ export const useCanvas = (
 
   useEffect(() => stopAnimLoop, [stopAnimLoop]);
 
+  // Animate premium equipment even when the otherwise idle canvas is static.
+  useEffect(() => {
+    if (!clothingImages.some(image => clothingEffect(image.dataset.clothingId ?? ''))) return;
+    if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return;
+    let frame = 0;
+    let previous = 0;
+    const tick = (now: number) => {
+      if (!document.hidden && now - previous >= 50) { previous = now; renderRef.current(); }
+      frame = requestAnimationFrame(tick);
+    };
+    frame = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(frame);
+  }, [clothingImages]);
+
   // Любое изменение боссов (например, обновилось HP) требует нового кадра
   useEffect(() => {
     needsRenderRef.current = true;
@@ -420,17 +469,25 @@ export const useCanvas = (
     return () => cancelAnimationFrame(raf);
   }, [showMap, mapRaids]);
 
+  // A newly loaded, equipped, or removed cap must redraw even when no other
+  // canvas data has changed (the canvas otherwise stays on its previous frame).
+  useEffect(() => { needsRenderRef.current = true; }, [capImage, clothingImages, heldWeaponImage]);
+
   // Рендер когда нужно
   useEffect(() => {
-    if (!needsRenderRef.current) return;
     render();
   }, [render]);
 
   // Ресайз
   useEffect(() => {
-    const handleResize = () => { needsRenderRef.current = true; };
+    const handleResize = () => {
+      needsRenderRef.current = true;
+      renderRef.current();
+    };
+    const observer = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(handleResize) : null;
+    if (canvasRef.current) observer?.observe(canvasRef.current);
     window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
+    return () => { observer?.disconnect(); window.removeEventListener('resize', handleResize); };
   }, []);
 
   const handleCanvasClick = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
@@ -484,7 +541,6 @@ export const useCanvas = (
         if (btn.id === 'restore_gold') { cb.onRestoreGold?.(); return; }
         if (btn.id === 'restore_zhetons') { cb.onRestoreZhetons?.(); return; }
         if (btn.id === 'restore_energy') { cb.onRestoreEnergy?.(); return; }
-        if (btn.id === 'toggle_fullscreen') { cb.onToggleFullscreen?.(); return; }
         if (btn.id === 'notifications') { cb.onNotificationsClick?.(); return; }
         if (btn.id === 'open_donation_shop') { cb.onDonationClick?.(); return; }
         if (btn.id === 'carousel_up' || btn.id === 'carousel_down') {
@@ -587,20 +643,12 @@ export const useCanvas = (
     if (!showBossModal) bossScrollRef.current = 0;
   }, [showBossModal]);
 
-  const toggleFullscreen = useCallback(() => {
-    if (!document.fullscreenElement) {
-      canvasRef.current?.requestFullscreen().catch(() => {});
-    } else {
-      document.exitFullscreen().catch(() => {});
-    }
-  }, []);
-
   return {
     canvasRef,
     handleCanvasClick,
     handleMouseMove,
     handleMouseLeave,
     handleWheel,
-    toggleFullscreen,
+    suitLinesRect,
   };
 };

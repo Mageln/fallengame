@@ -1,5 +1,7 @@
 import bridge from '@vkontakte/vk-bridge';
 import { VK_APP_ID } from '../config/vkConfig';
+import { hasVkLaunchParams, shouldUseMockVkData } from './vkEnvironment';
+import { fetchVkFriendsPage, type VkFriendsPage } from './vkFriends';
 
 export interface VkUser {
   id: number;
@@ -60,15 +62,14 @@ try {
   /* ignore — приватный режим и т.п. */
 }
 
-/**
- * Проверяет режим разработки (не в VK)
- */
+// Hostname is the mini app's hosting domain, not necessarily vk.com.
+// Launch parameters are for UI detection only; the backend verifies the signature.
+function hasVkEnvironment(): boolean {
+  return typeof window !== 'undefined' && (hasVkLaunchParams(window.location.search) || bridge.isWebView());
+}
+
 function isDevMode(): boolean {
-  // Если URL не содержит vk.com — режим разработки
-  if (typeof window !== 'undefined') {
-    return !window.location.hostname.includes('vk.com');
-  }
-  return true;
+  return shouldUseMockVkData(import.meta.env.DEV, typeof window !== 'undefined' ? window.location.search : '') && !hasVkEnvironment();
 }
 
 // Токен пользователя живёт только в памяти (не в localStorage)
@@ -87,7 +88,7 @@ function getNumericAppId(): number | null {
  */
 async function getUserAuthToken(scope = 'friends', forceRefresh = false): Promise<string | null> {
   if (!forceRefresh && cachedToken && Date.now() < cachedTokenExpiresAt) return cachedToken;
-  if (isDevMode()) return null;
+  if (!hasVkEnvironment()) return null;
   const appId = getNumericAppId();
   if (appId === null) {
     console.warn('⚠️ VITE_VK_APP_ID не задан — запросы к VK API недоступны');
@@ -179,11 +180,14 @@ export async function getVkUser(): Promise<VkUser | null> {
       return MOCK_USER;
     }
 
+    // Не отправляем запрос в обычном браузере: ответ Bridge там может не прийти.
+    if (!hasVkEnvironment()) return null;
+
     // В реальном VK получаем данные через Bridge
     // Проверяем, что платформа поддерживает метод
     if (!bridge.supports('VKWebAppGetUserInfo')) {
       console.warn('⚠️ VKWebAppGetUserInfo не поддерживается на этой платформе');
-      return MOCK_USER;
+      return null;
     }
 
     const result = await bridge.send('VKWebAppGetUserInfo', {});
@@ -201,9 +205,7 @@ export async function getVkUser(): Promise<VkUser | null> {
     return null;
   } catch (error) {
     console.error('Ошибка получения данных VK пользователя:', describeBridgeError(error));
-    // При ошибке возвращаем моковые данные
-    console.log('⚠️ Ошибка VK Bridge — используются моковые данные');
-    return MOCK_USER;
+    return null;
   }
 }
 
@@ -214,6 +216,7 @@ export async function getVkUser(): Promise<VkUser | null> {
 // Обычный friends.get и моковые друзья не считаются игроками.
 export async function getPlayingFriends(): Promise<VkUser[]> {
   if (isDevMode()) return [];
+  if (!hasVkEnvironment()) throw new Error('Откройте игру внутри VK, чтобы увидеть друзей.');
   const ids = await callVkApi<number[]>('friends.getAppUsers', {});
   const validIds = Array.isArray(ids) ? ids.filter((id): id is number => Number.isInteger(id)) : [];
   if (!validIds.length) return [];
@@ -229,28 +232,11 @@ export async function inviteVkFriends(): Promise<void> {
   await bridge.send('VKWebAppShowInviteBox');
 }
 
-export async function getVkFriends(): Promise<VkUser[]> {
-  try {
-    // В режиме разработки возвращаем моковых друзей
-    if (isDevMode()) {
-      return MOCK_USER.friends || [];
-    }
-
-    const users = await callVkApi<any[]>('friends.get', {
-      fields: 'photo_200',
-      count: 20,
-    });
-    const items = Array.isArray(users) ? users : (users as any)?.items ?? [];
-    return items.map((friend: any) => ({
-      id: friend.id,
-      first_name: friend.first_name,
-      last_name: friend.last_name || '',
-      photo_200: friend.photo_200 || '',
-    }));
-  } catch (error) {
-    console.error('Ошибка получения друзей:', error);
-    return [];
-  }
+// Do not pretend mock users are VK friends; expose failures so the panel can
+// distinguish a denied permission/network error from an empty friends list.
+export async function getVkFriendsPage(offset = 0): Promise<VkFriendsPage> {
+  if (!hasVkEnvironment()) throw new Error('Откройте игру внутри VK, чтобы увидеть друзей.');
+  return fetchVkFriendsPage(callVkApi, offset);
 }
 
 /**
@@ -261,7 +247,7 @@ export async function isVkMiniApp(): Promise<boolean> {
     if (isDevMode()) {
       return false;
     }
-    return bridge.isWebView();
+    return hasVkEnvironment();
   } catch {
     return false;
   }
@@ -276,6 +262,7 @@ export async function getVkUserId(): Promise<number | null> {
       return MOCK_USER.id;
     }
 
+    if (!hasVkEnvironment()) return null;
     const result = await bridge.send('VKWebAppGetUserInfo', {});
     if (result && typeof result === 'object') {
       const data = result as any;
@@ -294,9 +281,9 @@ export async function getVkClan(): Promise<VkUser['clan'] | null> {
   try {
     // В реальном VK можно получить клан через API
     // Для тестирования возвращаем моковые данные
-    return MOCK_USER.clan || null;
+    return isDevMode() ? MOCK_USER.clan || null : null;
   } catch (error) {
     console.error('Ошибка получения клана:', error);
-    return MOCK_USER.clan || null;
+    return null;
   }
 }
