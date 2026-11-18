@@ -173,3 +173,11 @@ test('canvas draws the static suit before the weapon and leaves blinking lines t
   assert.deepEqual(calls.map(c => c[0]), [image, suit, weapon]);
   assert.equal(calls[1].length, 5);
 });
+
+test('leaderboard stays compact in panels and opens as an overlay', async () => {
+  const { Leaderboard } = await vite.ssrLoadModule('/src/components/Leaderboard.tsx');
+  const html = renderToStaticMarkup(React.createElement(Leaderboard, { kind: 'boss', serverMode: false }));
+  assert.match(html, /aria-expanded="false"/); assert.match(html, /РЕЙТИНГ/); assert.doesNotMatch(html, /<ol/);
+  const arena = renderToStaticMarkup(React.createElement(Leaderboard, { kind: 'arena', serverMode: true }));
+  assert.match(arena, /ПОБЕДЫ НА АРЕНЕ/); assert.doesNotMatch(arena, /<ol/);
+});
