@@ -27,6 +27,7 @@ const loadImage = (src: string): Promise<boolean> => new Promise((resolve) => {
 // показывая угли, дрожащий заголовок и ржавый индикатор с процентом.
 export const LoadScreen = ({ done }: { done: boolean }) => {
   const [phase, setPhase] = useState<'in' | 'out' | 'gone'>('in');
+  const [reducedMotion] = useState(() => typeof window !== 'undefined' && !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches);
   const [completed, setCompleted] = useState(0);
   const [failed, setFailed] = useState(0);
   const [imagesDone, setImagesDone] = useState(false);
@@ -65,15 +66,7 @@ export const LoadScreen = ({ done }: { done: boolean }) => {
   return <div className={`${styles.screen} ${phase === 'out' ? styles.leaving : ''}`} role="status" aria-label="Загрузка игры">
     <div className={styles.fog} aria-hidden="true" />
     <div className={styles.fogSecond} aria-hidden="true" />
-    <div className={styles.campfire} aria-hidden="true">
-      <span className={styles.glow} />
-      <span className={styles.flameOuter} />
-      <span className={styles.flameMid} />
-      <span className={styles.flameCore} />
-      <span className={styles.log} />
-      <span className={styles.logSecond} />
-      {[-38, -20, 0, 20, 38].map((x, i) => <span key={x} className={styles.stone} style={{ '--stone-x': `${x}px`, '--stone-r': `${(i * 37) % 24 - 12}deg` } as React.CSSProperties} />)}
-    </div>
+    <img className={styles.campfire} src={reducedMotion ? '/campfire.png' : '/campfire.webp'} alt="" aria-hidden="true" />
     <h1 className={styles.title}>ПОСЛЕДНИЙ РУБЕЖ</h1>
     <p className={styles.subtitle}>ЗОМБИ-АПОКАЛИПСИС · ВЫЖИВАЮТ ПОДГОТОВЛЕННЫЕ</p>
     <div className={styles.bar} aria-hidden="true"><span className={styles.barGlow} /></div>

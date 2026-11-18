@@ -188,5 +188,7 @@ test('load screen renders the animated splash with sparks and progress', async (
   assert.match(html, /ПОСЛЕДНИЙ РУБЕЖ/); assert.match(html, /role="status"/);
   assert.equal((html.match(/spark/g) ?? []).length >= 16, true);
   assert.match(html, /--spark-delay/);
-  assert.equal((html.match(/--stone-x/g) ?? []).length, 5);
+  assert.match(html, /campfire\.webp/);
+  const { access } = await import('node:fs/promises');
+  await access('public/campfire.webp'); await access('public/campfire.png');
 });
