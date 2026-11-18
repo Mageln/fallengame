@@ -181,3 +181,11 @@ test('leaderboard stays compact in panels and opens as an overlay', async () => 
   const arena = renderToStaticMarkup(React.createElement(Leaderboard, { kind: 'arena', serverMode: true }));
   assert.match(arena, /ПОБЕДЫ НА АРЕНЕ/); assert.doesNotMatch(arena, /<ol/);
 });
+
+test('load screen renders the animated splash with sparks and progress', async () => {
+  const { LoadScreen } = await vite.ssrLoadModule('/src/components/LoadScreen.tsx');
+  const html = renderToStaticMarkup(React.createElement(LoadScreen, { done: false }));
+  assert.match(html, /ПОСЛЕДНИЙ РУБЕЖ/); assert.match(html, /role="status"/);
+  assert.equal((html.match(/spark/g) ?? []).length >= 16, true);
+  assert.match(html, /--spark-delay/);
+});

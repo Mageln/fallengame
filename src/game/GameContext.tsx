@@ -38,6 +38,8 @@ interface GameContextValue {
   serverMode: boolean;
 }
 
+import { LoadScreen } from '../components/LoadScreen';
+
 const serverMode = import.meta.env.VITE_SERVER_PROGRESS === 'true';
 
 export const GameContext = createContext<GameContextValue | null>(null);
@@ -200,6 +202,7 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
       <p>{isLoading ? 'Загружаем серверное сохранение…' : serverError || 'Серверное сохранение недоступно.'}</p>
       {!isLoading && <button type="button" onClick={() => void loadServer()}>Повторить загрузку</button>}
     </div> : children}
+    <LoadScreen done={!isLoading && (!serverMode || serverReady)} />
     {serverMode && serverReady && <aside style={{ position: 'fixed', zIndex: serverError ? 100002 : 100000, bottom: 0, left: 0, right: 0, padding: 8, background: '#392c1b', color: 'white', fontSize: 13 }} role="status">
       Тестовый серверный режим: общие кланы и реальные платежи пока недоступны.
       {serverError && <> {serverError}</>} <button type="button" onClick={() => void loadServer()}>Обновить с сервера</button>
