@@ -60,3 +60,8 @@
   .barGlow { left: 33%; }
   .screen { transition: none; }
 }
+.fail { display: grid; gap: 8px; justify-items: center; margin-top: 4px; }
+.actions { display: flex; gap: 8px; }
+.actions button { font: inherit; font-size: 11px; letter-spacing: 1px; cursor: pointer; color: #ebd4aa; background: #483421; border: 1px solid #846240; padding: 9px 12px; }
+.actions button:last-child { background: #3d4a2f; border-color: #5a7a3a; }
+.actions button:focus-visible { outline: 2px solid #ffd975; outline-offset: 2px; }
