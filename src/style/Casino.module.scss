@@ -45,11 +45,18 @@
   linear-gradient(#2a2318, #191410),
   repeating-linear-gradient(90deg, #0000001f 0 2px, transparent 2px 6px); box-shadow: inset 0 0 0 1px #000000a6, inset 0 2px 8px #fff2, 0 10px 24px #0009; }
 .reels { flex: 1; display: flex; justify-content: center; gap: 7px; padding: 9px; border-radius: 3px; background: radial-gradient(120% 80% at 50% 0%, #232a20, #0b0d0a); box-shadow: inset 0 0 22px #000, inset 0 0 0 1px #6e5c33; overflow: hidden; }
-.reels span { position: relative; display: grid; place-items: center; width: clamp(58px, 15vw, 96px); aspect-ratio: 1; border-radius: 2px; background: linear-gradient(#e6d8b4, #b8a781); box-shadow: inset 0 0 0 2px #7d6537, inset 0 8px 14px #0000005c, inset 0 -8px 14px #00000047; }
-.reels img { width: 92%; height: 92%; object-fit: contain; filter: drop-shadow(0 2px 2px #0006); }
-.spinning span { animation: reel-spin .18s linear infinite; animation-delay: var(--delay, 0ms); }
-.spinning img { filter: blur(1.4px) drop-shadow(0 2px 2px #0006); }
-.lever { flex: 0 0 clamp(92px, 22vw, 128px); display: grid; place-items: center; background: linear-gradient(#7c2f24, #4b1b14) !important; border-color: #c98a5b !important; color: #ffe6c6 !important; font-size: 11px !important; }
+.reel { position: relative; display: grid; place-items: center; width: clamp(58px, 15vw, 96px); aspect-ratio: 1; border-radius: 2px; overflow: hidden; background: linear-gradient(#e6d8b4, #b8a781); transform: translateZ(0); box-shadow: inset 0 0 0 2px #7d6537, inset 0 8px 14px #0000005c, inset 0 -8px 14px #00000047; }
+.symbol { width: 92%; height: 92%; object-fit: contain; filter: drop-shadow(0 2px 2px #0006); }
+/* Крутящаяся лента: колонка символов, сдвинутая на половину высоты — стыка не видно. */
+.strip { position: absolute; top: 0; left: 0; width: 100%; height: 2400%; display: flex; flex-direction: column; align-items: center; animation: reel-roll var(--roll, .3s) linear infinite; will-change: transform; }
+.strip img { flex: 0 0 calc(100% / 24); width: 92%; height: calc(100% / 24); object-fit: contain; filter: blur(1.3px) drop-shadow(0 2px 2px #0006); }
+.rolling { box-shadow: inset 0 0 0 2px #7d6537, inset 0 0 22px #000000a6; }
+.landed .symbol { animation: reel-land .26s cubic-bezier(.2, .75, .3, 1); }
+.machineOn .reels { box-shadow: inset 0 0 22px #000, inset 0 0 0 1px #a9905c, 0 0 18px #ffbd5c26; }
+@keyframes reel-roll { from { transform: translateY(0); } to { transform: translateY(-50%); } }
+@keyframes reel-land { 0% { transform: translateY(-32%) scale(1.04); filter: blur(2px) drop-shadow(0 2px 2px #0006); } 55% { transform: translateY(5%) scale(.99); filter: blur(.4px) drop-shadow(0 2px 2px #0006); } 100% { transform: none; filter: drop-shadow(0 2px 2px #0006); } }
+.lever { flex: 0 0 clamp(92px, 22vw, 128px); display: grid; place-items: center; background: linear-gradient(#7c2f24, #4b1b14) !important; border-color: #c98a5b !important; color: #ffe6c6 !important; font-size: 11px !important; transition: transform .18s, filter .18s; transform-origin: 50% 88%; }
+.lever.pulled { transform: translateY(6px) scale(.97); filter: brightness(1.15); }
 .lever span { writing-mode: horizontal-tb; text-align: center; line-height: 1.35; }
 .paytable { width: 100%; border-collapse: collapse; font-size: 11.5px; }
 .paytable tr { border-bottom: 1px dashed #4a3b25; }
@@ -78,10 +85,9 @@
 .prizes article > div { flex: 1; }
 .prizes p { margin: 2px 0 0; font-size: 11.5px; color: #b3a68f; }
 
-@keyframes reel-spin { 0% { transform: translateY(-6%) scale(.98); } 50% { transform: translateY(6%) scale(1.02); } 100% { transform: translateY(-6%) scale(.98); } }
 @media (prefers-reduced-motion: reduce) {
-  .panel button, .safe img, .card > span, .card > span img { transition: none; }
-  .spinning span { animation: none; }
+  .panel button, .safe img, .card > span, .card > span img, .lever { transition: none; }
+  .strip, .landed .symbol { animation: none; }
   .card > span.flipped { transform: none; }
   .card > span.flipped img.cardBack { opacity: 0; }
   .card > span.flipped img.cardFace { transform: none; opacity: 1; }

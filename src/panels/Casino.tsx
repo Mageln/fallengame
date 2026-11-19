@@ -18,11 +18,12 @@ const SAFE_ART = ['/casino/safe-1.webp', '/casino/safe-2.webp', '/casino/safe-3.
 const CARD_FACES = { loss: '/casino/card-face-loss.webp', back: '/casino/card-back.webp', win: '/casino/card-face-win.webp', refund: '/casino/card-face-return.webp' };
 const BADGE_ART: Record<string, string> = { radio: '/casino/badge-radio.webp', crown: '/casino/badge-crown.webp' };
 
-const reelsToArt = (reels: string[], spinning: boolean) => reels.map((symbol, index) => ({
-  key: `${index}-${symbol}`,
-  src: SYMBOL_ART[symbol] || SYMBOL_ART[IDLE_REELS[index]],
-  spinning,
-}));
+// Лента барабана: два одинаковых полукольца подряд — прокрутка без стыка.
+const STRIP = ['🥤', '🔫', '🧟', '📻', '🔫', '🧟', '📻', '🥤', '🧟', '🔫', '📻', '🧟'];
+const STRIP_ART = [...STRIP, ...STRIP].map(symbol => SYMBOL_ART[symbol]);
+const STOP_MS = [640, 980, 1320];
+const SETTLE_MS = 260;
+const spinDuration = (index: number) => 0.62 + index * 0.08;
 
 export const CasinoModal = ({ onClose }: { onClose: () => void }) => {
   const { state, dispatch } = useGame();
@@ -30,16 +31,22 @@ export const CasinoModal = ({ onClose }: { onClose: () => void }) => {
   const [tab, setTab] = useState<Tab>('safe');
   const [busy, setBusy] = useState(false);
   const [spinning, setSpinning] = useState(false);
+  const [stopped, setStopped] = useState(2);
+  const [landedAt, setLandedAt] = useState(-1);
   const [dealtCard, setDealtCard] = useState<number | null>(null);
   const timeout = useRef<number | undefined>();
-  const spinTimeout = useRef<number | undefined>();
+  const spinTimers = useRef<number[]>([]);
   const panel = useRef<HTMLElement>(null);
+  const clearSpinTimers = () => {
+    spinTimers.current.forEach(id => window.clearTimeout(id));
+    spinTimers.current = [];
+  };
   useEffect(() => {
+    // Пока крутятся барабаны, результат уже пришёл от редьюсера — даём анимации доиграть.
+    if (spinning) return;
     setBusy(false);
-    setSpinning(false);
     window.clearTimeout(timeout.current);
-    window.clearTimeout(spinTimeout.current);
-  }, [state.casino]);
+  }, [state.casino, spinning]);
   useEffect(() => {
     panel.current?.focus();
     const key = (event: KeyboardEvent) => {
@@ -54,7 +61,7 @@ export const CasinoModal = ({ onClose }: { onClose: () => void }) => {
     return () => {
       window.removeEventListener('keydown', key);
       window.clearTimeout(timeout.current);
-      window.clearTimeout(spinTimeout.current);
+      clearSpinTimers();
     };
   }, [onClose]);
   const act = (action: GameAction) => {
@@ -64,10 +71,21 @@ export const CasinoModal = ({ onClose }: { onClose: () => void }) => {
     timeout.current = window.setTimeout(() => setBusy(false), 8000);
   };
   const spin = () => {
-    if (busy) return;
+    if (busy || spinning) return;
+    clearSpinTimers();
     setSpinning(true);
-    spinTimeout.current = window.setTimeout(() => setSpinning(false), 1150);
-    act({ type: 'CASINO_SLOTS' });
+    setStopped(-1);
+    setLandedAt(-1);
+    setBusy(true);
+    dispatch({ type: 'CASINO_SLOTS' });
+    timeout.current = window.setTimeout(() => setBusy(false), 8000);
+    STOP_MS.forEach((at, index) => {
+      spinTimers.current.push(window.setTimeout(() => { setStopped(index); setLandedAt(index); }, at));
+    });
+    spinTimers.current.push(window.setTimeout(() => {
+      setSpinning(false);
+      setBusy(false);
+    }, STOP_MS[STOP_MS.length - 1] + SETTLE_MS));
   };
   const pickCard = (choice: number) => {
     setDealtCard(choice);
@@ -78,7 +96,9 @@ export const CasinoModal = ({ onClose }: { onClose: () => void }) => {
       : /пусто/i.test(casino.result) ? CARD_FACES.loss : null;
   const showDealt = dealtCard !== null && !busy && !!dealFace;
   const safeAvailable = !casino.lastSafeDate || casino.lastSafeDate < todayUtc();
-  const reels = reelsToArt(casino.reels.length === 3 ? casino.reels : IDLE_REELS, spinning);
+  const reels = casino.reels.length === 3 ? casino.reels : IDLE_REELS;
+  const spinningNow = spinning;
+  const resultLabel = spinningNow ? 'Барабаны крутятся…' : busy ? 'Ждём результат…' : casino.result || 'Выбери сейф и получи первые фишки.';
   return <div className={styles.backdrop} onClick={onClose}>
     <section ref={panel} tabIndex={-1} className={styles.panel} role="dialog" aria-modal="true" aria-labelledby="casino-title" onClick={event => event.stopPropagation()}>
       <div className={styles.room} aria-hidden="true" />
@@ -99,7 +119,7 @@ export const CasinoModal = ({ onClose }: { onClose: () => void }) => {
         {([['safe', 'СЕЙФ'], ['slots', 'АВТОМАТ'], ['cards', 'КАРТЫ'], ['prizes', 'ПРИЗЫ']] as const).map(([id, title]) =>
           <button type="button" key={id} className={tab === id ? styles.active : ''} aria-pressed={tab === id} onClick={() => setTab(id)}>{title}</button>)}
       </nav>
-      <p className={styles.result} role="status" aria-live="polite">{busy ? 'Ждём результат…' : casino.result || 'Выбери сейф и получи первые фишки.'}</p>
+      <p className={styles.result} role="status" aria-live="polite">{resultLabel}</p>
       {tab === 'safe' && <div className={styles.content}>
         <h3>Бесплатный сейф</h3>
         <p>Один сейф в день: 10 фишек и случайно 10 патронов, 5 спичек или 10 припасов. Каждый ресурс выпадает с вероятностью 1/3. Обновление в 00:00 UTC.</p>
@@ -114,11 +134,19 @@ export const CasinoModal = ({ onClose }: { onClose: () => void }) => {
       {tab === 'slots' && <div className={styles.content}>
         <h3>Три крышки</h3>
         <p>Ставка — {CASINO_BET} фишек. Каждое вращение также даёт 1 очко клуба.</p>
-        <div className={styles.machine}>
-          <div className={`${styles.reels} ${spinning ? styles.spinning : ''}`} aria-label={`Барабаны: ${casino.reels.join(' ') || 'ещё не вращались'}`}>
-            {reels.map((reel, i) => <span key={reel.key} style={{ '--delay': `${i * 140}ms` } as CSSProperties}><img src={reel.src} alt="" /></span>)}
+        <div className={`${styles.machine} ${spinningNow ? styles.machineOn : ''}`}>
+          <div className={styles.reels} aria-label={spinningNow ? 'Барабаны крутятся' : `Барабаны: ${casino.reels.join(' ') || 'ещё не вращались'}`}>
+            {reels.map((symbol, i) => {
+              const rolling = spinningNow && i > stopped;
+              const landed = landedAt === i;
+              return <span key={i} className={`${styles.reel} ${rolling ? styles.rolling : ''} ${landed ? styles.landed : ''}`} style={rolling ? { '--roll': `${spinDuration(i)}s` } as CSSProperties : undefined}>
+                {rolling
+                  ? <span className={styles.strip} aria-hidden="true">{STRIP_ART.map((src, k) => <img key={k} src={src} alt="" />)}</span>
+                  : <img className={styles.symbol} src={SYMBOL_ART[symbol] || SYMBOL_ART[IDLE_REELS[i]]} alt="" />}
+              </span>;
+            })}
           </div>
-          <button type="button" className={styles.lever} aria-label={`Крутить барабаны за ${CASINO_BET} фишек`} disabled={busy || casino.chips < CASINO_BET} onClick={spin}>
+          <button type="button" className={`${styles.lever} ${spinningNow ? styles.pulled : ''}`} aria-label={`Крутить барабаны за ${CASINO_BET} фишек`} disabled={busy || casino.chips < CASINO_BET} onClick={spin}>
             <span>КРУТИТЬ · {CASINO_BET}</span>
           </button>
         </div>
