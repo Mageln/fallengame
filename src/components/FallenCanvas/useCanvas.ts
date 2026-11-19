@@ -7,6 +7,7 @@ import { GameIcons, Task } from './types';
 import { drawBackground } from './drawBackground';
 import type { Position } from './types';
 import { drawCharacter, getCharacterPosition, getHeldWeaponPosition } from './drawCharacter';
+import { suitLinesVisible } from './suitLines';
 import { getVisibleBounds } from './iconBounds';
 import { updateParticles, drawParticles } from './particles';
 import { drawUI, ButtonPosition, ProfileData, UIFlags, BossData, MapRaid, RIGHT_PANEL_MAX_OFFSET, HoverAnim, BOSS_VISIBLE } from './drawUI';
@@ -255,7 +256,11 @@ export const useCanvas = (
     const characterPosition = getCharacterPosition(w, h, bounds ? bounds.w / bounds.h : undefined);
     drawCharacter(ctx, characterPosition, characterImage, appearanceColor, capImage, clothingImages, heldWeaponImage);
     // Прямоугольник полного спрайта для DOM-слоя мигающих линий костюма.
-    const hasSuit = clothingImages.some(image => image.dataset?.clothingId === 'suit_fire');
+    // Линии живут только на домашнем экране: бой (рейд, арена, миссия), карта,
+    // профиль и окно комнаты рисуются поверх персонажа — иначе трещины висели бы
+    // поверх чужого экрана в координатах комнаты.
+    const hasSuit = suitLinesVisible({ battle, showMap, showProfile, showBossModal, showRoomModal })
+      && clothingImages.some(image => image.dataset?.clothingId === 'suit_fire');
     const rect = hasSuit && bounds && characterImage ? getHeldWeaponPosition(characterPosition, bounds, characterImage.naturalWidth, characterImage.naturalHeight) : null;
     const rounded = rect ? { x: Math.round(rect.x), y: Math.round(rect.y), width: Math.round(rect.width), height: Math.round(rect.height) } : null;
     const prev = suitRectRef.current;

@@ -174,6 +174,19 @@ test('canvas draws the static suit before the weapon and leaves blinking lines t
   assert.equal(calls[1].length, 5);
 });
 
+test('suit lines layer stays on the home screen and hides on battle, map, profile and room windows', async () => {
+  const { suitLinesVisible } = await vite.ssrLoadModule('/src/components/FallenCanvas/suitLines.ts');
+  assert.equal(suitLinesVisible({}), true);
+  assert.equal(suitLinesVisible({ battle: { source: 'raid' } }), false);
+  assert.equal(suitLinesVisible({ battle: null, showMap: false }), true);
+  for (const key of ['showMap', 'showProfile', 'showBossModal', 'showRoomModal']) {
+    assert.equal(suitLinesVisible({ [key]: true }), false, key);
+  }
+  const source = await readFile('src/components/FallenCanvas/useCanvas.ts', 'utf8');
+  assert.match(source, /suitLinesVisible\(\{ battle, showMap, showProfile, showBossModal, showRoomModal \}\)/);
+  assert.doesNotMatch(source, /const homeSceneVisible/);
+});
+
 test('leaderboard stays compact in panels and opens as an overlay', async () => {
   const { Leaderboard } = await vite.ssrLoadModule('/src/components/Leaderboard.tsx');
   const html = renderToStaticMarkup(React.createElement(Leaderboard, { kind: 'boss', serverMode: false }));
