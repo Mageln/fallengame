@@ -92,7 +92,7 @@ export const SurvivorProfile = ({ onClose, onWorkshop, onBosses, onInventory, on
           const level = state.profileSkills[skill.id];
           const cost = skillCost(level);
           const maxed = level >= SKILL_MAX_LEVEL;
-          return <article className={styles.skill} key={skill.id}>
+          return <article className={`${styles.skill} ${maxed ? styles.skillMaxed : ''}`} key={skill.id}>
             <img src={skill.icon} alt="" /><div className={styles.skillInfo}><small>УРОВЕНЬ {level} / {SKILL_MAX_LEVEL}</small><h3>{skill.name}</h3><p>{skill.description}</p><progress value={level} max={SKILL_MAX_LEVEL} aria-label={`Уровень навыка ${skill.name}`} /></div>
             <button type="button" data-tutorial-target={`profile-skill-${skill.id}`} disabled={maxed || !!state.battle || state.bullets < cost} onClick={() => { dispatch({ type: 'UPGRADE_PROFILE_SKILL', skillId: skill.id }); setFeedback(state.lastMessage); }}>{maxed ? 'МАКСИМУМ' : <>УЛУЧШИТЬ · {format(cost)} <ResourceIcon name="bullets" /></>}</button>
           </article>;

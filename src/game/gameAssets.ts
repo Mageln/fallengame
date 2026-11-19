@@ -26,6 +26,11 @@ export const GAME_IMAGES: string[] = [
   '/icon/personaz.jpg',
   '/icon/plus.png',
   '/icon/quest.png',
+
+  '/icon/skills/fist.webp',
+  '/icon/skills/weapon.webp',
+  '/icon/skills/block.webp',
+  '/icon/skills/heal.webp',
   '/icon/raion.jpg',
 
   '/icon/resource/bullets.png',

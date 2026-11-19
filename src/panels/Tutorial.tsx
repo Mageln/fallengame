@@ -5,7 +5,7 @@ import { TUTORIAL_STEPS, tutorialIsActive, tutorialViewStep } from '../game/tuto
 import styles from '../style/Tutorial.module.scss';
 
 const SAMPLE_IMAGES: Record<string, string> = {
-  resources: '/icon/resources/supplies.png', skills: '/icon/skills/fist.svg', daily: '/icon/quests/chest.png', clan: '/icon/clans.png',
+  resources: '/icon/resources/supplies.png', skills: '/icon/skills/fist.webp', daily: '/icon/quests/chest.png', clan: '/icon/clans.png',
   profile: '/pers1.png', task: '/icon/quests/patrol.png', car: '/icon/quests/car.png',
   map: '/icon/raion.jpg', 'raid-start': '/icon/quests/raid.png', 'raid-claim': '/icon/quests/chest.png',
   boss: '/enemies/zombie.png', fist: '/enemies/zombie.png', weapon: '/enemies/zombie.png',

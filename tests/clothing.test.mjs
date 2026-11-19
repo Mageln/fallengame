@@ -187,6 +187,25 @@ test('suit lines layer stays on the home screen and hides on battle, map, profil
   assert.doesNotMatch(source, /const homeSceneVisible/);
 });
 
+test('skill cards ship painted icons, preload them and show them in the profile', async () => {
+  const { SKILL_DEFS } = await vite.ssrLoadModule('/src/game/profileSkills.ts');
+  const { GAME_IMAGES } = await vite.ssrLoadModule('/src/game/gameAssets.ts');
+  assert.deepEqual(SKILL_DEFS.map(skill => skill.id), ['fist', 'weapon', 'block', 'heal']);
+  for (const skill of SKILL_DEFS) {
+    assert.match(skill.icon, /^\/icon\/skills\/[a-z]+\.webp$/, skill.id);
+    const art = await readFile(`public${skill.icon}`);
+    assert.equal(art.subarray(0, 4).toString(), 'RIFF'); assert.equal(art.subarray(8, 12).toString(), 'WEBP');
+    assert.ok(art.length > 4000, `${skill.id} art is not a placeholder`);
+    assert.ok(GAME_IMAGES.includes(skill.icon), `preload ${skill.id}`);
+  }
+  // Карточка навыка берёт картинку из описания навыка, а макс. уровень подсвечивается.
+  const panel = await readFile('src/panels/SurvivorProfile.tsx', 'utf8');
+  assert.match(panel, /<img src=\{skill\.icon\} alt="" \/>/);
+  assert.match(panel, /skillMaxed/);
+  const css = await readFile('src/style/SurvivorProfile.module.scss', 'utf8');
+  assert.match(css, /\.skill img \{[^}]*width: 72px/);
+});
+
 test('leaderboard stays compact in panels and opens as an overlay', async () => {
   const { Leaderboard } = await vite.ssrLoadModule('/src/components/Leaderboard.tsx');
   const html = renderToStaticMarkup(React.createElement(Leaderboard, { kind: 'boss', serverMode: false }));
