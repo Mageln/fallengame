@@ -68,3 +68,18 @@ test('casino modal renders safe and no real-money purchase controls', () => {
   assert.match(html, /РЖАВЫЙ ДЖЕКПОТ/); assert.match(html, /СЕЙФ 1/); assert.match(html, /Реальные деньги/);
   assert.doesNotMatch(html, /КУПИТЬ ФИШКИ/);
 });
+
+test('casino art is shipped, preloaded and wired into the modal', async () => {
+  const { access } = await import('node:fs/promises');
+  const art = ['bg', 'symbol-cap', 'symbol-pistol', 'symbol-radio', 'symbol-zombie', 'safe-1', 'safe-2', 'safe-3',
+    'card-back', 'card-face-loss', 'card-face-return', 'card-face-win', 'badge-radio', 'badge-crown'];
+  for (const name of art) await access(`public/casino/${name}.webp`);
+  const { GAME_IMAGES } = await vite.ssrLoadModule('/src/game/gameAssets.ts');
+  for (const name of art) assert.ok(GAME_IMAGES.includes(`/casino/${name}.webp`), `preload ${name}`);
+  const state = createInitialState();
+  const value = { state, dispatch: () => {}, derived: {}, vkUser: null, isLoading: false, staffRole: 'player', serverMode: false };
+  const html = renderToStaticMarkup(React.createElement(GameContext.Provider, { value }, React.createElement(CasinoModal, { onClose: () => {} })));
+  for (const name of ['safe-1', 'safe-2', 'safe-3', 'symbol-cap']) assert.match(html, new RegExp(`/casino/${name}\\.webp`));
+  assert.equal((html.match(/СЕЙФ [1-3]/g) || []).length, 3);
+  assert.doesNotMatch(html, /🎰 РЖАВЫЙ ДЖЕКПОТ/);
+});
