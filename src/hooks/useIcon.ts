@@ -48,7 +48,7 @@ const ICON_SRCS = {
   arena: '/icon/arena.jpg',
   personaz: '/icon/personaz.jpg',
   kazino: '/icon/kazino.jpg',
-  cloth: '/icon/shop/store.png',
+  cloth: '/icon/shop/store.webp',
   gold: '/icon/resource/gold.png',
 } as const;
 
@@ -111,7 +111,7 @@ export const useIcon = () => {
         loadIconWithTimeout('/icon/resources/bullets.png', 2000),
         loadIconWithTimeout('/icon/resources/tokens.png', 2000),
         loadIconWithTimeout('/icon/resources/supplies.png', 2000),
-        loadIconWithTimeout('/icon/plus.png', 2000),
+        loadIconWithTimeout('/icon/plus.webp', 2000),
         loadIconWithTimeout('/icon/zombie.png', 2000),
         // Кнопки нижней панели
         loadIconWithTimeout('/icon/boss.jpg', 2000),
@@ -119,17 +119,17 @@ export const useIcon = () => {
         loadIconWithTimeout('/icon/arena.jpg', 2000),
         loadIconWithTimeout('/icon/personaz.jpg', 2000),
         loadIconWithTimeout('/icon/kazino.jpg', 2000),
-        loadIconWithTimeout('/icon/shop/store.png', 2000),
-        loadIconWithTimeout('/icon/shelter.png', 2000),
+        loadIconWithTimeout('/icon/shop/store.webp', 2000),
+        loadIconWithTimeout('/icon/shelter.webp', 2000),
         loadIconWithTimeout('/icon/raion.jpg', 2000),
         // Нижние кнопки: друзья, задания, кланы
         loadIconWithTimeout('/icon/friends.png', 2000),
         loadIconWithTimeout('/icon/quest.png', 2000),
         loadIconWithTimeout('/icon/clans.png', 2000),
         // Фоны карточки босса
-        loadIconWithTimeout('/bossRoom/fonIconBoss.jpg', 3000),
-        loadIconWithTimeout('/bossRoom/FonLoot.jpg', 3000),
-        loadIconWithTimeout('/bossRoom/fonWinnera.jpg', 3000),
+        loadIconWithTimeout('/bossRoom/fonIconBoss.webp', 3000),
+        loadIconWithTimeout('/bossRoom/FonLoot.webp', 3000),
+        loadIconWithTimeout('/bossRoom/fonWinnera.webp', 3000),
         loadIconWithTimeout('/icon/resources/premium.png', 2000),
       ]);
 
@@ -168,7 +168,7 @@ export const useIcon = () => {
         kazino: results[11]?.status === 'fulfilled' ? ICON_SRCS.kazino : null,
         cloth: results[12]?.status === 'fulfilled' ? ICON_SRCS.cloth : null,
         gold: results[4]?.status === 'fulfilled' ? ICON_SRCS.gold : null,
-        komnata: results[13]?.status === 'fulfilled' ? '/icon/shelter.png' : null,
+        komnata: results[13]?.status === 'fulfilled' ? '/icon/shelter.webp' : null,
         raion: results[14]?.status === 'fulfilled' ? '/icon/raion.jpg' : null,
       });
 

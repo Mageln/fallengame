@@ -1,7 +1,7 @@
 // Одна и та же иллюстрация используется в списке и в бою; портрет — её кроп.
 type EnemyArt = { face: string; normal: string; enraged: string };
 const art = (name: string): EnemyArt => ({
-  face: `/enemies/${name}-face.png`, normal: `/enemies/${name}.png`, enraged: `/enemies/${name}-rage.png`,
+  face: `/enemies/${name}-face.webp`, normal: `/enemies/${name}.webp`, enraged: `/enemies/${name}-rage.webp`,
 });
 const MIKHALYCH = art('mikhalych');
 const DEPARTMENT = art('department');

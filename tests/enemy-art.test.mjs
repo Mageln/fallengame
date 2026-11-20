@@ -21,7 +21,8 @@ test('six bosses and three arena opponents have existing portraits and two disti
     portraits.add(art.face);
     for (const src of [art.face, art.normal, art.enraged]) {
       const bytes = await readFile(`public${src}`);
-      assert.equal(bytes.subarray(1, 4).toString(), 'PNG', src);
+      assert.equal(bytes.subarray(0, 4).toString(), 'RIFF', src);
+      assert.equal(bytes.subarray(8, 12).toString(), 'WEBP', src);
     }
   }
   assert.equal(portraits.size, 8); // Страж использует образ Департамента.

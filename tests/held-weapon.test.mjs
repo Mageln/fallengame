@@ -74,8 +74,8 @@ test('equipped weapons use a replacement hand sprite and unknown weapons keep th
 
 test('all four public weapons can be purchased and selected with their own artwork', () => {
   for (const [id, path] of [
-    ['shop_awp', '/weapon/awp.jpg'], ['shop_deagle', '/weapon/deagle.jpg'],
-    ['shop_m4a4', '/weapon/m4a4.jpg'], ['shop_branch', '/weapon/vetka.jpg'],
+    ['shop_awp', '/weapon/awp.webp'], ['shop_deagle', '/weapon/deagle.jpg'],
+    ['shop_m4a4', '/weapon/m4a4.webp'], ['shop_branch', '/weapon/vetka.webp'],
   ]) {
     const item = SHOP_WEAPONS.find(entry => entry.weapon.id === id);
     assert.ok(item); assert.equal(item.image, path);

@@ -77,7 +77,7 @@ export const MapPanel = ({ id, showMap, onCloseMap }: Props) => {
     const img = new Image();
     img.onload = () => setMapImage(img);
     img.onerror = () => setMapImage(null);
-    img.src = '/map/map.jpg';
+    img.src = '/map/map.webp';
   }, []);
 
   const handleMarkerClick = (marker: BossMarker) => {
@@ -134,7 +134,7 @@ export const MapPanel = ({ id, showMap, onCloseMap }: Props) => {
         <Box style={{ position: 'relative', background: '#111' }}>
           {mapImage ? (
             <img
-              src="/map/map.jpg"
+              src="/map/map.webp"
               alt="Карта Эргейта"
               style={{ width: '100%', display: 'block', borderRadius: '0 0 16px 16px' }}
             />

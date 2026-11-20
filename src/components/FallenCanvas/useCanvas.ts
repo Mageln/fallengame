@@ -449,25 +449,28 @@ export const useCanvas = (
     needsRenderRef.current = true;
   }, [bosses]);
 
-  // Окно боя анимируется по времени (покачивание, вспышки) — рисуем кадры постоянно
+  // Окно боя анимируется по времени (покачивание, вспышки) — рисуем кадры постоянно.
+  // В скрытой вкладке не рисуем: экономим батарею, кадр подхватится при возврате.
   useEffect(() => {
     if (!battle) return;
     let raf = 0;
     const tick = () => {
-      renderRef.current();
+      if (!document.hidden) renderRef.current();
       raf = requestAnimationFrame(tick);
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
   }, [battle]);
 
-  // Карта районов: пока есть идущие рейды, обновляем кадры — на маркерах идёт обратный отсчёт
+  // Карта районов: пока есть идущие рейды, обновляем кадры — на маркерах идёт обратный отсчёт.
+  // Обратный отсчёт обновляется раз в секунду, 60 fps не нужен — троттлим до ~30 fps.
   useEffect(() => {
     if (!showMap) return;
     if (!mapRaids.some((raid) => raid.isRunning)) return;
     let raf = 0;
-    const tick = () => {
-      renderRef.current();
+    let last = 0;
+    const tick = (now: number) => {
+      if (!document.hidden && now - last >= 33) { last = now; renderRef.current(); }
       raf = requestAnimationFrame(tick);
     };
     raf = requestAnimationFrame(tick);

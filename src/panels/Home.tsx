@@ -1,23 +1,25 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { Suspense, lazy, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { FallenCanvas } from '../components/FallenCanvas/FallenCanvas';
 import { useGame } from '../game/GameContext';
 import { DISTRICT_TASKS } from '../game/constants';
 import { getDistrict } from '../game/formulas';
 import { useRouteNavigator } from '@vkontakte/vk-mini-apps-router';
 import { DEFAULT_VIEW_PANELS } from '../routes';
-import { RoomGallery } from './RoomGallery';
-import { FriendsPanel } from './Friends';
-import { SurvivorProfile } from './SurvivorProfile';
-import { QuestBoard } from './QuestBoard';
-import { LoginReward } from './LoginReward';
-import { Tutorial } from './Tutorial';
-import { TutorialBattlePreview } from './TutorialBattlePreview';
 import { TUTORIAL_STEPS, tutorialIsActive, tutorialViewStep } from '../game/tutorial';
-import { BossHub } from './Boss';
-import { Arena } from './Arena';
-import { StoreModal } from './Store';
-import { RoomModal } from './Room';
-import { ClanModal } from './Clan';
+
+// Тяжёлые модалки грузятся по требованию, а не в стартовом бандле.
+const RoomGallery = lazy(() => import('./RoomGallery').then((m) => ({ default: m.RoomGallery })));
+const FriendsPanel = lazy(() => import('./Friends').then((m) => ({ default: m.FriendsPanel })));
+const SurvivorProfile = lazy(() => import('./SurvivorProfile').then((m) => ({ default: m.SurvivorProfile })));
+const QuestBoard = lazy(() => import('./QuestBoard').then((m) => ({ default: m.QuestBoard })));
+const LoginReward = lazy(() => import('./LoginReward').then((m) => ({ default: m.LoginReward })));
+const Tutorial = lazy(() => import('./Tutorial').then((m) => ({ default: m.Tutorial })));
+const TutorialBattlePreview = lazy(() => import('./TutorialBattlePreview').then((m) => ({ default: m.TutorialBattlePreview })));
+const BossHub = lazy(() => import('./Boss').then((m) => ({ default: m.BossHub })));
+const Arena = lazy(() => import('./Arena').then((m) => ({ default: m.Arena })));
+const StoreModal = lazy(() => import('./Store').then((m) => ({ default: m.StoreModal })));
+const RoomModal = lazy(() => import('./Room').then((m) => ({ default: m.RoomModal })));
+const ClanModal = lazy(() => import('./Clan').then((m) => ({ default: m.ClanModal })));
 import { loginRewardStatus } from '../game/loginRewards';
 import loginStyles from '../style/LoginReward.module.scss';
 import extraStyles from '../style/ExtraRaids.module.scss';
@@ -197,6 +199,7 @@ export const Home = ({ id }: HomeProps) => {
         </nav>
       </>}
 
+      <Suspense fallback={null}>
       {showProfile && <SurvivorProfile
         onClose={closeProfileOnly}
         onWorkshop={() => navigator.push(DEFAULT_VIEW_PANELS.WORKSHOP)}
@@ -228,11 +231,12 @@ export const Home = ({ id }: HomeProps) => {
       {tutorialActive && tutorialPreview === 'shelter' && <RoomModal onClose={() => {}} />}
       {tutorialActive && tutorialPreview === 'social' && <FriendsPanel onClose={() => {}} />}
       {tutorialActive && tutorialPreview === 'clan' && <ClanModal onClose={() => {}} />}
+      </Suspense>
       </div>
-      {tutorialActive && <Tutorial version={state.tutorialVersion} step={state.tutorialStep}
+      {tutorialActive && <Suspense fallback={null}><Tutorial version={state.tutorialVersion} step={state.tutorialStep}
         onLocate={showTutorialPreview}
         onPractice={(stepId) => dispatch({ type: 'TUTORIAL_PRACTICE', stepId })}
-        onSkip={() => dispatch({ type: 'SKIP_TUTORIAL' })} />}
+        onSkip={() => dispatch({ type: 'SKIP_TUTORIAL' })} /></Suspense>}
     </div>
   );
 };

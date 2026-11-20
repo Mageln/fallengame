@@ -1,19 +1,14 @@
 // Изображения из public, которые игра использует сразу: греем их до входа.
-export const GAME_IMAGES: string[] = [
+// Критичные нужны для первого экрана (дом/канвас, верхняя панель, карта),
+// отложенные (казино, боссы, оружие, галерея комнат) грузятся по требованию,
+// чтобы не тормозить вход.
+
+export const CRITICAL_IMAGES: string[] = [
   '/1.png',
-  '/background.jpg',
+  '/background.webp',
   '/pers1.png',
   '/upperbackground.png',
   '/logo.svg',
-
-  '/bossRoom/FonLoot.jpg',
-  '/bossRoom/fonIconBoss.jpg',
-  '/bossRoom/fonWinnera.jpg',
-
-  '/enemy/avatar-boss.jpg',
-  '/enemy/boss1.jpg',
-  '/enemy/zombi.jpg',
-  '/enemy/zombi1.jpg',
 
   '/icon/arena.jpg',
   '/icon/boss.jpg',
@@ -24,7 +19,7 @@ export const GAME_IMAGES: string[] = [
   '/icon/kazino.jpg',
   '/icon/komnata.jpg',
   '/icon/personaz.jpg',
-  '/icon/plus.png',
+  '/icon/plus.webp',
   '/icon/quest.png',
 
   '/icon/skills/fist.webp',
@@ -40,21 +35,32 @@ export const GAME_IMAGES: string[] = [
   '/icon/resource/zheton.png',
 
   '/map/iconboss.jpg',
-  '/map/map.jpg',
+  '/map/map.webp',
+];
 
-  '/room1.jpg',
-  '/room2.jpg',
-  '/room3.jpg',
-  '/room4.jpg',
-  '/room5.jpg',
-  '/room6.jpg',
+export const DEFERRED_IMAGES: string[] = [
+  '/bossRoom/FonLoot.webp',
+  '/bossRoom/fonIconBoss.webp',
+  '/bossRoom/fonWinnera.webp',
 
-  '/weapon/ak.jpg',
-  '/weapon/awp.jpg',
+  '/enemy/avatar-boss.webp',
+  '/enemy/boss1.webp',
+  '/enemy/zombi.webp',
+  '/enemy/zombi1.jpg',
+
+  '/room1.webp',
+  '/room2.webp',
+  '/room3.webp',
+  '/room4.webp',
+  '/room5.webp',
+  '/room6.webp',
+
+  '/weapon/ak.webp',
+  '/weapon/awp.webp',
   '/weapon/deagle.jpg',
   '/weapon/katana.jpg',
-  '/weapon/m4a4.jpg',
-  '/weapon/vetka.jpg',
+  '/weapon/m4a4.webp',
+  '/weapon/vetka.webp',
   '/weapon/vintovka.jpg',
 
   '/casino/bg.webp',
@@ -72,3 +78,23 @@ export const GAME_IMAGES: string[] = [
   '/casino/badge-radio.webp',
   '/casino/badge-crown.webp',
 ];
+
+// Полный список для совместимости (тесты, старые импорты).
+export const GAME_IMAGES: string[] = [...CRITICAL_IMAGES, ...DEFERRED_IMAGES];
+
+// Фоновая догрузка отложенных картинок после входа (не блокирует UI).
+export const preloadDeferredImages = (): void => {
+  if (typeof window === 'undefined') return;
+  const load = () => {
+    for (const src of DEFERRED_IMAGES) {
+      const img = new Image();
+      img.src = src;
+    }
+  };
+  const w = window as unknown as { requestIdleCallback?: (cb: () => void) => void };
+  if (typeof w.requestIdleCallback === 'function') {
+    w.requestIdleCallback(load);
+  } else {
+    setTimeout(load, 1500);
+  }
+};

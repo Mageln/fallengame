@@ -58,8 +58,8 @@ export const DISTRICTS = [
 
 export const LOCATIONS = [
   { id: 'location1', name: 'Казармы', bg: 'backgrounds/shelter.jpg', character: 'pers1.png' },
-  { id: 'location2', name: 'Больница', bg: 'backgrounds/hospital.jpg', character: 'pers1.png' },
-  { id: 'location3', name: 'Склад', bg: 'backgrounds/warehouse.jpg', character: 'pers1.png' },
+  { id: 'location2', name: 'Больница', bg: 'backgrounds/hospital.webp', character: 'pers1.png' },
+  { id: 'location3', name: 'Склад', bg: 'backgrounds/warehouse.webp', character: 'pers1.png' },
   { id: 'location4', name: 'Лаборатория', bg: 'backgrounds/laboratory.jpg', character: 'pers1.png' },
   { id: 'location5', name: 'Бункер', bg: 'backgrounds/bunker.jpg', character: 'pers1.png' },
   { id: 'location6', name: 'Смотровая', bg: 'backgrounds/lookout.jpg', character: 'pers1.png' },
@@ -80,16 +80,16 @@ export const ROOM_SKINS: RoomSkin[] = [
   { id: 'l1_rust', roomId: 'location1', name: 'Ржавчина', description: 'Металл, кровь, тусклый свет', bg: 'backgrounds/bunker.jpg', price: 150 },
   { id: 'l1_lab', roomId: 'location1', name: 'Заброшенная лаборатория', description: 'Колбы и тени прошлого', bg: 'backgrounds/laboratory.jpg', price: 300 },
 
-  { id: 'l2_hospital', roomId: 'location2', name: 'Госпиталь', description: 'Палаты, где уже никто не лечит', bg: 'backgrounds/hospital.jpg', price: 0 },
+  { id: 'l2_hospital', roomId: 'location2', name: 'Госпиталь', description: 'Палаты, где уже никто не лечит', bg: 'backgrounds/hospital.webp', price: 0 },
   { id: 'l2_fog', roomId: 'location2', name: 'Улицы города в тумане', description: 'Туман и остовы домов', bg: 'backgrounds/battle.jpg', price: 200 },
   { id: 'l2_rust', roomId: 'location2', name: 'Ржавый бункер', description: 'Глухой металл подземелья', bg: 'backgrounds/bunker.jpg', price: 400 },
 
-  { id: 'l3_warehouse', roomId: 'location3', name: 'Склад', description: 'Ящики, полки, эхо шагов', bg: 'backgrounds/warehouse.jpg', price: 0 },
+  { id: 'l3_warehouse', roomId: 'location3', name: 'Склад', description: 'Ящики, полки, эхо шагов', bg: 'backgrounds/warehouse.webp', price: 0 },
   { id: 'l3_bunker', roomId: 'location3', name: 'Ржавый бункер', description: 'Бетон и ржавчина', bg: 'backgrounds/shelter.jpg', price: 250 },
   { id: 'l3_fog', roomId: 'location3', name: 'Улицы города в тумане', description: 'Серый туман за стеной', bg: 'backgrounds/battle.jpg', price: 450 },
 
   { id: 'l4_lab', roomId: 'location4', name: 'Заброшенная лаборатория', description: 'Колбы, реактивы, опасность', bg: 'backgrounds/laboratory.jpg', price: 0 },
-  { id: 'l4_hospital', roomId: 'location4', name: 'Госпиталь', description: 'Белый халат уже не нужен', bg: 'backgrounds/hospital.jpg', price: 350 },
+  { id: 'l4_hospital', roomId: 'location4', name: 'Госпиталь', description: 'Белый халат уже не нужен', bg: 'backgrounds/hospital.webp', price: 350 },
   { id: 'l4_rust', roomId: 'location4', name: 'Ржавый бункер', description: 'Металлическая тишина', bg: 'backgrounds/bunker.jpg', price: 500 },
 
   { id: 'l5_bunker', roomId: 'location5', name: 'Бункер', description: 'Последний рубеж', bg: 'backgrounds/bunker.jpg', price: 0 },
@@ -134,7 +134,7 @@ export const resolveBackground = (
   }
   const base = LOCATIONS.find((room) => room.id === roomId);
   if (base) return base.bg;
-  return 'background.jpg'; // дефолтный «разрушенный город»
+  return 'background.webp'; // дефолтный «разрушенный город»
 };
 
 export const RAIDS = [

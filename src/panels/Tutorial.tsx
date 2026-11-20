@@ -8,12 +8,12 @@ const SAMPLE_IMAGES: Record<string, string> = {
   resources: '/icon/resources/supplies.png', skills: '/icon/skills/fist.webp', daily: '/icon/quests/chest.png', clan: '/icon/clans.png',
   profile: '/pers1.png', task: '/icon/quests/patrol.png', car: '/icon/quests/car.png',
   map: '/icon/raion.jpg', 'raid-start': '/icon/quests/raid.png', 'raid-claim': '/icon/quests/chest.png',
-  boss: '/enemies/zombie.png', fist: '/enemies/zombie.png', weapon: '/enemies/zombie.png',
-  'fist-block': '/enemies/zombie.png', block: '/enemies/zombie.png', 'fist-heal-1': '/enemies/zombie.png',
-  'fist-heal-2': '/enemies/zombie.png', heal: '/enemies/zombie.png', rage: '/enemies/zombie-rage.png',
+  boss: '/enemies/zombie.webp', fist: '/enemies/zombie.webp', weapon: '/enemies/zombie.webp',
+  'fist-block': '/enemies/zombie.webp', block: '/enemies/zombie.webp', 'fist-heal-1': '/enemies/zombie.webp',
+  'fist-heal-2': '/enemies/zombie.webp', heal: '/enemies/zombie.webp', rage: '/enemies/zombie-rage.webp',
   arena: '/icon/arena.jpg', quests: '/icon/quest.png', equipment: '/icon/cloth.jpg',
-  craft: '/icon/quests/craft.png', workshop: '/icon/quests/craft.png', store: '/icon/shop/store.png',
-  shelter: '/icon/shelter.png', social: '/icon/friends.png',
+  craft: '/icon/quests/craft.png', workshop: '/icon/quests/craft.png', store: '/icon/shop/store.webp',
+  shelter: '/icon/shelter.webp', social: '/icon/friends.png',
 };
 
 // Учебные значения показывают результат предыдущего пробного действия;

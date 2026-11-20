@@ -148,7 +148,7 @@ export const drawButtons = (
     // Ряд 4: Локация
     {
       id: 'location',
-      iconSrc: '/icon/shelter.png',
+      iconSrc: '/icon/shelter.webp',
       label: 'Локация',
       x: 10 + (BUTTON_SIZE + BUTTON_GAP) * 3,
       y: canvasHeight - BUTTON_SIZE * 2 - 10 - BUTTON_GAP,

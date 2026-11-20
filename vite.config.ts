@@ -1,6 +1,5 @@
 import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
-import legacy from '@vitejs/plugin-legacy';
 
 function handleModuleDirectivesPlugin() {
   return {
@@ -14,13 +13,6 @@ function handleModuleDirectivesPlugin() {
   };
 }
 
-/**
- * Some chunks may be large.
- * This will not affect the loading speed of the site.
- * We collect several versions of scripts that are applied depending on the browser version.
- * This is done so that your code runs equally well on the site and in the odr.
- * The details are here: https://dev.vk.ru/mini-apps/development/on-demand-resources.
- */
 export default defineConfig(({ mode }) => {
   const proxyTarget = loadEnv(mode, process.cwd(), '').BACKEND_PROXY_TARGET;
   return {
@@ -30,13 +22,25 @@ export default defineConfig(({ mode }) => {
   plugins: [
     react(),
     handleModuleDirectivesPlugin(),
-    legacy({
-      targets: ['defaults', 'not IE 11'],
-    }),
   ],
 
   build: {
     outDir: 'build',
+    target: 'es2020',
+    minify: 'esbuild',
+    sourcemap: false,
+    cssCodeSplit: true,
+    chunkSizeWarningLimit: 600,
+    reportCompressedSize: false,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'vendor-react': ['react', 'react-dom'],
+          'vendor-vkui': ['@vkontakte/vkui', '@vkontakte/icons'],
+          'vendor-vk': ['@vkontakte/vk-bridge', '@vkontakte/vk-bridge-react', '@vkontakte/vk-mini-apps-router'],
+        },
+      },
+    },
   },
   };
 });

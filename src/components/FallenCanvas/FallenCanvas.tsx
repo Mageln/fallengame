@@ -1,6 +1,6 @@
 import { characterSpritePath, heldWeaponPath } from '../../game/heldWeapon';
 import { clothingVisualPath, equippedClothingVisuals, hasEquippedSuit } from '../../game/clothingVisuals';
-import React, { useState, useEffect, useCallback } from "react";
+import React, { Suspense, lazy, useState, useEffect, useCallback } from "react";
 import styles from "../../style/PrisonCanvas/PrisonCanvas.module.scss";
 import { PrisonCanvasProps } from "./types";
 import { useCanvas } from "./useCanvas";
@@ -9,18 +9,21 @@ import { APPEARANCES, getNextLockedRoom, resolveBackground } from "../../game/co
 import { TASKS } from "./tasks";
 import { MapRaid } from "./drawUI";
 import { FAKE_BOSSES } from "./bosses";
-import { RaidModal } from "../../panels/RaidModal";
-import { ClanModal } from "../../panels/Clan";
-import { RoomModal } from "../../panels/Room";
 import { getBossArt, isEnraged } from '../../game/enemyArt';
-import { Arena } from "../../panels/Arena";
-import { CasinoModal } from "../../panels/Casino";
-import { StoreModal } from "../../panels/Store";
-import { BossFightPanel, BossHub } from "../../panels/Boss";
-import { ResourceTopUp } from "../../panels/ResourceTopUp";
 import type { TopUpResource } from "../../game/resourceTopUp";
-import { FriendsPanel } from "../../panels/Friends";
-import { NotificationsPanel } from "../NotificationsPanel";
+
+// Модалки грузятся по требованию, а не в стартовом бандле.
+const RaidModal = lazy(() => import("../../panels/RaidModal").then((m) => ({ default: m.RaidModal })));
+const ClanModal = lazy(() => import("../../panels/Clan").then((m) => ({ default: m.ClanModal })));
+const RoomModal = lazy(() => import("../../panels/Room").then((m) => ({ default: m.RoomModal })));
+const Arena = lazy(() => import("../../panels/Arena").then((m) => ({ default: m.Arena })));
+const CasinoModal = lazy(() => import("../../panels/Casino").then((m) => ({ default: m.CasinoModal })));
+const StoreModal = lazy(() => import("../../panels/Store").then((m) => ({ default: m.StoreModal })));
+const BossHub = lazy(() => import("../../panels/Boss").then((m) => ({ default: m.BossHub })));
+const BossFightPanel = lazy(() => import("../../panels/Boss").then((m) => ({ default: m.BossFightPanel })));
+const ResourceTopUp = lazy(() => import("../../panels/ResourceTopUp").then((m) => ({ default: m.ResourceTopUp })));
+const FriendsPanel = lazy(() => import("../../panels/Friends").then((m) => ({ default: m.FriendsPanel })));
+const NotificationsPanel = lazy(() => import("../NotificationsPanel").then((m) => ({ default: m.NotificationsPanel })));
 import { useGame } from "../../game/GameContext";
 import { GameNotification } from "../../game/types";
 
@@ -109,7 +112,7 @@ export const FallenCanvas: React.FC<PrisonCanvasProps & {
   onGoDistrict,
   onCloseMap,
   mapRaids = [],
-  raidMapImage = '/map/map.jpg',
+  raidMapImage = '/map/map.webp',
   playerName = 'Игрок',
   avatarUrl,
   lastMessage = '',
@@ -400,6 +403,7 @@ export const FallenCanvas: React.FC<PrisonCanvasProps & {
       />
       {suitLinesRect && <img className={styles.suitLines} src="/characters/clothing/suit_fire_lines.webp" style={{ left: suitLinesRect.x, top: suitLinesRect.y, width: suitLinesRect.width, height: suitLinesRect.height }} alt="" aria-hidden="true" />}
       
+      <Suspense fallback={null}>
       {/* Панель уведомлений (открывается кликом по колокольчику в верхней панели) */}
       {showNotifications && (
         <NotificationsPanel
@@ -446,6 +450,7 @@ export const FallenCanvas: React.FC<PrisonCanvasProps & {
       {showRoomModal && (
         <RoomModal onClose={() => setShowRoomModal(false)} />
       )}
+      </Suspense>
     </div>
   );
 };

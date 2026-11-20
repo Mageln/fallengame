@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { GAME_IMAGES } from '../game/gameAssets';
+import { CRITICAL_IMAGES, preloadDeferredImages } from '../game/gameAssets';
 import styles from '../style/LoadScreen.module.scss';
 
 const SPARKS = 16;
@@ -38,7 +38,7 @@ export const LoadScreen = ({ done }: { done: boolean }) => {
     let cancelled = false;
     setCompleted(0); setFailed(0); setImagesDone(false);
     let bad = 0;
-    Promise.all(GAME_IMAGES.map(async (src) => {
+    Promise.all(CRITICAL_IMAGES.map(async (src) => {
       const success = await loadImage(src);
       if (!success) bad += 1;
       if (!cancelled) setCompleted((value) => value + 1);
@@ -46,6 +46,7 @@ export const LoadScreen = ({ done }: { done: boolean }) => {
       if (cancelled) return;
       setFailed(bad);
       setImagesDone(true);
+      preloadDeferredImages();
     });
     return () => { cancelled = true; };
   }, [attempt]);
@@ -62,7 +63,7 @@ export const LoadScreen = ({ done }: { done: boolean }) => {
     return () => window.clearTimeout(timer);
   }, [phase]);
   if (phase === 'gone') return null;
-  const percent = Math.min(100, Math.round((completed / GAME_IMAGES.length) * 100));
+  const percent = Math.min(100, Math.round((completed / CRITICAL_IMAGES.length) * 100));
   return <div className={`${styles.screen} ${phase === 'out' ? styles.leaving : ''}`} role="status" aria-label="Загрузка игры">
     <div className={styles.fog} aria-hidden="true" />
     <div className={styles.fogSecond} aria-hidden="true" />
