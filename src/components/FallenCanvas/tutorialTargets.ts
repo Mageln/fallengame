@@ -35,6 +35,7 @@ export const TUTORIAL_TARGETS: Record<string, TutorialTarget> = {
   map: { kind: 'canvas', id: 'go_district', label: 'Районы на правой панели' },
   'raid-start': { kind: 'canvas', id: 'go_district', label: 'Карта районов и рейдов' },
   'raid-claim': { kind: 'canvas', id: 'go_district', label: 'Карта районов и рейдов' },
+  'raid-task': { kind: 'element', id: 'raid-task', label: 'Опасное задание рейда и кнопка «ВЫПОЛНИТЬ»' },
   boss: { kind: 'canvas', id: 'go_boss', label: 'Боссы на правой панели' },
   fist: { kind: 'element', id: 'boss-skill-jab', label: 'Удар кулаком в окне боя' },
   weapon: { kind: 'element', id: 'boss-skill-weapon', label: 'Удар оружием в окне боя' },
@@ -61,5 +62,6 @@ export const TUTORIAL_SUBTARGETS: Record<string, TutorialTarget> = {
   equipment: { kind: 'element', id: 'profile-inventory', label: 'Инвентарь в профиле' },
   workshop: { kind: 'element', id: 'profile-workshop', label: 'Мастерская в профиле' },
   arena: { kind: 'element', id: 'arena-raider', label: 'Кнопка боя с противником арены' },
+  'raid-task': { kind: 'element', id: 'raid-task', label: 'Кнопка «ВЫПОЛНИТЬ» у выбранного задания' },
 };
 export const DIRECT_TUTORIAL_TARGETS = new Set(['resources', 'profile', 'car', 'daily', 'fist', 'weapon', 'fist-block', 'block', 'fist-heal-1', 'fist-heal-2', 'heal', 'rage']);

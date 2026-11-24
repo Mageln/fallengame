@@ -77,6 +77,7 @@ export const RaidModal = ({ raidId, onClaim, onCancel, onMinimize }: RaidModalPr
             {isDone
               ? <span className={styles.taskStatus}>ВЫПОЛНЕНО</span>
               : <button type="button" className={styles.taskDo} disabled={!canPay} title={canPay ? undefined : 'Недостаточно энергии'}
+                  data-tutorial-target={done === 0 && task.id === RAID_DANGER_TASKS[0].id ? 'raid-task' : undefined}
                   onClick={() => dispatch({ type: 'COMPLETE_RAID_TASK', raidId, taskId: task.id })}>
                   <ResourceIcon name="energy" /> ВЫПОЛНИТЬ · {task.energy}
                 </button>}

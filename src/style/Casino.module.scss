@@ -32,6 +32,9 @@
 .content { padding: 10px 16px 20px; }
 .content h3 { margin: 4px 0 2px; color: #f2d095; font: 17px Stencil, Impact, sans-serif; letter-spacing: .03em; }
 .content p { color: #bdb29d; font-size: 12px; }
+.rules { margin: 8px 0 4px; padding: 10px 12px 10px 26px; border: 1px dashed #5e4830; background: #1b1710; color: #c2b6a0; font-size: 11.5px; line-height: 1.55; }
+.rules li { margin: 2px 0; }
+.rules b { color: #eed6a2; }
 
 /* Сейфы */
 .safes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 14px 0 10px; }

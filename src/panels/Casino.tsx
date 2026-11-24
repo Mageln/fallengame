@@ -37,9 +37,20 @@ export const CasinoModal = ({ onClose }: { onClose: () => void }) => {
   const timeout = useRef<number | undefined>();
   const spinTimers = useRef<number[]>([]);
   const panel = useRef<HTMLElement>(null);
+  // Колбэки держим в ref: иначе перерисовка родителя пересоздаёт их и
+  // таймеры прокрутки обрываются на середине — барабаны висят «бесконечно».
+  const closeRef = useRef(onClose);
+  useEffect(() => { closeRef.current = onClose; }, [onClose]);
   const clearSpinTimers = () => {
     spinTimers.current.forEach(id => window.clearTimeout(id));
     spinTimers.current = [];
+  };
+  const release = () => {
+    window.clearTimeout(timeout.current);
+    clearSpinTimers();
+    setBusy(false);
+    setSpinning(false);
+    setStopped(2);
   };
   useEffect(() => {
     // Пока крутятся барабаны, результат уже пришёл от редьюсера — даём анимации доиграть.
@@ -47,10 +58,20 @@ export const CasinoModal = ({ onClose }: { onClose: () => void }) => {
     setBusy(false);
     window.clearTimeout(timeout.current);
   }, [state.casino, spinning]);
+  // Смонтированное окно всегда начинает с неподвижных барабанов.
+  useEffect(() => {
+    release();
+    return () => {
+      window.clearTimeout(timeout.current);
+      clearSpinTimers();
+    };
+  }, []);
+  // Любое действие снимает «занято»: без этого кнопки оставались заблокированными,
+  // если модалку закрыли в середине анимации.
   useEffect(() => {
     panel.current?.focus();
     const key = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') { event.preventDefault(); onClose(); return; }
+      if (event.key === 'Escape') { event.preventDefault(); closeRef.current(); return; }
       if (event.key !== 'Tab' || !panel.current) return;
       const buttons = Array.from(panel.current.querySelectorAll<HTMLButtonElement>('button:not(:disabled)'));
       if (!buttons.length) return;
@@ -58,12 +79,8 @@ export const CasinoModal = ({ onClose }: { onClose: () => void }) => {
       else if (!event.shiftKey && document.activeElement === buttons[buttons.length - 1]) { event.preventDefault(); buttons[0].focus(); }
     };
     window.addEventListener('keydown', key);
-    return () => {
-      window.removeEventListener('keydown', key);
-      window.clearTimeout(timeout.current);
-      clearSpinTimers();
-    };
-  }, [onClose]);
+    return () => window.removeEventListener('keydown', key);
+  }, []);
   const act = (action: GameAction) => {
     if (busy) return;
     setBusy(true);
@@ -84,6 +101,7 @@ export const CasinoModal = ({ onClose }: { onClose: () => void }) => {
     });
     spinTimers.current.push(window.setTimeout(() => {
       setSpinning(false);
+      setStopped(2);
       setBusy(false);
     }, STOP_MS[STOP_MS.length - 1] + SETTLE_MS));
   };
@@ -133,7 +151,14 @@ export const CasinoModal = ({ onClose }: { onClose: () => void }) => {
       </div>}
       {tab === 'slots' && <div className={styles.content}>
         <h3>Три крышки</h3>
-        <p>Ставка — {CASINO_BET} фишек. Каждое вращение также даёт 1 очко клуба.</p>
+        <p>Три барабана останавливаются по очереди — выигрыш считается по итоговым символам.</p>
+        <ul className={styles.rules}>
+          <li><b>Три рации</b> 📻📻📻 — джекпот, 30 фишек.</li>
+          <li><b>Три любых одинаковых</b> — 20 фишек.</li>
+          <li><b>Любая пара</b> — возврат ставки и ещё 3 фишки.</li>
+          <li><b>Все разные</b> — ставка уходит заведению.</li>
+          <li>Ставка — {CASINO_BET} фишек. За каждое вращение клуб даёт 1 очко.</li>
+        </ul>
         <div className={`${styles.machine} ${spinningNow ? styles.machineOn : ''}`}>
           <div className={styles.reels} aria-label={spinningNow ? 'Барабаны крутятся' : `Барабаны: ${casino.reels.join(' ') || 'ещё не вращались'}`}>
             {reels.map((symbol, i) => {
@@ -161,7 +186,13 @@ export const CasinoModal = ({ onClose }: { onClose: () => void }) => {
       </div>}
       {tab === 'cards' && <div className={styles.content}>
         <h3>Карты выжившего</h3>
-        <p>Выбери карту за {CASINO_BET} фишек. Среди трёх исходов: 0 фишек, возврат 5 или выигрыш 10; каждый шанс — 1/3. За игру также даётся 1 очко клуба.</p>
+        <p>Три карты, за каждой — свой исход. Выбираешь одну, она переворачивается и показывает результат.</p>
+        <ul className={styles.rules}>
+          <li><b>Пусто</b> — ставка {CASINO_BET} фишек уходит заведению.</li>
+          <li><b>Возврат</b> — ставка возвращается целиком.</li>
+          <li><b>Выигрыш</b> — 10 фишек сверху.</li>
+          <li>Все три исхода равновероятны, за игру +1 очко клуба.</li>
+        </ul>
         <div className={styles.cards}>
           {[0, 1, 2].map(choice => {
             const flipped = showDealt && dealtCard === choice;

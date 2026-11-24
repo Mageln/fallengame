@@ -62,7 +62,9 @@ export const Tutorial = ({ version, step, onLocate, onPractice, onSkip }: Props)
       } else {
         const preview = target.id.startsWith('boss-skill-') || target.id === 'boss-rage' ? 'battle'
           : target.id.startsWith('boss-') ? 'boss' : undefined;
-        const scope = preview ? document.querySelector(`[data-tutorial-preview="${preview}"]`) : document;
+        // Окно рейда рисуется поверх канваса, поэтому его цели ищем во всём документе.
+        const overlay = target.id === 'raid-task' ? document : null;
+        const scope = overlay ?? (preview ? document.querySelector(`[data-tutorial-preview="${preview}"]`) : document);
         const element = scope?.querySelector<HTMLElement>(`[data-tutorial-target="${target.id}"]`);
         if (element) {
           if (!scrolled) { element.scrollIntoView?.({ block: 'center', inline: 'nearest' }); scrolled = true; }
@@ -118,7 +120,10 @@ export const Tutorial = ({ version, step, onLocate, onPractice, onSkip }: Props)
         <p>Тренировка не расходует ресурсы и не выдаёт наград.</p>
         <p>Нажмите на подсвеченное место в игре: <b>{target.label}</b>.</p>
         {!rect && <p role="status">Ищем элемент интерфейса…</p>}
-        {!rect && timedOutId === targetKey && <button type="button" className={styles.next} onClick={locate}>ПРОДОЛЖИТЬ БЕЗ ПОДСВЕТКИ</button>}
+        {timedOutId === targetKey && (rect
+          ? <p className={styles.hint}>Подсветка показывает, куда нажать. Если нажать не получается, продолжите обучение —<br />
+              <button type="button" className={styles.next} onClick={() => onPractice(stepId)}>ПРОДОЛЖИТЬ ОБУЧЕНИЕ</button></p>
+          : <button type="button" className={styles.next} onClick={locate}>ПРОДОЛЖИТЬ БЕЗ ПОДСВЕТКИ</button>)}
         <button type="button" className={styles.skip} onClick={() => { if (window.confirm('Пропустить тренировку? Повторно запустить её будет нельзя.')) onSkip(); }}>ПРОПУСТИТЬ ТРЕНИРОВКУ</button>
       </section>
     </div>;

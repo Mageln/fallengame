@@ -59,7 +59,7 @@ export const Home = ({ id }: HomeProps) => {
   const showTutorialPreview = (id: string) => {
     if (id === 'profile' || id === 'equipment' || id === 'workshop') setShowProfile(true);
     if (id === 'skills') document.querySelector<HTMLButtonElement>('[data-tutorial-target="profile-skills"]')?.click();
-    if (id === 'map' || id === 'raid-start' || id === 'raid-claim') setTutorialMap(true);
+    if (id === 'map' || id === 'raid-start' || id === 'raid-claim' || id === 'raid-task') setTutorialMap(true);
     if (id === 'quests' || id === 'task') setShowQuests(true);
     if (id === 'boss') setTutorialPreview('boss');
     if (['arena', 'store', 'shelter', 'social', 'clan'].includes(id)) setTutorialPreview(id);
@@ -162,7 +162,11 @@ export const Home = ({ id }: HomeProps) => {
           ? (region.raids as readonly string[]).includes(raid.id)
           : !EXTRA_MAP_RAIDS.some((extra) => extra.id === raid.id))}
         raidMapImage={region?.image}
-        onRaidClick={handleRaidClick}
+        onRaidClick={(raidId) => {
+          handleRaidClick(raidId);
+          // Тренировка ведёт к опасным заданиям: открываем окно рейда сразу.
+          if (tutorialActive && tutorialId === 'raid-task') dispatch({ type: 'OPEN_RAID_TASKS', raidId });
+        }}
         notifications={state.notifications}
         showNotifications={state.showNotifications}
         unreadNotifications={unreadNotifications}
@@ -235,7 +239,15 @@ export const Home = ({ id }: HomeProps) => {
       </div>
       {tutorialActive && <Suspense fallback={null}><Tutorial version={state.tutorialVersion} step={state.tutorialStep}
         onLocate={showTutorialPreview}
-        onPractice={(stepId) => dispatch({ type: 'TUTORIAL_PRACTICE', stepId })}
+        onPractice={(stepId) => {
+          dispatch({ type: 'TUTORIAL_PRACTICE', stepId });
+          // Учебный рейд нужно закрыть, иначе следующая цель останется за модалкой.
+          if (stepId === 'raid-claim') {
+            dispatch({ type: 'CLOSE_RAID_TASKS' });
+            dispatch({ type: 'MINIMIZE_RAID' });
+            setTutorialMap(false);
+          }
+        }}
         onSkip={() => dispatch({ type: 'SKIP_TUTORIAL' })} /></Suspense>}
     </div>
   );

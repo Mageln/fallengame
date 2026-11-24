@@ -84,4 +84,4 @@
 .rageBadge { color: #ff6a44; font-weight: bold; letter-spacing: .06em; text-shadow: 0 0 10px #b22c12; }
 @media (max-width: 600px) { .enemyStage { height: clamp(145px, 42vw, 200px); } .arena .enemyFull { width: 100%; height: 100%; } }
 
-.arena .clothingOverlay { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; border: 0; box-shadow: none; pointer-events: none; }
+.arena .clothingOverlay { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: fill; border: 0; box-shadow: none; pointer-events: none; }
