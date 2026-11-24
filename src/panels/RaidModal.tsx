@@ -65,19 +65,29 @@ export const RaidModal = ({ raidId, onClaim, onCancel, onMinimize }: RaidModalPr
     {tasks?.open && <div className={styles.taskBackdrop} onClick={(event) => { event.stopPropagation(); dispatch({ type: 'CLOSE_RAID_TASKS' }); }}>
       <section className={styles.taskPanel} role="dialog" aria-modal="true" aria-label="Опасные задания рейда" onClick={(event) => event.stopPropagation()}>
         <span className={styles.tape} aria-hidden="true"/><small>ЗАПИСКА · ОПАСНОСТЬ РЕЙДА</small><h2>☢ ЗАДАНИЯ В РЕЙДЕ</h2>
-        <p>Выполняйте оставшиеся задания за энергию по порядку или сразу все за премиум-золото. Повторные награды запрещены.</p>
+        <p>Выполняйте задания за энергию по одному — кнопка у каждого задания. Или сразу все за премиум-золото. Повторные награды запрещены.</p>
         <div className={styles.progressLabel}><span>Выполнено</span><strong>{done}/{RAID_DANGER_TASKS.length}</strong></div>
         <progress value={done} max={RAID_DANGER_TASKS.length} aria-label="Выполненные задания" />
-        <ul>{RAID_DANGER_TASKS.map((task) => <li key={task.id}>
-          <span>{tasks.completedIds.includes(task.id) ? '✓' : '☠'}</span><div><strong>{task.title}</strong><small><ResourceIcon name="energy" /> {task.energy} · <ResourceIcon name="tokens" /> +{task.tokens} · ❤️ +{task.hp} HP</small></div>
-          <span>{tasks.completedIds.includes(task.id) ? 'ВЫПОЛНЕНО' : 'НЕ ПРОЙДЕНО'}</span>
-        </li>)}</ul>
+        <ul>{RAID_DANGER_TASKS.map((task) => {
+          const isDone = tasks.completedIds.includes(task.id);
+          const canPay = state.energy >= task.energy;
+          return <li key={task.id} className={isDone ? styles.taskDone : undefined}>
+            <span aria-hidden="true">{isDone ? '✓' : '☠'}</span>
+            <div><strong>{task.title}</strong><small><ResourceIcon name="energy" /> {task.energy} · <ResourceIcon name="tokens" /> +{task.tokens} · ❤️ +{task.hp} HP</small></div>
+            {isDone
+              ? <span className={styles.taskStatus}>ВЫПОЛНЕНО</span>
+              : <button type="button" className={styles.taskDo} disabled={!canPay} title={canPay ? undefined : 'Недостаточно энергии'}
+                  onClick={() => dispatch({ type: 'COMPLETE_RAID_TASK', raidId, taskId: task.id })}>
+                  <ResourceIcon name="energy" /> ВЫПОЛНИТЬ · {task.energy}
+                </button>}
+          </li>;
+        })}</ul>
         <div className={styles.rewards}><span><ResourceIcon name="energy" /> Энергия: {state.energy}</span><span><ResourceIcon name="premium" /> Золото: {state.premiumGold}</span><span>❤️ HP: {state.health}/{state.maxHealth}</span></div>
         <div className={styles.actions}>
-          <button type="button" disabled={!remaining.length || !affordableEnergy} onClick={() => dispatch({ type: 'COMPLETE_RAID_TASKS', raidId, mode: 'energy' })}><ResourceIcon name="energy" /> ВЫПОЛНИТЬ ЗА ЭНЕРГИЮ</button>
           <button type="button" className={styles.primary} disabled={!remaining.length || state.premiumGold < RAID_TASK_GOLD_PRICE} onClick={() => dispatch({ type: 'COMPLETE_RAID_TASKS', raidId, mode: 'gold' })}><ResourceIcon name="premium" /> ВСЁ ЗА {RAID_TASK_GOLD_PRICE} ЗОЛОТА</button>
           <button type="button" onClick={() => dispatch({ type: 'CLOSE_RAID_TASKS' })}>ЗАКРЫТЬ</button>
         </div>
+        {remaining.length > 0 && !affordableEnergy && <p className={styles.notice}>Не хватает энергии даже на одно задание — ждите восстановления.</p>}
         {state.lastMessage && <p role="status" className={styles.notice}><ResourceText text={state.lastMessage} /></p>}
       </section>
     </div>}

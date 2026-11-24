@@ -26,6 +26,11 @@
 .taskPanel li { display: flex; align-items: center; gap: 10px; padding: 12px 4px; border-bottom: 1px dashed #70583b; font-size: 12px; }
 .taskPanel li div { flex: 1; }
 .taskPanel li strong, .taskPanel li small { display: block; }
+.taskPanel li.taskDone { opacity: .58; }
+.taskPanel li button.taskDo { flex: 0 0 auto; padding: 7px 10px; font-size: 11px; white-space: nowrap; background: #3d2f1d; border-color: #9c653a; }
+.taskPanel li button.taskDo:hover:not(:disabled) { background: #573a22; }
+.taskStatus { flex: 0 0 auto; color: #78a447; font-size: 11px; letter-spacing: .04em; }
+@media (max-width: 450px) { .taskPanel li { flex-wrap: wrap; } .taskPanel li button.taskDo { width: 100%; } }
 .lamp { width: 13px; height: 13px; border-radius: 50%; background: #ca3a28; box-shadow: 0 0 12px #8b1a1a; animation: flicker 4s steps(1) infinite; }
 @keyframes flicker { 0%, 91%, 100% { opacity: 1; } 92%, 96% { opacity: .35; } }
 @media (max-width: 450px) { .panel, .taskPanel { padding: 14px; } .timer { font-size: 30px; } }

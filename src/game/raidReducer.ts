@@ -6,7 +6,7 @@ import { mapRaidExperience, RAID_LOOT_EXPERIENCE } from './experience';
 import { RAID_DANGER_TASKS, RAID_TASK_GOLD_PRICE } from './survival';
 import type { GameAction, GameNotification, GameState } from './types';
 
-type RaidAction = Extract<GameAction, { type: 'OPEN_MAP_RAID' | 'START_RAID' | 'RAID_SCOUT' | 'RAID_BYPASS' | 'RAID_LOOT' | 'LEAVE_RAID' | 'MINIMIZE_RAID' | 'CHECK_RAIDS' | 'CANCEL_RAID' | 'CLAIM_RAID_REWARD' | 'OPEN_RAID_TASKS' | 'CLOSE_RAID_TASKS' | 'COMPLETE_RAID_TASKS' }>;
+type RaidAction = Extract<GameAction, { type: 'OPEN_MAP_RAID' | 'START_RAID' | 'RAID_SCOUT' | 'RAID_BYPASS' | 'RAID_LOOT' | 'LEAVE_RAID' | 'MINIMIZE_RAID' | 'CHECK_RAIDS' | 'CANCEL_RAID' | 'CLAIM_RAID_REWARD' | 'OPEN_RAID_TASKS' | 'CLOSE_RAID_TASKS' | 'COMPLETE_RAID_TASKS' | 'COMPLETE_RAID_TASK' }>;
 
 export const reduceRaid = (state: GameState, action: RaidAction): GameState => {
   switch (action.type) {
@@ -225,6 +225,26 @@ export const reduceRaid = (state: GameState, action: RaidAction): GameState => {
     }
     case 'CLOSE_RAID_TASKS':
       return state.raidTasks ? { ...state, raidTasks: { ...state.raidTasks, open: false } } : state;
+    case 'COMPLETE_RAID_TASK': {
+      const tasks = state.raidTasks;
+      const raid = state.mapRaids.find((entry) => entry.id === action.raidId);
+      if (!tasks?.open || tasks.raidId !== action.raidId || !raid?.isRunning || raid.completed) return state;
+      const task = RAID_DANGER_TASKS.find((entry) => entry.id === action.taskId);
+      if (!task) return state;
+      if (tasks.completedIds.includes(task.id)) return msg(state, 'Это задание уже выполнено.');
+      if (state.energy < task.energy) return msg(state, 'Недостаточно энергии для этого задания.');
+      const completedIds = [...tasks.completedIds, task.id];
+      const next = {
+        ...state,
+        energy: state.energy - task.energy,
+        zhetons: state.zhetons + task.tokens,
+        health: Math.min(state.maxHealth, state.health + task.hp),
+        raidTasks: { ...tasks, completedIds },
+        raidTaskProgress: { ...state.raidTaskProgress, [raid.id]: completedIds },
+        lastMessage: `${task.title}: +${task.tokens} жетонов 🎟️, +${task.hp} HP.`,
+      };
+      return recordResources(next, 'solo-task', { tokens: task.tokens });
+    }
     case 'COMPLETE_RAID_TASKS': {
       const tasks = state.raidTasks;
       const raid = state.mapRaids.find((entry) => entry.id === action.raidId);

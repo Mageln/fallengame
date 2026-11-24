@@ -906,6 +906,7 @@ export const gameReducer = (state: GameState, action: GameAction): GameState => 
     case 'OPEN_RAID_TASKS':
     case 'CLOSE_RAID_TASKS':
     case 'COMPLETE_RAID_TASKS':
+    case 'COMPLETE_RAID_TASK':
       return reduceRaid(state, action);
     case 'CHANGE_LOCATION': {
       const room = LOCATIONS.find((location) => location.id === action.locationId);

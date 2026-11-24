@@ -562,6 +562,7 @@ export type GameAction =
   | { type: 'OPEN_RAID_TASKS'; raidId: string }
   | { type: 'CLOSE_RAID_TASKS' }
   | { type: 'COMPLETE_RAID_TASKS'; raidId: string; mode: 'gold' | 'energy' }
+  | { type: 'COMPLETE_RAID_TASK'; raidId: string; taskId: string }
   | { type: 'LOTTERY' }
   | { type: 'SEARCH_FRIEND' }
   | { type: 'RADIO_HELP' }

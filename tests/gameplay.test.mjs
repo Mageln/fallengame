@@ -118,6 +118,37 @@ test('timed boss attacks reset after two hours and extra attacks cost caps', () 
   } finally { BOSS_ATTACK_CONFIG.timedLimits = false; }
 });
 
+test('raid tasks can be completed one by one with their own energy cost', () => {
+  let state = { ...createInitialState(), energy: 100, health: 40, premiumGold: 30 };
+  state = act(state, 'START_RAID', { raidId: 'raid_1' });
+  state = act(state, 'OPEN_RAID_TASKS', { raidId: 'raid_1' });
+  const startEnergy = state.energy;
+  state = act(state, 'COMPLETE_RAID_TASK', { raidId: 'raid_1', taskId: 'medicine' });
+  assert.deepEqual(state.raidTasks.completedIds, ['medicine']);
+  assert.equal(state.energy, startEnergy - 8);
+  assert.equal(state.zhetons, 3);
+  assert.equal(state.health, 52);
+  assert.equal(state.premiumGold, 30);
+  // повторный клик по тому же заданию ничего не даёт
+  const repeat = act(state, 'COMPLETE_RAID_TASK', { raidId: 'raid_1', taskId: 'medicine' });
+  assert.deepEqual(repeat.raidTasks.completedIds, ['medicine']);
+  assert.equal(repeat.energy, startEnergy - 8);
+  assert.equal(repeat.zhetons, 3);
+  // соседнее задание выполняется отдельно и не задевает остальные
+  state = act(state, 'COMPLETE_RAID_TASK', { raidId: 'raid_1', taskId: 'barricade' });
+  assert.deepEqual(state.raidTasks.completedIds, ['medicine', 'barricade']);
+  assert.equal(state.energy, startEnergy - 14);
+  assert.equal(state.zhetons, 5);
+  assert.equal(state.raidTaskProgress[state.raidTasks.raidId].length, 2);
+  assert.equal(state.raidTasks.completedIds.includes('signal'), false);
+  // без энергии задание не выполняется
+  state = { ...state, energy: 2 };
+  const poor = act(state, 'COMPLETE_RAID_TASK', { raidId: 'raid_1', taskId: 'signal' });
+  assert.equal(poor.raidTasks.completedIds.includes('signal'), false);
+  assert.equal(poor.energy, 2);
+  assert.match(poor.lastMessage, /энергии/i);
+});
+
 test('raid awards matches, tasks award tokens and health, never donation gold', () => {
   let state = { ...createInitialState(), energy: 100, health: 40, premiumGold: 30 };
   state = act(state, 'START_RAID', { raidId: 'raid_1' });
